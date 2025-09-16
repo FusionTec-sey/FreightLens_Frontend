@@ -8,7 +8,8 @@ import { getMaterialNames } from '../../../utils/reSolveMaterial';
 import { useOptions } from "../../../hooks/useOptions";
 import { Pencil, Trash2 } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
-
+// import { X } from 'lucide-react';
+import { useTheme } from '../../../context/ThemeContext';
 const CLIENT_PAGE_SIZE = 100;
 const SERVER_PAGE_SIZE = 500;
 
@@ -21,7 +22,7 @@ export default function CompleteContainer() {
   const [currentServerPage, setCurrentServerPage] = useState(1);
   const [loadedServerPages, setLoadedServerPages] = useState(new Set());
   const [filterData, setFilterData] = useState({});
-
+  const { theme } = useTheme();
   const { permissions } = useAuth();
   const {
     material: materialOptions,
@@ -231,7 +232,7 @@ export default function CompleteContainer() {
   }), [handleDelete, handleEdit, permissions]);
 
   return (
-    <div className='flex items-stretch flex-col w-full max-h-screen p-4'>
+    <div className={`flex items-stretch flex-col w-full max-h-screen ${theme.background}`}>
       <TableDisplay
         key="container-table"
         columns={columns}
@@ -241,6 +242,7 @@ export default function CompleteContainer() {
         serverPageSize={SERVER_PAGE_SIZE}
         isLoading={isLoading || optionsLoading}
         onPageChange={handlePageChange}
+        theme={theme}
         onDataChange={() => {
           setLoadedServerPages(new Set());
           fetchData(0, SERVER_PAGE_SIZE, filterData);
@@ -249,6 +251,8 @@ export default function CompleteContainer() {
         title="Complete Containers"
         userPermissions={permissions}
         filterPopup={filterPopup}
+        getRowClassName={(row) => {
+                return 'hover:bg-gray-100 bg-white text-gray-900'}}
       />
 
       {isEditFormOpen && (

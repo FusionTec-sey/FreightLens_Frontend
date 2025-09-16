@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { useTheme } from "../context/ThemeContext";
 const hasViewPermission = (key, permissions) => {
   return permissions.includes(`View_${key}`);
 };
@@ -8,7 +8,7 @@ const FilterPopup = ({ columns, userPermissions = [], handleFilterChange }) => {
   const filterableColumns = columns.filter(
     (col) => col.filterable && hasViewPermission(col.key, userPermissions)
   );
-
+  // const { theme } = useTheme();
   const [selectedField, setSelectedField] = useState("");
   const [searchValue, setSearchValue] = useState("");
 
@@ -26,20 +26,20 @@ const FilterPopup = ({ columns, userPermissions = [], handleFilterChange }) => {
   }, [searchValue, selectedField]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={`flex flex-col gap-4 `}>
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Filter By</label>
         <select
-          className="border p-1 rounded"
+          className="border p-1 rounded text-gray-900"
           value={selectedField}
           onChange={(e) => {
             setSelectedField(e.target.value);
             setSearchValue(""); // Reset on new selection
           }}
         >
-          <option value="">-- Select Field --</option>
+          <option value="" className="text-gray-900">-- Select Field --</option>
           {filterableColumns.map(({ key, label }) => (
-            <option key={key} value={key}>
+            <option key={key} value={key} className="text-gray-900">
               {label}
             </option>
           ))}

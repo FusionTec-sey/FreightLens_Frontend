@@ -7,7 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { formatDateTime12hr } from '../../../utils/DateFormater';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
-
+import { useTheme } from '../../../context/ThemeContext';
 const CLIENT_PAGE_SIZE = 100;
 const SERVER_PAGE_SIZE = 300;
 
@@ -15,7 +15,7 @@ export default function BillOfLanding() {
     const navigate = useNavigate();
     const { permissions } = useAuth();
     // const [loadedServerPages, setLoadedServerPages] = useState(new Set());
-    
+    const { theme } = useTheme();
     
     // Consolidated state
     const [state, setState] = useState({
@@ -190,7 +190,7 @@ export default function BillOfLanding() {
     }, [fetchData]);
 
     return (
-        <div className="flex flex-col h-full p-4 space-y-4 bg-gray-50 rounded-lg">
+        <div className={`flex flex-col h-full space-y-4 rounded-lg ${theme.background} `}>
             <TableDisplay
                 key="bill-of-landing-table"
                 columns={columns}
@@ -214,7 +214,8 @@ export default function BillOfLanding() {
                 serverPageSize={SERVER_PAGE_SIZE}
                 isLoading={state.isLoading }
                 onPageChange={handlePageChange}
-
+                theme={theme}
+                
                 addButtonText="Add BL"
                 addButtonPermission="Add_BillOfLanding"
                 addDataHandler={() => navigate('/BillOfLanding/new')}
@@ -235,6 +236,8 @@ export default function BillOfLanding() {
                         )}
                     </div>
                 }
+                getRowClassName={(row) => {
+                 return 'hover:bg-gray-100 bg-white text-gray-900'}}
             />
         </div>
     );

@@ -4,10 +4,10 @@ import TypableSelect from "../../UI/UXComponent/TypebleSelect.js";
 // import { getAllOptions } from "../../../utils/optionCache.js";
 import { useOptions } from "../../../hooks/useOptions";
 
-import VesselSelector from "../../UI/AddSelect.js";
+// import VesselSelector from "../../UI/AddSelect.js";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput.js";
 import GenericSelector from    "../../UI/UXComponent/GenericSelector.js";
-
+import { useTheme } from "../../../context/ThemeContext.js";
 function ContainerEntryForm({
   editData, 
   onSubmitSuccess, 
@@ -48,7 +48,7 @@ function ContainerEntryForm({
   const [selectedVessel, setSelectedVessel] = useState([]);
 
 
-
+  const { isDark, theme } = useTheme();
   const {
     suppliers,
     consignees,
@@ -362,13 +362,13 @@ function ContainerEntryForm({
   ];
   
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+    <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 `}>
 
         {fields
           .filter(({ permission }) => hasViewPermission(permission))
           .map(({ label, name, type, options, permission, api, refreshVal }) => (
             <div key={name} className={name === "material" ? "col-span-full md:col-span-3" : ""}>
-              <label htmlFor={name} className="block mb-1 font-medium text-gray-700">{label}</label>
+              <label htmlFor={name} className="block mb-1 font-medium">{label}</label>
               {type === "select" ? (
                 <TypableSelect
                   options={options}

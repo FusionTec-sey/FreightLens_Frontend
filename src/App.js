@@ -3,14 +3,16 @@ import { AuthProvider } from './context/AuthContext';
 import MainPage from './component/MainPage';
 import { BrowserRouter } from 'react-router-dom';
 import { OptionsProvider } from './context/OptionsContext'; // ✅ fixed import
-
+import { ThemeProvider } from './context/ThemeContext';
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <OptionsProvider>
-          <MainPage />
-        </OptionsProvider>
+        <ThemeProvider>
+          <OptionsProvider>
+            <MainPage />
+          </OptionsProvider>
+        </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
   );

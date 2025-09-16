@@ -8,11 +8,12 @@ import { convertToLocalDateTimeInput } from '../../../utils/DateFormater';
 import { useOptions } from "../../../hooks/useOptions";
 import { Pencil, Trash2 } from 'lucide-react';
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
-
+import { useTheme } from '../../../context/ThemeContext';
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 200;
 
 export default function BillOfLandingInfo() {
+    const {theme } = useTheme();
     const { permissions } = useAuth();
     const { Id } = useParams();
     const location = useLocation();
@@ -264,7 +265,7 @@ export default function BillOfLandingInfo() {
         setIsLoading(true);
         try {
             const response = await axios.get(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/track/bl`, 
+                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/track_and_trace`, 
                 {
                     params: { 
                         bl: blNumber,
@@ -277,6 +278,7 @@ export default function BillOfLandingInfo() {
             );
             
             let data = response.data;
+            console.log(data, "fetched container data")
             if (typeof data === 'string') {
                 try {
                     data = JSON.parse(data);
@@ -655,6 +657,7 @@ export default function BillOfLandingInfo() {
                 serverPageSize={SERVER_PAGE_SIZE}
                 isLoading={isLoading || optionsLoading}
                 onPageChange={handlePageChange}
+                theme={theme}
                 addDataComponent={
                     <ContainerEntryForm 
                         onSubmitSuccess={handleAddContainer}

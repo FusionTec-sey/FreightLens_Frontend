@@ -17,7 +17,7 @@ import {
   Legend,
 } from "chart.js";
 import axios from "axios";
-
+import { useTheme } from "../../../context/ThemeContext";
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 const Dashboard = () => {
@@ -35,7 +35,7 @@ const Dashboard = () => {
   const yearOptions = Array.from({ length: currentYear - 2020 + 1 }, (_, i) => (2020 + i).toString());
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [yearlyData, setYearlyData] = useState(Array(12).fill(0));
-
+  const { theme } = useTheme();
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const chartData = {
@@ -111,48 +111,48 @@ const Dashboard = () => {
   }, [selectedYear]);
 
   return (
-    <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
+    <div className={`p-4 sm:p-6 bg-gray-50 h-full ${theme.background} ${theme.text}`}>
       <h1 className="text-2xl sm:text-3xl font-bold mb-4">Dashboard</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {cards.map((card, i) => (
           <div
             key={i}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex items-center justify-between hover:shadow-md transition"
+            className={`rounded-xl border-2 border-gray-200 shadow-sm p-4 flex items-center justify-between hover:shadow-md transition ${theme.border} ${theme.background} `}
           >
             <div>
-              <h2 className="text-sm text-gray-500 font-medium uppercase">{card.label}</h2>
-              <p className="text-xl font-bold text-gray-800">{stats[card.key]}</p>
+              <h2 className="text-sm  font-medium uppercase">{card.label}</h2>
+              <p className="text-xl font-bold ">{stats[card.key]}</p>
             </div>
             <div className={`${card.bg} p-3 rounded-full`}>{card.icon}</div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm lg:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-4">
+        <div className={` h-max border-2  rounded-xl p-4 shadow-sm lg:col-span-1 ${theme.border} ${theme.background} `}>
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h2 className="text-gray-500 text-sm font-medium uppercase">Arrived</h2>
-              <p className="text-xl font-bold text-gray-800">{stats.arrived}</p>
+              <h2 className="text-sm font-medium uppercase">Arrived</h2>
+              <p className="text-xl font-bold ">{stats.arrived}</p>
             </div>
             <div className="bg-green-100 text-green-600 p-3 rounded-full">
               <CheckCircle size={24} />
             </div>
           </div>
-          <div className="overflow-y-auto max-h-52 border rounded">
+          <div className={`overflow-y-auto max-h-52 border-2 rounded  ${theme.scrollbar} ${theme.border}`}>
             <table className="w-full text-sm">
-              <thead className="bg-gray-100">
+              <thead className={`sticky top-0 bg-white border-b ${theme.border} ${theme.profileText} bg-gray-100`}>
                 <tr>
-                  <th className="p-2 text-left text-xs font-semibold text-gray-600">Container</th>
-                  <th className="p-2 text-left text-xs font-semibold text-gray-600">Location</th>
+                  <th className="p-2 text-left text-xs font-semibold ">Container</th>
+                  <th className="p-2 text-left text-xs font-semibold ">Location</th>
                 </tr>
               </thead>
               <tbody>
                 {arrivedContainers.map((c, i) => (
                   <tr key={i} className="border-t">
-                    <td className="p-2 text-gray-700">{c.container_no}</td>
-                    <td className="p-2 text-gray-700">{c.location}</td>
+                    <td className="p-2 ">{c.container_no}</td>
+                    <td className="p-2">{c.location}</td>
                   </tr>
                 ))}
               </tbody>
@@ -160,15 +160,15 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm lg:col-span-2">
+        <div className={` border  rounded-xl p-4 shadow-sm lg:col-span-2 ${theme.border} `}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-gray-800">Containers per Month</h2>
-              <p className="text-sm text-gray-500">Yearly overview with monthly breakdown</p>
+              <h2 className="text-lg font-semibold ">Containers per Month</h2>
+              <p className="text-sm ">Yearly overview with monthly breakdown</p>
             </div>
             <div className="flex items-center gap-3">
               <select
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-400"
+                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-blue-400 text-gray-900"
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
               >
@@ -183,13 +183,13 @@ const Dashboard = () => {
           </div>
 
           <div className="mb-4">
-            <span className="text-gray-600 font-medium">Total containers in {selectedYear}: </span>
-            <span className="text-gray-900 font-bold text-lg">
+            <span className=" font-medium">Total containers in {selectedYear}: </span>
+            <span className=" font-bold text-lg">
               {yearlyData.reduce((sum, val) => sum + val, 0)}
             </span>
           </div>
 
-          <div className="h-72 w-full overflow-x-auto">
+          <div className="h-[30vh] w-full overflow-x-auto ">
             <Bar data={chartData} options={{ ...chartOptions, maintainAspectRatio: false }} />
           </div>
         </div>

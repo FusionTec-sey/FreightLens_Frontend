@@ -11,7 +11,7 @@ import Unauthorized from "./Pages/Unauthorized/Unauthorized.js";
 import Setting from "./Pages/Setting/Setting.js";
 import BillOfLanding from "./Pages/BillOfLanding/BillOfLanding.js";
 import BillOfLandingInfo from "./Pages/BillOfLanding/BillOfLandingInfo.js";
-
+import { useTheme } from "../context/ThemeContext.js";
 export default function MainPage() {
   const location = useLocation();
   const isLoginPage = location.pathname === "/";
@@ -21,7 +21,7 @@ export default function MainPage() {
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", sidebarVisible);
   }, [sidebarVisible]);
-
+  const { theme } = useTheme();
   return (
     <div className="flex min-h-screen bg-slate-100 relative">
       {/* Sidebar for desktop */}
@@ -59,9 +59,10 @@ export default function MainPage() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className={`flex-1 overflow-y-auto ${theme.background} ${theme.text} ${theme.scrollbar} ${isLoginPage ? '' : 'p-4 md:p-6'}`}>
           <Routes>
             <Route path="/" element={<LoginPage />} />
+            
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/Complete" element={<PrivateRoute requiredPermissions={["View_Container"]}><CompleteContainer /></PrivateRoute>} />
             <Route path="/viewContainer" element={<PrivateRoute requiredPermissions={["View_Container"]}><ContainerEntry /></PrivateRoute>} />

@@ -7,15 +7,16 @@ import { useAuth } from '../../../context/AuthContext';
 import { formatDateTime12hr } from '../../../utils/DateFormater';
 import { getMaterialNames } from '../../../utils/reSolveMaterial';
 import { useOptions } from "../../../hooks/useOptions";
-import { Pencil, Trash2 } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
-import Select from 'react-select/base';
+// import Select from 'react-select/base';
 import { Mail } from 'lucide-react';
-
+import { useTheme } from '../../../context/ThemeContext';
 const CLIENT_PAGE_SIZE = 100;
 const SERVER_PAGE_SIZE = 500;
 
 export default function ContainerEntry() {
+    const { isDark, theme } = useTheme();
     const [rows, setRows] = useState([]);
     const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
@@ -227,7 +228,7 @@ export default function ContainerEntry() {
      const actionColumn = useMemo(() => ({
         render: (row) => (
             <div className="flex justify-center space-x-2">
-                {permissions.includes('Edit_Container') && (
+                {/* {permissions.includes('Edit_Container') && (
                     <button 
                         onClick={() => handleEdit(row)} 
                         className="text-blue-500 hover:text-blue-700"
@@ -235,7 +236,7 @@ export default function ContainerEntry() {
                     >
                         <Pencil size={18} />
                     </button>
-                )}
+                )} */}
                 {permissions.includes('Delete_Container') && (
                     <button 
                         onClick={() => handleDelete(row.ContainerId)} 
@@ -248,6 +249,8 @@ export default function ContainerEntry() {
             </div>
         )
     }), [handleDelete, handleEdit, permissions]);
+
+
 
     const handlePickupEmail = async () => {
 
@@ -327,6 +330,7 @@ export default function ContainerEntry() {
     }, [optionsLoading, materialOptions, fetchData]);
     
     const filterPopup = (
+        
         <FilterForm
         columns={columns}
         userPermissions={permissions}
@@ -335,7 +339,9 @@ export default function ContainerEntry() {
     );
 
    return (
-        <div className='flex flex-col w-full h-full p-4 space-y-4'>
+        <div className={`flex flex-col w-full h-full  ${
+        theme.background
+      }`}>
             <TableDisplay 
                 key="container-table"
                 columns={columns} 
@@ -358,6 +364,8 @@ export default function ContainerEntry() {
                     />
                 }
                 addButtonText="Add Container"
+                theme={theme}
+                onRowClick={(row) => {permissions.includes('Edit_Container') && handleEdit(row)}}
                 addButtonPermission="Add_Container"
                 filterPopup={filterPopup}
                 emptyStateComponent={
@@ -375,15 +383,39 @@ export default function ContainerEntry() {
                 }
 
                 getRowClassName={(row) => {
-                    switch (row.Status) {
-                    case 'Unloaded': return 'hover:bg-yellow-50 bg-yellow-200';
-                    case 'In Transit': return 'hover:bg-gray-100 bg-white';
-                    case 'On port': return 'hover:bg-blue-50 bg-blue-200';
-                    case 'Gate Pass': return 'hover:bg-green-50 bg-green-200';
-                    case 'Arrived': return 'hover:bg-indigo-50 bg-indigo-200';
-                    default: return '';
+                    // if (isDark) {
+                    //     switch (row.Status) {
+                    //         case 'Unloaded':
+                    //             return 'hover:bg-yellow-800 bg-yellow-900 text-yellow-100';
+                    //         case 'In Transit':
+                    //             return 'hover:bg-gray-700 bg-gray-800 text-gray-200';
+                    //         case 'On port':
+                    //             return 'hover:bg-blue-800 bg-blue-900 text-blue-100';
+                    //         case 'Gate Pass':
+                    //             return 'hover:bg-green-800 bg-green-900 text-green-100';
+                    //         case 'Arrived':
+                    //             return 'hover:bg-indigo-800 bg-indigo-900 text-indigo-100';
+                    //         default:
+                    //             return 'hover:bg-gray-700 bg-gray-800 text-gray-200';
+                    //     }
+                    // } else {
+                        switch (row.Status) {
+                            case 'Unloaded':
+                                return 'hover:bg-yellow-50 bg-yellow-200 text-yellow-900';
+                            case 'In Transit':
+                                return 'hover:bg-gray-100 bg-white text-gray-900';
+                            case 'On port':
+                                return 'hover:bg-blue-50 bg-blue-200 text-blue-900';
+                            case 'Gate Pass':
+                                return 'hover:bg-green-50 bg-green-200 text-green-900';
+                            case 'Arrived':
+                                return 'hover:bg-indigo-50 bg-indigo-200 text-indigo-900';
+                            default:
+                                return 'hover:bg-gray-100 bg-white text-gray-900';
+                        // }
                     }
                 }}
+
                 extraButton={{
                     button: <div className="flex items-center gap-1"><Mail/> </div>,
                     title: "Mail",
@@ -410,24 +442,43 @@ export default function ContainerEntry() {
 
             {/* Edit Form Modal */}
             {isEditFormOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold">Edit Container</h2>
-                            <button 
-                                onClick={handleEditFormClose}
-                                className="text-gray-500 hover:text-gray-700 transition-colors"
-                                aria-label="Close modal"
-                            >
-                                ✕
-                            </button>
+                // <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                //     <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                //         <div className="flex justify-between items-center mb-4">
+                //             <h2 className="text-xl font-semibold">Edit Container</h2>
+                //             <button 
+                //                 onClick={handleEditFormClose}
+                //                 className="text-gray-500 hover:text-gray-700 transition-colors"
+                //                 aria-label="Close modal"
+                //             >
+                //                 ✕
+                //             </button>
+                //         </div>
+                //         <ContainerEntryForm 
+                //             editData={editingContainer}
+                //             onSubmitSuccess={handleEditFormSubmitSuccess}
+                //             onCancel={handleEditFormClose}
+                //             userPermissions={permissions}
+                //         />
+                //     </div>
+                // </div>
+                <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 `}>
+                    <div className={`rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col border-2 ${
+                        theme.background
+                        // theme.border
+                        } ${theme.border} shadow-lg overflow-hidden`}>
+                        <div className="flex justify-between items-center p-4 border-b">
+                        <h3 className="text-lg font-semibold">Add New Item</h3>
+                        <button onClick={handleEditFormClose}><X /></button>
                         </div>
-                        <ContainerEntryForm 
-                            editData={editingContainer}
-                            onSubmitSuccess={handleEditFormSubmitSuccess}
-                            onCancel={handleEditFormClose}
-                            userPermissions={permissions}
-                        />
+                        <div className={`overflow-y-auto p-4 ${theme.scrollbar}`} style={{ maxHeight: 'calc(90vh - 64px)' }}>
+                         <ContainerEntryForm 
+                             editData={editingContainer}
+                             onSubmitSuccess={handleEditFormSubmitSuccess}
+                             onCancel={handleEditFormClose}
+                             userPermissions={permissions}
+                         />
+                        </div>
                     </div>
                 </div>
             )}
