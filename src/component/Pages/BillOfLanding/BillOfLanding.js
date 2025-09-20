@@ -240,7 +240,7 @@ export default function BillOfLanding() {
                     if (isDark) {
                         return 'hover:bg-slate-800 bg-slate-900 text-slate-200';
                     }
-                    return 'hover:bg-gray-100 bg-white text-gray-900';
+                    return `hover:bg-gray-100 bg-white ${theme.text}`;
                 }}
             />
         </div>

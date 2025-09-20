@@ -67,7 +67,7 @@ export default function BillOfLandingInfo() {
             customRender: (field) => (
                 <div className="col-span-1 flex items-end gap-2">
                     <div className="flex-1">
-                        <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
                         </label>
                         <input
@@ -77,7 +77,7 @@ export default function BillOfLandingInfo() {
                             placeholder={field.placeholder}
                             value={formData[field.id]}
                             onChange={handleChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                            className={`w-full border rounded px-3 py-2 text-sm ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                             required={field.required}
                         />
                     </div>
@@ -133,7 +133,7 @@ export default function BillOfLandingInfo() {
             colSpan: 1,
             customRender: (field) => (
                 <div>
-                    <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                         {field.label}
                     </label>
                     <input
@@ -142,7 +142,7 @@ export default function BillOfLandingInfo() {
                         id={field.id}
                         value={formData[field.id]}
                         onChange={handleChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className={`w-full border rounded px-3 py-2 text-sm ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                     />
                 </div>
             )
@@ -190,7 +190,7 @@ export default function BillOfLandingInfo() {
         //                 }}
         //                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         //             />
-        //             <label htmlFor={field.id} className="ml-2 block text-sm text-gray-700">
+        //             <label htmlFor={field.id} className="ml-2 block text-sm ${theme.text}">
         //                 {field.label}
         //             </label>
         //         </div>
@@ -533,7 +533,7 @@ export default function BillOfLandingInfo() {
             case 'select':
                 return (
                     <div key={field.id}>
-                        <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
                         </label>
                         <GenericSelector
@@ -574,7 +574,7 @@ export default function BillOfLandingInfo() {
             default:
                 return (
                     <div key={field.id}>
-                        <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
                         </label>
                         <input
@@ -584,7 +584,7 @@ export default function BillOfLandingInfo() {
                             placeholder={field.placeholder}
                             value={formData[field.id]}
                             onChange={handleChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                            className={`w-full border rounded px-3 py-2 text-sm ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                             required={field.required}
                         />
                     </div>

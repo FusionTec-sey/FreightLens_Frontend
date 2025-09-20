@@ -7,7 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { formatDateTime12hr } from '../../../utils/DateFormater';
 import { getMaterialNames } from '../../../utils/reSolveMaterial';
 import { useOptions } from "../../../hooks/useOptions";
-import { Trash2, X } from 'lucide-react';
+import { X, Pencil } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
 // import Select from 'react-select/base';
 import { Mail } from 'lucide-react';
@@ -227,28 +227,19 @@ export default function ContainerEntry() {
    
      const actionColumn = useMemo(() => ({
         render: (row) => (
-            <div className="flex justify-center space-x-2">
-                {/* {permissions.includes('Edit_Container') && (
+            <div className="flex justify-center">
+                {permissions.includes('Edit_Container') && (
                     <button 
                         onClick={() => handleEdit(row)} 
-                        className="text-blue-500 hover:text-blue-700"
+                        className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-1"
                         title="Edit container"
                     >
                         <Pencil size={18} />
                     </button>
-                )} */}
-                {permissions.includes('Delete_Container') && (
-                    <button 
-                        onClick={() => handleDelete(row.ContainerId)} 
-                        className="text-red-500 hover:text-red-700"
-                        title="Delete container"
-                    >
-                        <Trash2 size={18} />
-                    </button>
                 )}
             </div>
         )
-    }), [handleDelete, handleEdit, permissions]);
+    }), [permissions]);
 
 
 
@@ -403,7 +394,7 @@ export default function ContainerEntry() {
                             case 'Unloaded':
                                 return 'hover:bg-yellow-50 bg-yellow-200 text-yellow-900';
                             case 'In Transit':
-                                return 'hover:bg-gray-100 bg-white text-gray-900';
+                                return `hover:bg-gray-100 bg-white ${theme.text}`;
                             case 'On port':
                                 return 'hover:bg-blue-50 bg-blue-200 text-blue-900';
                             case 'Gate Pass':
@@ -411,7 +402,7 @@ export default function ContainerEntry() {
                             case 'Arrived':
                                 return 'hover:bg-indigo-50 bg-indigo-200 text-indigo-900';
                             default:
-                                return 'hover:bg-gray-100 bg-white text-gray-900';
+                                return `hover:bg-gray-100 bg-white ${theme.text}`;
                         }
                     }
                 }}
@@ -468,7 +459,7 @@ export default function ContainerEntry() {
                         // theme.border
                         } ${theme.border} shadow-lg overflow-hidden`}>
                         <div className="flex justify-between items-center p-4 border-b">
-                        <h3 className="text-lg font-semibold">Add New Item</h3>
+                        <h3 className="text-lg font-semibold">{editingContainer ? "Edit Container" : "Add New Item"}</h3>
                         <button onClick={handleEditFormClose}><X /></button>
                         </div>
                         <div className={`overflow-y-auto p-4 ${theme.scrollbar}`} style={{ maxHeight: 'calc(90vh - 64px)' }}>

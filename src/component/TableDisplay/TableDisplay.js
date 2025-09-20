@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Filter, Settings, X, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { th } from 'framer-motion/m';
+import CollapsibleCard from '../UI/CollapsibleCard';
+import { useTheme } from '../../context/ThemeContext';
 
 const TableDisplay = ({
-  theme ,
+  theme: propTheme,
   columns,
   data,
   totalItems,
@@ -24,8 +26,12 @@ const TableDisplay = ({
   height = 'calc(78vh)',
   filterPopup = null,
   extraButton = null,
-  onRowClick = null // ✅ New prop for row click action
+  onRowClick = null, // ✅ New prop for row click action
+  primaryKey = 'id', // Key to use as title for collapsible cards
+  showCollapsibleCards = true // Whether to show collapsible cards on mobile
 }) => {
+  const { theme: contextTheme } = useTheme();
+  const theme = propTheme || contextTheme;
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [isSettingsPopupOpen, setIsSettingsPopupOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({});
@@ -162,6 +168,41 @@ const TableDisplay = ({
     </div>
   );
 
+  const renderMobileCardView = () => (
+    <div className="space-y-2">
+      {isLoading ? (
+        <div className="text-center py-8">Loading...</div>
+      ) : processedData.length === 0 ? (
+        <div className="text-center py-8">No records found</div>
+      ) : processedData.map((row, i) => (
+        <CollapsibleCard
+          key={i}
+          title={row[primaryKey] || row.Container || row.containerNumber || row.ContainerNumber || `Item ${i + 1}`}
+          theme={theme}
+          className="mb-2"
+        >
+          <div className="p-4 space-y-3">
+            {columns.filter(col => visibleColumns[col.key] && hasPermission(`View_${col.key}`)).map(col => (
+              <div key={col.key} className="flex justify-between items-start">
+                <span className="font-medium text-sm text-gray-500 dark:text-gray-400">{col.label}:</span>
+                <span className="text-right text-sm flex-1 ml-2">
+                  {col.render ? col.render(row[col.key], row) : row[col.key]}
+                </span>
+              </div>
+            ))}
+            {actionColumn && (
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-end">
+                  {actionColumn.render(row)}
+                </div>
+              </div>
+            )}
+          </div>
+        </CollapsibleCard>
+      ))}
+    </div>
+  );
+
   return (
     <div className="relative min-h-[50vh]">
       <div className="flex justify-between mb-2 pr-2">
@@ -258,37 +299,11 @@ const TableDisplay = ({
       )}
 
       {/* Mobile Cards */}
-      <div className={`md:hidden space-y-3 pb-16`}>
-        {isLoading ? (
-          <div className="text-center py-8">Loading...</div>
-        ) : processedData.length === 0 ? (
-          <div className="text-center py-8">No records found</div>
-        ) : processedData.map((row, i) => (
-          <div
-            key={i}
-            className={`rounded-lg border ${theme.border} ${theme.surface} p-3 shadow-sm ${getRowClassName(row)}`}
-            onClick={() => onRowClick && onRowClick(row)}
-          >
-            <div className="grid grid-cols-1 gap-2">
-              {columns
-                .filter(col => visibleColumns[col.key] && hasPermission(`View_${col.key}`))
-                .map(col => (
-                  <div key={col.key} className="flex justify-between gap-3">
-                    <div className="text-xs text-gray-500 whitespace-nowrap">{col.label}</div>
-                    <div className="text-sm font-medium text-right break-words">
-                      {col.render ? col.render(row[col.key], row) : row[col.key]}
-                    </div>
-                  </div>
-                ))}
-            </div>
-            {actionColumn && (
-              <div className="mt-3 pt-2 border-t flex justify-end">
-                {actionColumn.render(row)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {showCollapsibleCards && (
+        <div className="md:hidden">
+          {renderMobileCardView()}
+        </div>
+      )}
 
       {/* Sticky bottom pagination for mobile */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">

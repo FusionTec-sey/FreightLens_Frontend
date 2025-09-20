@@ -220,6 +220,40 @@ function ContainerEntryForm({
   };
 
 
+  const handleDelete = async () => {
+    if (!editData || !editData.rawData) {
+      alert("No data to delete");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this container? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(
+        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainer/${editData.rawData.Container_ID}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
+        }
+      );
+
+      if (response.status === 200) {
+        alert("Container deleted successfully");
+        if (onSubmitSuccess) {
+          onSubmitSuccess();
+        }
+      } else {
+        alert("Failed to delete container");
+      }
+    } catch (error) {
+      console.error("Failed to delete container:", error);
+      alert("Error deleting container");
+    }
+  };
+
   //V1
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -363,7 +397,6 @@ function ContainerEntryForm({
   
   return (
     <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4`}>
-
         {fields
           .filter(({ permission }) => hasViewPermission(permission))
           .map(({ label, name, type, options, permission, api, refreshVal }) => (
@@ -388,7 +421,7 @@ function ContainerEntryForm({
                   value={formData[name] || ''}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full border rounded px-3 py-1.5 resize-none text-base"
+                  className={`w-full border rounded px-3 py-1.5 resize-none text-base ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                   disabled={!hasEditPermission(permission)}
                 />
               ) : type === "checkbox" ? (
@@ -452,7 +485,7 @@ function ContainerEntryForm({
                   onFocus={(e) => {
                     if (type === "date" && e.target.showPicker) e.target.showPicker();
                   }}
-                  className="w-full border rounded px-3 py-1.5 text-base"
+                  className={`w-full border rounded px-3 py-1.5 text-base ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                   disabled={!hasEditPermission(permission)}
                 />
               )}
@@ -467,7 +500,7 @@ function ContainerEntryForm({
               name="note"
               value={formData.note || ''}
               onChange={handleChange}
-              className="w-full border rounded px-2 py-1.5"
+              className={`w-full border rounded px-2 py-1.5 ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
               rows={2}
               disabled={!hasEditPermission("PersonalNote")}
             />
@@ -481,7 +514,7 @@ function ContainerEntryForm({
               {documents
               
               ?.map((doc, idx) => (
-                <div key={idx} className="border rounded p-3 relative bg-gray-50 text-sm shadow-sm">
+                <div key={idx} className={`border rounded p-3 relative ${theme.mutedBg} ${theme.text} text-sm shadow-sm`}>
                   <div className="flex justify-between items-center mb-2">
                     <a
                       href={
@@ -565,7 +598,7 @@ function ContainerEntryForm({
             {inboundImages
               
               ?.map((doc, idx) => (
-                <div key={idx} className="border rounded p-3 relative bg-gray-50 text-sm shadow-sm">
+                <div key={idx} className={`border rounded p-3 relative ${theme.mutedBg} ${theme.text} text-sm shadow-sm`}>
                   <div className="flex justify-between items-center mb-2">
                     <a
                       href={
@@ -635,7 +668,7 @@ function ContainerEntryForm({
                     : URL.createObjectURL(img.file);
 
                   return (
-                    <div key={idx} className="flex items-center justify-between text-sm bg-gray-100 px-3 py-1.5 rounded shadow">
+                    <div key={idx} className={`flex items-center justify-between text-sm ${theme.mutedBg} ${theme.text} px-3 py-1.5 rounded shadow`}>
                       <a
                         href={fileUrl}
                         target="_blank"
@@ -661,18 +694,26 @@ function ContainerEntryForm({
         </div>
       )}
 
-
-      {/* Sticky Submit Footer */}
-      {hasEditPermission("Submit") && (
-        <div className={`col-span-full sticky bottom-0 ${theme.surface} border-t ${theme.border} p-3 -mx-4 md:mx-0`}>
+      {/* Sticky Submit Footer - Always visible */}
+      <div className={`col-span-full sticky bottom-0 ${theme.surface} border-t ${theme.border} p-3 -mx-4 md:mx-0 z-10`}>
+        <div className="flex gap-3">
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 text-sm active:scale-[.99]"
+            className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 text-sm active:scale-[.99]"
           >
             Save
           </button>
+          {editData && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="px-4 bg-red-600 text-white py-2 rounded-md hover:bg-red-700 text-sm active:scale-[.99]"
+            >
+              Delete
+            </button>
+          )}
         </div>
-      )}
+      </div>
     </form>
   );
 }
