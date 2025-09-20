@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import  { useState, useMemo } from "react";
 import { Pencil, Trash, Settings, Filter, X, Plus } from "lucide-react";
+import CollapsibleCard from '../UI/CollapsibleCard';
 import { useTheme } from "../../context/ThemeContext";
 
 const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataChange, permissions, newBl  }) => {
@@ -111,6 +112,41 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   
   const hasPermission = (field) => permissions.includes(`${field}`);
 
+  const renderMobileCardView = () => (
+    <div className="space-y-2">
+      {filteredData.map((row, index) => (
+        <CollapsibleCard
+          key={index}
+          title={`Bill: ${row.BillOfLanding || row.billOfLandingNumber || row.BillOfLandingNumber || `#${index + 1}`}`}
+          theme={theme}
+          className="mb-2"
+        >
+          <div className="p-4 space-y-3">
+            {columns.map(col => (
+              <div key={col.key} className="flex justify-between items-start">
+                <span className="font-medium text-sm text-gray-500 dark:text-gray-400">{col.label}:</span>
+                <span className="text-right text-sm flex-1 ml-2">
+                  {row[col.key]}
+                </span>
+              </div>
+            ))}
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-end">
+                {currentBlState !== "new" && (
+                  <button
+                    className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                    onClick={() => handleEditClick(row)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CollapsibleCard>
+      ))}
+    </div>
+  );
 
   return (
 
@@ -214,7 +250,13 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
         </div> 
       )} */}
 
-      <div className={`customParentTableClass TableClass relative max-h-[calc(88vh)] overflow-auto border  mb-1 ${theme.border}`}>
+      {/* Mobile Cards */}
+      <div className="md:hidden">
+        {renderMobileCardView()}
+      </div>
+
+      {/* Desktop Table */}
+      <div className={`customParentTableClass TableClass relative max-h-[calc(88vh)] overflow-auto border mb-1 ${theme.border} hidden md:block`}>
         <table className="w-full table-auto border-collapse max-h-full">
           <thead className={`sticky top-0 z-0 text-center border-b ${theme.tableHeader} ${theme.border}`}>
             <tr>
@@ -246,11 +288,11 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
                 // (hasPermission("Edit_Container") || hasPermission("Delete_Container") )
                 true
                 &&  
-                <td className="px-4 py-2 flex justify-center space-x-2">
+                <td className="px-4 py-2 flex justify-center">
                   {/* { hasPermission("Edit_Container") && */}
                   { currentBlState !== "new" &&
                     <button
-                      className="p-1 text-blue-500 hover:text-blue-600"
+                      className="p-1 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
                       onClick={() => {
                         handleEditClick(row) // Set selected row for editing
                         // setIsAddDataPopupOpen(true); // Open modal
@@ -259,17 +301,6 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
                       <Pencil className="w-4 h-4" />
                     </button> 
                    }
-                  {/* {hasPermission("Delete_Container") && */}
-                    <button className="p-1 text-red-500 hover:text-red-600"
-                                          onClick={() => {
-                        handleDeleteClick(row); // Set selected row for editing
-                        // setIsAddDataPopupOpen(true); // Open modal
-                      }}
-                      >
-                      <Trash className="w-4 h-4" />
-                    </button>
-                  {/* } */}
-
                 </td>}
               </tr>
             ))}

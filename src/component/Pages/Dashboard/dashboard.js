@@ -169,8 +169,8 @@ const Dashboard = () => {
             <table className="w-full text-sm">
               <thead className={`sticky top-0 ${theme.tableHeader} border-b ${theme.border}`}>
                 <tr>
-                  <th className="p-2 text-left text-xs font-semibold">Container</th>
-                  <th className="p-2 text-left text-xs font-semibold">Location</th>
+                  <th className={`p-2 text-left text-xs font-semibold ${theme.text}`}>Container</th>
+                  <th className={`p-2 text-left text-xs font-semibold ${theme.text}`}>Location</th>
                 </tr>
               </thead>
               <tbody>
