@@ -162,7 +162,7 @@ export default function BillOfLanding() {
      const actionColumn = useMemo(() => ({
         render: (row) => (
             <div className="flex justify-center space-x-2">
-                {permissions.includes('Edit_Container') && (
+                {/* {permissions.includes('Edit_Container') && (
                     <button 
                         onClick={() => handleEdit(row)} 
                         className="text-blue-500 hover:text-blue-700"
@@ -170,7 +170,7 @@ export default function BillOfLanding() {
                     >
                         <Pencil size={18} />
                     </button>
-                )}
+                )} */}
                 {permissions.includes('Delete_Container') && (
                     <button 
                         onClick={() => handleDelete(row.ContainerId)} 
@@ -196,7 +196,7 @@ export default function BillOfLanding() {
                 columns={columns}
                 data={state.rows}
                 totalItems={state.totalItems}
-                title="Bill of Landing Management"
+                title="BillOfLanding"
                 onDataChange={() => {
                     setState(prev => ({ ...prev, loadedPages: new Set(), rows: [] }));
                     fetchData(0, SERVER_PAGE_SIZE);
@@ -209,13 +209,13 @@ export default function BillOfLanding() {
                     "View_vessel_name",
                     "View_consignee_name",
                     "View_arrivalDate"]}
-                actionColumn={actionColumn}
+                // actionColumn={actionColumn}
                 itemsPerPage={CLIENT_PAGE_SIZE}
                 serverPageSize={SERVER_PAGE_SIZE}
                 isLoading={state.isLoading }
                 onPageChange={handlePageChange}
                 theme={theme}
-                
+                onRowClick={(row) => {permissions.includes('Edit_BL') && handleEdit(row)}}
                 addButtonText="Add BL"
                 addButtonPermission="Add_BillOfLanding"
                 addDataHandler={() => navigate('/BillOfLanding/new')}

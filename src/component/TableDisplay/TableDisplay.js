@@ -133,7 +133,7 @@ const TableDisplay = ({
     }
     return result;
   }, [currentData, sortConfig]);
-
+  // console.log(processedData);
   const handleClientPageChange = (newPage) => {
     const newStart = (newPage - 1) * itemsPerPage;
     const newServerPage = Math.floor(newStart / serverPageSize) + 1;
@@ -177,11 +177,11 @@ const TableDisplay = ({
       ) : processedData.map((row, i) => (
         <CollapsibleCard
           key={i}
-          title={row[primaryKey] || row.Container || row.containerNumber || row.ContainerNumber || `Item ${i + 1}`}
+          title={row[primaryKey] || row[title] || `Item ${i + 1}`}
           theme={theme}
           className="mb-2"
         >
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-3" onClick={() => onRowClick && onRowClick(row)}>
             {columns.filter(col => visibleColumns[col.key] && hasPermission(`View_${col.key}`)).map(col => (
               <div key={col.key} className="flex justify-between items-start">
                 <span className="font-medium text-sm text-gray-500 dark:text-gray-400">{col.label}:</span>

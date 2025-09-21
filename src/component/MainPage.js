@@ -7,11 +7,14 @@ import LoginPage from './Pages/Login/Login';
 import PrivateRoute from './PrivateRoute';
 import Dashboard from './Pages/Dashboard/dashboard';
 import ContainerForReport from './Pages/Report/Report.js';
+import ContainerForReport1 from "./Pages/Report/Report1.js";
 import Unauthorized from "./Pages/Unauthorized/Unauthorized.js";
 import Setting from "./Pages/Setting/Setting.js";
 import BillOfLanding from "./Pages/BillOfLanding/BillOfLanding.js";
 import BillOfLandingInfo from "./Pages/BillOfLanding/BillOfLandingInfo.js";
 import { useTheme } from "../context/ThemeContext.js";
+
+
 export default function MainPage() {
   const location = useLocation();
   const isLoginPage = location.pathname === "/";
@@ -69,7 +72,7 @@ export default function MainPage() {
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/Complete" element={<PrivateRoute requiredPermissions={["View_Container"]}><CompleteContainer /></PrivateRoute>} />
             <Route path="/viewContainer" element={<PrivateRoute requiredPermissions={["View_Container"]}><ContainerEntry /></PrivateRoute>} />
-            <Route path="/report" element={<PrivateRoute requiredPermissions={["View_Report"]}><ContainerForReport /></PrivateRoute>} />
+            <Route path="/report" element={<PrivateRoute requiredPermissions={["View_Report"]}><ContainerForReport1 /></PrivateRoute>} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/settings" element={<PrivateRoute ><Setting currentUser={{ id: 99, name: 'Admin User', role: 'admin' }} /></PrivateRoute>} />
             <Route path="/BillOfLanding" element={<PrivateRoute ><BillOfLanding/></PrivateRoute>} />

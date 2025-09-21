@@ -398,6 +398,21 @@ export default function BillOfLandingInfo() {
         }
     };
 
+    const handleDeleteBl = async (id) => {
+        if (!window.confirm("Delete this bill of landing?")) return;
+        
+        try {
+            await axios.delete(
+                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteBl/${id}`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+            );
+
+        } catch (error) {
+            // toast.error("Delete failed");
+            console.error("Delete error:", error);
+        }
+    };
+
     const handleEditFormClose = () => {
         setIsEditFormOpen(false);
         setEditingContainer(null);
@@ -596,6 +611,7 @@ export default function BillOfLandingInfo() {
         <div className='flex flex-col w-full h-full p-4 space-y-4'>
             <div className="flex justify-between items-center">
                 <h1 className="text-xl font-semibold">Container Management</h1>
+                <div>
                 <button
                     onClick={handleSaveAll}
                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -609,6 +625,17 @@ export default function BillOfLandingInfo() {
                 >
                     {isSaving ? 'Saving...' : 'Save All Changes'}
                 </button>
+                { Id !== "new" &&(
+                <button
+                    type="button"
+                    onClick={() => handleDeleteBl(editData.BillOfLanding)}
+                    className="px-4 bg-red-600 text-white py-2 rounded-md hover:bg-red-700 text-sm active:scale-[.99] ml-2"
+                    >
+
+                    Delete
+                </button>
+                )}
+                </div>
             </div>
 
             {/* Pending additions section */}
@@ -646,13 +673,13 @@ export default function BillOfLandingInfo() {
                 columns={columns} 
                 data={rows.filter(Boolean)}
                 totalItems={totalItems}
-                title="Container Management"
+                title="container_no"
                 onDataChange={() => {
                     setLoadedServerPages(new Set());
                     fetchContainerData(formData.billOfLadingNumber, 0, SERVER_PAGE_SIZE);
                 }}
                 userPermissions={["View_container_no", "Add"]}
-                actionColumn={actionColumn}
+                // actionColumn={actionColumn}
                 itemsPerPage={CLIENT_PAGE_SIZE}
                 serverPageSize={SERVER_PAGE_SIZE}
                 isLoading={isLoading || optionsLoading}
@@ -668,6 +695,7 @@ export default function BillOfLandingInfo() {
                 }
                 showAddButton={permissions.includes('Add_Container')}
                 addButtonText="Add Container"
+                onRowClick={(row) => { permissions.includes('Edit_Container') && handleEdit(row)}}
                 onAddButtonClick={() => setIsAddMode(true)}
                 isAddFormOpen={isAddMode}
                 height='calc(36vh)'
@@ -692,6 +720,7 @@ export default function BillOfLandingInfo() {
                             onCancel={() => handleEditFormClose()}
                             userPermissions={permissions}
                             mode="edit"
+                            handleDeleteFunction={handleDelete}
                         />
                     </div>
                 </div>

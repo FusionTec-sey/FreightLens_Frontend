@@ -40,6 +40,8 @@ export default function ContainerEntry() {
         { key: "Supplier", label: "Supplier" },
         { key: "ArrivalDate", label: "Arrival Date", sortable: true },
         { key: "EmptyAt", label: "Empty At" },
+        { key: "Demurrage", label: "Demurrage", sortable: true},
+
         { 
             key: "Status", 
             label: "Status",
@@ -54,8 +56,59 @@ export default function ContainerEntry() {
         { key: "Consignee", label: "Consignee" }
     ], [status]);
     // console.log(status)
+    function DemurrageColumn({ ExcludeDayBitmask, ArrivalDate, FreeDay }) {
+       try {
+        
+    //    console.log(ExcludeDayBitmask, FreeDay, ArrivalDate)
+        const DAY_TO_BIT = {
+            0: 64, // Sunday
+            1: 1,
+            2: 2,
+            3: 4,
+            4: 8,
+            5: 16,
+            6: 32  // Saturday
+        };
+
+        const arrival = new Date(ArrivalDate);
+        let due = new Date(arrival);
+        let daysAdded = 0;
+
+        // Loop until we add the required number of working days
+        while (daysAdded < FreeDay) {
+            const dayOfWeek = due.getDay();
+            const bit = DAY_TO_BIT[dayOfWeek];
+
+            if ((ExcludeDayBitmask & bit) === 0) {
+            daysAdded++;
+            }
+
+            if (daysAdded < FreeDay) {
+            // Move forward by 1 day (keeping time unchanged)
+            due.setDate(due.getDate() + 1);
+            }
+        }
+
+        const now = new Date();
+
+        const diffInMs = due - now;
+        const diffInDays = diffInMs / (1000 * 60 * 60 * 24); // decimal days
+
+        if (diffInDays > 0) {
+            return `Remaining time: ${diffInDays.toFixed(0)} day(s)`;
+        } else if (diffInDays < 0) {
+            return `Overdue by: ${Math.abs(diffInDays).toFixed(0)} day(s)`;
+        } else {
+            return `Remaining time: 0.00 day(s)`;
+        }
+        } catch (error) {
+        return ""
+       }
+    }
+
+
     useEffect(() => {
-    if (materialOptions.length > 0 && rows.length) 
+        if (materialOptions.length > 0 && rows.length) 
         {
             setRows(prev =>
             prev.map(r => ({
@@ -75,6 +128,7 @@ export default function ContainerEntry() {
             Container: c.container_no || "",
             Consignee: c.bill_of_landing?.consignee_name || "",
             Supplier: c.bill_of_landing?.supplier_name || "",
+            Demurrage: c.bill_of_landing?.ArrivalDate &&  c.status !== "In Transit" ? DemurrageColumn({ExcludeDayBitmask: c.bill_of_landing.ExcludingDay, ArrivalDate: c.bill_of_landing.ArrivalDate, FreeDay: c.bill_of_landing.FreeDays }) : "",
             ArrivalDate: c.bill_of_landing?.ArrivalDate 
                 ? formatDateTime12hr(c.bill_of_landing.ArrivalDate.slice(0, 16)) 
                 : "",
@@ -90,6 +144,7 @@ export default function ContainerEntry() {
         const found = status.find(item => item.name === name);
         return found ? found.id : null;
     };
+
     const fetchData = useCallback(async (
         offset = 0,
         limit = SERVER_PAGE_SIZE,
@@ -136,11 +191,16 @@ export default function ContainerEntry() {
         const { data, total_count } = response.data;
         
         const transformedData = transformData(data);
+        // console.log(transformedData)
+        // for (const i of transformedData){
+        // console.log( i.Demurrage.includes("Overdue"));
 
+        // }
+        // console.log(typeof transformData.Demurrage);
         if (totalItems !== total_count) {
             setTotalItems(total_count);
         }
-
+        // console.log(transformedData);
         setRows(prev => {
             const newRows = [...prev];
             for (let i = 0; i < transformedData.length; i++) {
@@ -194,6 +254,8 @@ export default function ContainerEntry() {
     }, []);
 
     const handleDelete = useCallback(async (containerId) => {
+        // console.log(containerId);
+        setIsEditFormOpen(!isEditFormOpen);
         if (!window.confirm("Are you sure you want to delete this container?")) return;
         
         try {
@@ -222,10 +284,10 @@ export default function ContainerEntry() {
         setRows([]);
         fetchData(0, SERVER_PAGE_SIZE);
         handleEditFormClose();
-     }, [fetchData, handleEditFormClose]);
+    }, [fetchData, handleEditFormClose]);
 
    
-     const actionColumn = useMemo(() => ({
+    const actionColumn = useMemo(() => ({
         render: (row) => (
             <div className="flex justify-center">
                 {permissions.includes('Edit_Container') && (
@@ -328,7 +390,7 @@ export default function ContainerEntry() {
         handleFilterChange={handleFilterSubmit}
         />
     );
-
+    // console.log(permissions)
    return (
         <div className={`flex flex-col w-full h-full  ${
         theme.background
@@ -338,13 +400,13 @@ export default function ContainerEntry() {
                 columns={columns} 
                 data={rows}
                 totalItems={totalItems}
-                title="Container Management"
+                title="Container"
                 onDataChange={() => {
                     setLoadedServerPages(new Set());
                     fetchData(0, SERVER_PAGE_SIZE);
                 }}
                 userPermissions={permissions}
-                actionColumn={actionColumn}
+                // actionColumn={actionColumn}
                 itemsPerPage={CLIENT_PAGE_SIZE}
                 serverPageSize={SERVER_PAGE_SIZE}
                 isLoading={isLoading || optionsLoading}
@@ -375,6 +437,10 @@ export default function ContainerEntry() {
 
                 getRowClassName={(row) => {
                     if (isDark) {
+                        if (row.Demurrage.includes("Overdue")){
+                            return 'hover:bg-red-800 bg-red-900 text-red-100'
+                        }else{
+                            // console.log(row.Demurrage.includes("Overdue"))
                         switch (row.Status) {
                             case 'Unloaded':
                                 return 'hover:bg-yellow-800 bg-yellow-900 text-yellow-100';
@@ -389,7 +455,12 @@ export default function ContainerEntry() {
                             default:
                                 return 'hover:bg-slate-800 bg-slate-900 text-slate-200';
                         }
+                        }
+
                     } else {
+                        if (row.Demurrage.includes("Overdue")){
+                            return 'hover:bg-red-500 bg-red-600 text-red-50'
+                        }else{
                         switch (row.Status) {
                             case 'Unloaded':
                                 return 'hover:bg-yellow-50 bg-yellow-200 text-yellow-900';
@@ -404,7 +475,7 @@ export default function ContainerEntry() {
                             default:
                                 return `hover:bg-gray-100 bg-white ${theme.text}`;
                         }
-                    }
+                    }}
                 }}
 
                 extraButton={{
@@ -433,30 +504,11 @@ export default function ContainerEntry() {
 
             {/* Edit Form Modal */}
             {isEditFormOpen && (
-                // <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                //     <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-                //         <div className="flex justify-between items-center mb-4">
-                //             <h2 className="text-xl font-semibold">Edit Container</h2>
-                //             <button 
-                //                 onClick={handleEditFormClose}
-                //                 className="text-gray-500 hover:text-gray-700 transition-colors"
-                //                 aria-label="Close modal"
-                //             >
-                //                 ✕
-                //             </button>
-                //         </div>
-                //         <ContainerEntryForm 
-                //             editData={editingContainer}
-                //             onSubmitSuccess={handleEditFormSubmitSuccess}
-                //             onCancel={handleEditFormClose}
-                //             userPermissions={permissions}
-                //         />
-                //     </div>
-                // </div>
+
                 <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 `}>
                     <div className={`rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col border-2 ${
                         theme.background
-                        // theme.border
+
                         } ${theme.border} shadow-lg overflow-hidden`}>
                         <div className="flex justify-between items-center p-4 border-b">
                         <h3 className="text-lg font-semibold">{editingContainer ? "Edit Container" : "Add New Item"}</h3>
@@ -468,6 +520,7 @@ export default function ContainerEntry() {
                              onSubmitSuccess={handleEditFormSubmitSuccess}
                              onCancel={handleEditFormClose}
                              userPermissions={permissions}
+                             handleDeleteFunction={handleDelete}
                          />
                         </div>
                     </div>

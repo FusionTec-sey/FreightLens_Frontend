@@ -12,7 +12,9 @@ function ContainerEntryForm({
   editData, 
   onSubmitSuccess, 
   onFormSubmit, 
-  userPermissions = [] }) {
+  userPermissions = [],
+  handleDeleteFunction =null,
+  }) {
   // console.log("ContainerEntryForm rendered with editData:", editData);
   const [formData, setFormData] = useState({
     container_id: null,
@@ -46,7 +48,7 @@ function ContainerEntryForm({
   const inboundInputRef = useRef(null);
   const emptyInputRef = useRef(null);
   const [selectedVessel, setSelectedVessel] = useState([]);
-
+  const [todelete, setToDelete] = useState(false);
 
   const { isDark, theme } = useTheme();
   const {
@@ -220,39 +222,40 @@ function ContainerEntryForm({
   };
 
 
-  const handleDelete = async () => {
-    if (!editData || !editData.rawData) {
-      alert("No data to delete");
-      return;
-    }
+  // const handleDelete = async () => {
+  //   // if (todelete) {
+  //     // console.log(id);
+  //     handleDeleteFunction(editData.Container_ID)
+  //     return;
+  //   }
 
-    if (!window.confirm("Are you sure you want to delete this container? This action cannot be undone.")) {
-      return;
-    }
+  //   if (!window.confirm("Are you sure you want to delete this container? This action cannot be undone.")) {
+  //     return;
+  //   }
 
-    try {
-      const response = await axios.delete(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainer/${editData.rawData.Container_ID}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-          }
-        }
-      );
+  //   // try {
+  //   //   const response = await axios.delete(
+  //   //     `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainer/${editData.rawData.Container_ID}`,
+  //   //     {
+  //   //       headers: {
+  //   //         Authorization: `Bearer ${localStorage.getItem("token")}`
+  //   //       }
+  //   //     }
+  //   //   );
 
-      if (response.status === 200) {
-        alert("Container deleted successfully");
-        if (onSubmitSuccess) {
-          onSubmitSuccess();
-        }
-      } else {
-        alert("Failed to delete container");
-      }
-    } catch (error) {
-      console.error("Failed to delete container:", error);
-      alert("Error deleting container");
-    }
-  };
+  //   //   if (response.status === 200) {
+  //   //     alert("Container deleted successfully");
+  //   //     if (onSubmitSuccess) {
+  //   //       onSubmitSuccess();
+  //   //     }
+  //   //   } else {
+  //   //     alert("Failed to delete container");
+  //   //   }
+  //   // } catch (error) {
+  //   //   console.error("Failed to delete container:", error);
+  //   //   alert("Error deleting container");
+  //   // }
+  // };
 
   //V1
   const handleSubmit = async (e) => {
@@ -706,7 +709,7 @@ function ContainerEntryForm({
           {editData && (
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => handleDeleteFunction(editData.Container_ID)}
               className="px-4 bg-red-600 text-white py-2 rounded-md hover:bg-red-700 text-sm active:scale-[.99]"
             >
               Delete

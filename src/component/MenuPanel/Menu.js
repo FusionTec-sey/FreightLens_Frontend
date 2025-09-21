@@ -138,7 +138,7 @@ function Sidebar({ onLinkClick }) {
           )}
 
           {/* Demurrage */}
-          {hasPermission("View_Report") && (
+          {/* {hasPermission("View_Report") && (
             <Link
               to="/demurrage"
               onClick={onLinkClick}
@@ -150,7 +150,7 @@ function Sidebar({ onLinkClick }) {
               </div>
               <span className={textClass}>Demurrage</span>
             </Link>
-          )}
+          )} */}
 
           {/* Settings */}
           {hasPermission("View_Setting") && (

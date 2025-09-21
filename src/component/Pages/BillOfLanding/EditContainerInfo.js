@@ -13,6 +13,7 @@ function ContainerEntryForm({
   onSubmitSuccess,
   onCancel,
   userPermissions = [],
+  handleDeleteFunction=null,
   mode = "edit" // "add" or "edit"
  }) {
 
@@ -687,6 +688,8 @@ function ContainerEntryForm({
 
       {/* Submit */}
       <div className="col-span-full flex justify-end space-x-2">
+
+
         <button
           type="button"
           onClick={onCancel}
@@ -700,6 +703,17 @@ function ContainerEntryForm({
         >
           {mode === "add" ? "Add to List" : "Update"}
         </button>
+        { mode === "edit" &&(
+
+                    <button
+              type="button"
+              onClick={() => handleDeleteFunction(editData.container_no)}
+              className="px-4 bg-red-600 "
+            >
+              Delete
+            </button>
+        )
+        }
       </div>
     </form>
   // </div>  

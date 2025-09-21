@@ -7,6 +7,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
   const [products, setProducts] = useState([
     { name: null, quantity: null, reason: null, files: [], previews: [] },
   ]);
+  // console.log(editData);
   const [containers, setContainers] = useState([]);
   const [selectedContainer, setSelectedContainer] = useState("");
   const [originalData, setOriginalData] = useState(null); // For change detection

@@ -24,9 +24,9 @@ const CollapsibleCard = ({
         onClick={handleToggle}
       >
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 flex items-center justify-center">
+          {/* <div className="w-6 h-6 flex items-center justify-center">
             <div className="w-4 h-4 bg-slate-600 rounded-sm"></div>
-          </div>
+          </div> */}
           <span className="font-medium text-sm sm:text-base">{title}</span>
         </div>
         <div className="flex items-center">

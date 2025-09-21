@@ -185,7 +185,7 @@ export default function CompleteContainer() {
     }
   }, [optionsLoading, materialOptions, fetchData]);
     
-    function handleFilterSubmit(col, val) {
+  function handleFilterSubmit(col, val) {
         const newFilters = { [col]: val };
 
         // console.log("Applied Filters:", newFilters);
@@ -194,7 +194,7 @@ export default function CompleteContainer() {
         setLoadedServerPages(new Set());
         setRows([]);
         fetchData(0, SERVER_PAGE_SIZE, newFilters);
-    }
+  }
 
 
 
@@ -238,8 +238,9 @@ export default function CompleteContainer() {
           setLoadedServerPages(new Set());
           fetchData(0, SERVER_PAGE_SIZE, filterData);
         }}
-        actionColumn={actionColumn}
-        title="Complete Containers"
+        onRowClick={(row) => {permissions.includes('Edit_Container') && handleEdit(row)}}
+        // actionColumn={actionColumn}
+        title="Container"
         userPermissions={permissions}
         filterPopup={filterPopup}
         getRowClassName={(row) => {
@@ -266,6 +267,8 @@ export default function CompleteContainer() {
               onSubmitSuccess={handleEditFormSubmitSuccess}
               onCancel={handleEditFormClose}
               userPermissions={permissions}
+              handleDeleteFunction={handleDelete}
+
             />
           </div>
         </div>
