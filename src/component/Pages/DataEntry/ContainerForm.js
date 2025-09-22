@@ -399,7 +399,7 @@ function ContainerEntryForm({
   ];
   
   return (
-    <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4`}>
+    <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 `}>
         {fields
           .filter(({ permission }) => hasViewPermission(permission))
           .map(({ label, name, type, options, permission, api, refreshVal }) => (

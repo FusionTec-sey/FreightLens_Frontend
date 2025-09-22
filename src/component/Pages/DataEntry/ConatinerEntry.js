@@ -406,6 +406,7 @@ export default function ContainerEntry() {
                     fetchData(0, SERVER_PAGE_SIZE);
                 }}
                 userPermissions={permissions}
+                add
                 // actionColumn={actionColumn}
                 itemsPerPage={CLIENT_PAGE_SIZE}
                 serverPageSize={SERVER_PAGE_SIZE}
@@ -514,7 +515,7 @@ export default function ContainerEntry() {
                         <h3 className="text-lg font-semibold">{editingContainer ? "Edit Container" : "Add New Item"}</h3>
                         <button onClick={handleEditFormClose}><X /></button>
                         </div>
-                        <div className={`overflow-y-auto p-4 ${theme.scrollbar}`} style={{ maxHeight: 'calc(90vh - 64px)' }}>
+                        <div className={`overflow-y-auto px-4 pb-0 pt-4 ${theme.scrollbar}`} style={{ maxHeight: 'calc(90vh - 64px)' }}>
                          <ContainerEntryForm 
                              editData={editingContainer}
                              onSubmitSuccess={handleEditFormSubmitSuccess}

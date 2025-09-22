@@ -290,6 +290,19 @@ export default function ContainerForReport1() {
           setLoadedServerPages(new Set());
           fetchData(0, SERVER_PAGE_SIZE, filterData);
         }}
+        addDataComponent={
+          <ReportForm
+              editData={null}
+              onSubmitSuccess={fetchData}
+              // onCancel={handleEditFormClose}
+              permissions={permissions}
+              // handleDeleteFunction={handleDelete}
+
+          /> 
+        }
+        addButtonText="Create Report"
+        addButtonPermission="Add_Report"
+        
         // onRowClick={(row) => {permissions.includes('Edit_Report') && handleEditClick(row)}}
         actionColumn={actionColumn}
         title="ContainerNo"
