@@ -178,7 +178,8 @@ const TableDisplay = ({
         <CollapsibleCard
           key={i}
           title={row[primaryKey] || row[title] || `Item ${i + 1}`}
-          theme={theme}
+          theme={theme }
+          getCustomtheam={getRowClassName(row)}
           className="mb-2"
         >
           <div className="p-4 space-y-3" onClick={() => onRowClick && onRowClick(row)}>

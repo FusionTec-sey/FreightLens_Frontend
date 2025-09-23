@@ -128,7 +128,7 @@ export default function ContainerEntry() {
             Container: c.container_no || "",
             Consignee: c.bill_of_landing?.consignee_name || "",
             Supplier: c.bill_of_landing?.supplier_name || "",
-            Demurrage: c.bill_of_landing?.ArrivalDate &&  c.status !== "In Transit" ? DemurrageColumn({ExcludeDayBitmask: c.bill_of_landing.ExcludingDay, ArrivalDate: c.bill_of_landing.ArrivalDate, FreeDay: c.bill_of_landing.FreeDays }) : "",
+            Demurrage: c.bill_of_landing?.ArrivalDate &&  c.state !== "In Transit" ? DemurrageColumn({ExcludeDayBitmask: c.bill_of_landing.ExcludingDay, ArrivalDate: c.bill_of_landing.ArrivalDate, FreeDay: c.bill_of_landing.FreeDays }) : "",
             ArrivalDate: c.bill_of_landing?.ArrivalDate 
                 ? formatDateTime12hr(c.bill_of_landing.ArrivalDate.slice(0, 16)) 
                 : "",
@@ -192,10 +192,10 @@ export default function ContainerEntry() {
         
         const transformedData = transformData(data);
         // console.log(transformedData)
-        // for (const i of transformedData){
-        // console.log( i.Demurrage.includes("Overdue"));
+        for (const i of transformedData){
+        console.log( i.Status);
 
-        // }
+        }
         // console.log(typeof transformData.Demurrage);
         if (totalItems !== total_count) {
             setTotalItems(total_count);

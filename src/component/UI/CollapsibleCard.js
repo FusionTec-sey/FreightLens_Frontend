@@ -9,20 +9,21 @@ const CollapsibleCard = ({
   className = "",
   titleClassName = "",
   contentClassName = "",
-  theme
+  theme,
+  getCustomtheam = ""
 }) => {
   const [internalExpanded, setInternalExpanded] = useState(false);
   
   const isExpanded = controlledExpanded !== undefined ? controlledExpanded : internalExpanded;
   const handleToggle = onToggle || (() => setInternalExpanded(!internalExpanded));
-
+  // console.log(getCustomtheam);
   return (
-    <div className={`${theme.card} ${theme.border} ${theme.ring} rounded-lg shadow-sm overflow-hidden ${className}`}>
+    <div className={`${theme.card} ${theme.border} ${theme.ring} rounded-lg shadow-sm overflow-hidden ${className} `}>
       {/* Header */}
       <div 
-        className={`${theme.header} ${theme.hover} cursor-pointer transition-colors flex items-center justify-between px-4 py-3 ${titleClassName}`}
+        className={`${theme.header} ${theme.hover} cursor-pointer transition-colors flex items-center justify-between px-4 py-3 ${titleClassName} ${getCustomtheam}`}
         onClick={handleToggle}
-      >
+        >
         <div className="flex items-center gap-3">
           {/* <div className="w-6 h-6 flex items-center justify-center">
             <div className="w-4 h-4 bg-slate-600 rounded-sm"></div>
