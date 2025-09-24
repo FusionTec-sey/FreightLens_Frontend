@@ -278,33 +278,39 @@ export default function BillOfLandingInfo() {
             );
             
             let data = response.data;
-            console.log(data, "fetched container data")
-            if (typeof data === 'string') {
-                try {
-                    data = JSON.parse(data);
-                } catch (e) {
-                    console.error("Failed to parse response data:", e);
-                    data = [];
-                }
-            }
-            setFormData()
-            // Transform the data before setting it
-            const transformedData = transformData(data);
-            // console.log(transformedData)
-            if (data.length > 0){
-                setFormDataOfBl(data[0]);
-            }
-           
-            setRows(prev => {
-                const newData = [...prev];
-                for (let i = 0; i < transformedData.length; i++) {
-                    newData[offset + i] = transformedData[i];
-                }
-                return newData;
-            });
+            if (data.length === 0) {
+                console.alert("No containers found for this B/L number");
             
-            setTotalItems(data.length || 0);
-            setLoadedServerPages(prev => new Set(prev).add(pageNum));
+            } else {
+                
+                console.log(data, "fetched container data")
+                if (typeof data === 'string') {
+                    try {
+                        data = JSON.parse(data);
+                    } catch (e) {
+                        console.error("Failed to parse response data:", e);
+                        data = [];
+                    }
+                }
+                setFormData()
+                // Transform the data before setting it
+                const transformedData = transformData(data);
+                // console.log(transformedData)
+                if (data.length > 0){
+                    setFormDataOfBl(data[0]);
+                }
+            
+                setRows(prev => {
+                    const newData = [...prev];
+                    for (let i = 0; i < transformedData.length; i++) {
+                        newData[offset + i] = transformedData[i];
+                    }
+                    return newData;
+                });
+                
+                setTotalItems(data.length || 0);
+                setLoadedServerPages(prev => new Set(prev).add(pageNum));
+            }
         } catch (error) {
             console.error("Failed to fetch containers:", error);
         } finally {
@@ -327,7 +333,7 @@ export default function BillOfLandingInfo() {
         }
         
         setCurrentServerPage(firstNeededPage);
-    }, [ formData.billOfLadingNumber, loadedServerPages]);
+    }, [ formData?.billOfLadingNumber, loadedServerPages]);
 
     // Handle form field changes
     const handleChange = (e) => {
@@ -346,7 +352,7 @@ export default function BillOfLandingInfo() {
         setLoadedServerPages(new Set());
         setRows([]);
         fetchContainerData(formData.billOfLadingNumber);
-    }, [formData.billOfLadingNumber]);
+    }, [formData?.billOfLadingNumber]);
 
     // Save bill of lading
     const handleSave = async () => {
