@@ -59,7 +59,7 @@ export default function ContainerEntry() {
     function DemurrageColumn({ ExcludeDayBitmask, ArrivalDate, FreeDay }) {
        try {
         
-    //    console.log(ExcludeDayBitmask, FreeDay, ArrivalDate)
+       console.log(ExcludeDayBitmask, FreeDay, ArrivalDate)
         const DAY_TO_BIT = {
             0: 64, // Sunday
             1: 1,
@@ -93,7 +93,7 @@ export default function ContainerEntry() {
 
         const diffInMs = due - now;
         const diffInDays = diffInMs / (1000 * 60 * 60 * 24); // decimal days
-
+        console.log(diffInDays);
         if (diffInDays > 0) {
             return `Remaining time: ${diffInDays.toFixed(0)} day(s)`;
         } else if (diffInDays < 0) {

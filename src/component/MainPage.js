@@ -52,10 +52,10 @@ export default function MainPage() {
         {/* Mobile Menu Button */}
         {!isLoginPage && (
           <div className="md:hidden sticky top-0 z-40">
-            <div className={`flex items-center justify-between px-3 py-3 border-b ${theme.background} ${theme.border} backdrop-blur`}>
+            <div className={`flex items-center justify-between px-3 py-3 border-b ${theme.background} ${theme.border} ${theme.text} backdrop-blur`}>
               <div className="text-sm font-semibold" />
               <button
-                className="h-10 w-10 flex items-center justify-center rounded-md  text-white shadow active:scale-95"
+                className={`h-10 w-10 flex items-center justify-center rounded-md  ${theme.background} ${theme.border} ${theme.text} shadow active:scale-95`}
                 onClick={() => setSidebarVisible(true)}
                 aria-label="Open menu"
               >
