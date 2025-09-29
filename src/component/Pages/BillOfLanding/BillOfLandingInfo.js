@@ -16,7 +16,7 @@ export default function BillOfLandingInfo() {
     const {theme } = useTheme();
     const { permissions } = useAuth();
     const { Id } = useParams();
-    const decodedId = decodeURIComponent(Id); // will be "abc/ba"
+    const decodedIdId = decodeURIComponent(Id); // will be "abc/ba"
 
     const location = useLocation();
     const editData = location.state?.data;
@@ -372,8 +372,8 @@ export default function BillOfLandingInfo() {
             new_containers: containerData?.map(item => ({ container_no: item.container_no }))
         };
         
-        const url = Id !== "new" ? 
-            `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateBl/${Id}` :
+        const url = decodedIdId !== "new" ? 
+            `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateBl/${decodedIdId}` :
             `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addBl`;
 
         try {
@@ -413,7 +413,7 @@ export default function BillOfLandingInfo() {
         
         try {
             await axios.delete(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteBl/${Id}`,
+                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteBl/${decodedIdId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
 
@@ -635,7 +635,7 @@ export default function BillOfLandingInfo() {
                 >
                     {isSaving ? 'Saving...' : 'Save All Changes'}
                 </button>
-                { Id !== "new" &&(
+                { decodedIdId !== "new" &&(
                 <button
                     type="button"
                     onClick={() => handleDeleteBl(editData.BillOfLanding)}
