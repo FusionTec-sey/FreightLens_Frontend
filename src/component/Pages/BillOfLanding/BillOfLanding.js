@@ -173,8 +173,9 @@ export default function BillOfLanding() {
     }, [fetchData]);
 
     const handleEdit = useCallback((row) => {
-        console.log(row)
-        navigate(`/BillOfLanding/${row.BillOfLanding}`, {state: {data: row}})
+        // console.log(row)
+        const encodedId = encodeURIComponent(row.BillOfLanding); // becomes "abc%2Fba"
+        navigate(`/BillOfLanding/${encodedId}`, {state: {data: row}})
     }, [navigate]);
 
     // Action column configuration

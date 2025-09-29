@@ -16,6 +16,8 @@ export default function BillOfLandingInfo() {
     const {theme } = useTheme();
     const { permissions } = useAuth();
     const { Id } = useParams();
+    const decodedId = decodeURIComponent(Id); // will be "abc/ba"
+
     const location = useLocation();
     const editData = location.state?.data;
     const formRef = useRef();
