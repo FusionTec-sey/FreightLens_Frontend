@@ -439,7 +439,7 @@ export default function ContainerEntry() {
                 getRowClassName={(row) => {
                     if (isDark) {
                         if (row.Demurrage.includes("Overdue")){
-                            return 'hover:bg-red-500 bg-red-600 text-red-50'
+                            return 'hover:bg-red-450 bg-red-400 text-red-50'
                         }else{
                             // console.log(row.Demurrage.includes("Overdue"))
                         switch (row.Status) {
@@ -460,7 +460,7 @@ export default function ContainerEntry() {
 
                     } else {
                         if (row.Demurrage.includes("Overdue")){
-                            return 'hover:bg-red-500 bg-red-600 text-red-50'
+                            return 'hover:bg-red-450 bg-red-400 text-red-50'
                         }else{
                         switch (row.Status) {
                             case 'Unloaded':
