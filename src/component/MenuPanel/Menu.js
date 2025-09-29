@@ -26,7 +26,9 @@ function Sidebar({ onLinkClick }) {
 
   const handleLogout = () => {
     logout();
+    onLinkClick && onLinkClick();
     setTimeout(() => navigate("/"), 0);
+
   };
 
   const textClass =

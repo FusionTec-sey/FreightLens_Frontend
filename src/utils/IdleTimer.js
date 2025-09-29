@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 /**
  * IdleLogoutProvider
@@ -22,21 +22,22 @@ export default function IdleLogoutProvider({
   const lastActivityRef = useRef(Date.now());
   const warningStartRef = useRef(null);
   const intervalRef = useRef(null);
-
+  const location = useLocation();
   const doLogout = useCallback(() => {
     // Default logout behaviour
     try {
-      localStorage.removeItem('authToken');
-      sessionStorage.removeItem('authToken');
+      localStorage.removeItem('token');
+      // sessionStorage.removeItem('authToken');
+      navigate('/');
     } catch (e) {
       console.warn('Could not clear storage on logout', e);
     }
 
-    if (onLogout && typeof onLogout === 'function') {
-      onLogout();
-    } else {
-      navigate('/');
-    }
+    // if (onLogout && typeof onLogout === 'function') {
+    //   onLogout();
+    // } else {
+    //   navigate('/');
+    // }
   }, [navigate, onLogout]);
 
   const resetTimers = useCallback(() => {
@@ -115,7 +116,7 @@ export default function IdleLogoutProvider({
       {children}
 
       {/* Warning modal - simple Tailwind-based UI. You can replace with your own modal component. */}
-      {isWarningVisible && (
+      {isWarningVisible && location.pathname !== "/" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black opacity-40" />
 

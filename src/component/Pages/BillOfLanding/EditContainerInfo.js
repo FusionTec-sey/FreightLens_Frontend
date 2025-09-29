@@ -11,12 +11,13 @@ import { useTheme } from "../../../context/ThemeContext";
 function ContainerEntryForm({
   editData,
   onSubmitSuccess,
+  
   onCancel,
   userPermissions = [],
   handleDeleteFunction=null,
   mode = "edit" // "add" or "edit"
  }) {
-
+    // console.log("Edit Data in ContainerEntryForm:", onSubmitSuccess);
     const { theme } = useTheme();
     const {
       suppliers,
@@ -32,7 +33,9 @@ function ContainerEntryForm({
       errors: optionErrors
     } = useOptions();
 
-  console.log("ContainerEntryForm rendered with editData:", editData);
+
+
+  // console.log("ContainerEntryForm rendered with editData:", editData);
   const [formData, setFormData] = useState({
     container_id: null,
     consignee: null,
@@ -236,7 +239,7 @@ function ContainerEntryForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submission triggered");
+    // console.log("Form submission triggered");
     // Check if any update is needed
     const hasChangedFields = Object.entries(formData).some(
       ([key, value]) => originalData && value !== originalData[key]
@@ -340,6 +343,9 @@ function ContainerEntryForm({
     //   emptyImages: emptyImages.filter(img => img.file),
     //   documents: documents.filter(doc => doc.file)
     // };
+      for (var pair of payload.entries()) {
+          console.log(pair[0]+ ', ' + pair[1]); 
+      }
     onSubmitSuccess(payload)
 
   };

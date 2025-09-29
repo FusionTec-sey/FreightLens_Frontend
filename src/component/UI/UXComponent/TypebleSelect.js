@@ -7,7 +7,7 @@ function TypableSelect({ options, value, onChange, placeholder, disabled }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
   // const formattedOptions = Array.isArray(options) ? options.map((opt) => ({ label: opt, value: opt })) : [];
-
+  console.log(theme);
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
@@ -54,12 +54,14 @@ function TypableSelect({ options, value, onChange, placeholder, disabled }) {
         autoComplete="off"
       />
       {showDropdown && !disabled && filteredOptions.length > 0 && (
-        <ul className={`absolute z-10 border w-full max-h-40 overflow-auto mt-1 rounded shadow ${theme.border} ${theme.background}`}>
+        <ul 
+        className={`absolute z-10 border w-full max-h-40 overflow-auto mt-1 rounded shadow ${theme.border} ${theme.background}`}
+        >
           {filteredOptions.map((opt) => (
             <li
               key={opt.id}
               onMouseDown={() => handleOptionClick(opt)} // onMouseDown prevents input blur before click
-              className={`px-3 py-2 cursor-pointer ${theme.text} ${theme.hover}`}
+              className={`px-3 py-2 cursor-pointer ${theme.text} ${theme.hover}  hover:bg-gray-200 dark:hover:bg-gray-700`}
             >
               {opt.name}
             </li>

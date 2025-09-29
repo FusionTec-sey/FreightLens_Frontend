@@ -439,7 +439,7 @@ export default function ContainerEntry() {
                 getRowClassName={(row) => {
                     if (isDark) {
                         if (row.Demurrage.includes("Overdue")){
-                            return 'hover:bg-red-800 bg-red-900 text-red-100'
+                            return 'hover:bg-red-500 bg-red-600 text-red-50'
                         }else{
                             // console.log(row.Demurrage.includes("Overdue"))
                         switch (row.Status) {

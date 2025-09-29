@@ -227,7 +227,7 @@ const LoginPage = () => {
             </div>
 
             <div className="text-right text-sm">
-              <a href="/forgot-password" className="text-teal-300 hover:underline">Forgot Password?</a>
+              {/* <a href="/forgot-password" className="text-teal-300 hover:underline">Forgot Password?</a> */}
             </div>
 
             <button

@@ -9,7 +9,7 @@ function App() {
   // useIdleLogout(15 * 60 * 1000); // 15 minutes
   return (
     <BrowserRouter>
-      <IdleLogoutProvider timeoutMs={15 * 60 * 1000} warningMs={60 * 1000}> 
+      {/* <IdleLogoutProvider timeoutMs={1 * 60 * 1000} warningMs={60 * 1000}>  */}
         <AuthProvider>
           <ThemeProvider>
             <OptionsProvider>
@@ -17,7 +17,7 @@ function App() {
             </OptionsProvider>
           </ThemeProvider>
         </AuthProvider>
-      </IdleLogoutProvider>
+      {/* </IdleLogoutProvider> */}
     </BrowserRouter>
   );
 }

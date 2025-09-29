@@ -249,6 +249,7 @@ export default function BillOfLandingInfo() {
 
     const handleAddContainer = useCallback((data) => {
         setContainersToAdd(prev => [...prev, data]);
+        console.log("Data: ", containersToAdd)
         setIsAddMode(false);
     }, []);
 
@@ -379,6 +380,7 @@ export default function BillOfLandingInfo() {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
             });
+            return true;
         } catch (error) {
             //  console.error("Error posting data:", error); // ✅ Log full error
             return false;
@@ -409,7 +411,7 @@ export default function BillOfLandingInfo() {
         
         try {
             await axios.delete(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteBl/${id}`,
+                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteBl/${Id}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
 
@@ -680,10 +682,12 @@ export default function BillOfLandingInfo() {
                 data={rows.filter(Boolean)}
                 totalItems={totalItems}
                 title="container_no"
-                onDataChange={() => {
-                    setLoadedServerPages(new Set());
-                    fetchContainerData(formData.billOfLadingNumber, 0, SERVER_PAGE_SIZE);
-                }}
+                // onDataChange={() => {
+                //     // handleAddContainer();
+                //     // setLoadedServerPages(new Set());
+                //     // fetchContainerData(formData.billOfLadingNumber, 0, SERVER_PAGE_SIZE);
+                // }}
+                onDataChange={handleAddContainer}
                 userPermissions={["View_container_no", "Add"]}
                 // actionColumn={actionColumn}
                 itemsPerPage={CLIENT_PAGE_SIZE}
@@ -693,13 +697,13 @@ export default function BillOfLandingInfo() {
                 theme={theme}
                 addDataComponent={
                     <ContainerEntryForm 
-                        onSubmitSuccess={handleAddContainer}
-                        onCancel={() => setIsAddMode(false)}
+                        // onSubmitSuccess={handleAddContainer}
+                        // onCancel={() => setIsAddMode(false)}
                         userPermissions={permissions}
                         mode="add"
                     />
                 }
-                showAddButton={permissions.includes('Add_Container')}
+                // showAddButton={permissions.includes('Add_Container')}
                 addButtonText="Add Container"
                 onRowClick={(row) => { permissions.includes('Edit_Container') && handleEdit(row)}}
                 onAddButtonClick={() => setIsAddMode(true)}
@@ -717,6 +721,7 @@ export default function BillOfLandingInfo() {
                         <ContainerEntryForm 
                             editData={editingContainer}
                             onSubmitSuccess={(data) => {
+                                // console.log("Updated container data:", data);
                                 setContainersToEdit(prev => ({
                                     ...prev,
                                     [editingContainer.Container_ID]: data

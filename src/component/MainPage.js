@@ -26,10 +26,10 @@ export default function MainPage() {
   }, [sidebarVisible]);
   const { theme } = useTheme();
   return (
-    <div className="flex min-h-screen bg-slate-100 relative">
+    <div className="flex min-h-screen  relative">
       {/* Sidebar for desktop */}
       {!isLoginPage && (
-        <aside className="hidden md:block fixed md:relative z-30 bg-slate-950 h-screen">
+        <aside className="hidden md:block fixed md:relative z-30  h-screen">
           <Sidebar />
         </aside>
       )}
@@ -37,7 +37,7 @@ export default function MainPage() {
       {/* Sidebar for mobile */}
       {sidebarVisible && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-slate-950 h-full">
+          <div className="w-64  h-full">
             <Sidebar onLinkClick={() => setSidebarVisible(false)} />
           </div>
           <div
@@ -55,7 +55,7 @@ export default function MainPage() {
             <div className={`flex items-center justify-between px-3 py-3 border-b ${theme.background} ${theme.border} backdrop-blur`}>
               <div className="text-sm font-semibold" />
               <button
-                className="h-10 w-10 flex items-center justify-center rounded-md bg-slate-800 text-white shadow active:scale-95"
+                className="h-10 w-10 flex items-center justify-center rounded-md  text-white shadow active:scale-95"
                 onClick={() => setSidebarVisible(true)}
                 aria-label="Open menu"
               >

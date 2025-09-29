@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-
+import { useTheme } from "../../../context/ThemeContext";
 export default function GenericSelector({
   options = [],
   value = null,
@@ -16,7 +16,7 @@ export default function GenericSelector({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const containerRef = useRef(null);
-
+  const { theme } = useTheme();
   useEffect(() => {
     if (value === null) {
       setInput("");
@@ -94,13 +94,13 @@ export default function GenericSelector({
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={() => !disabled && setDropdownOpen(true)}
         placeholder={placeholder}
-        className={`w-full border px-3 py-1.5 rounded focus:outline-none focus:ring-2 ${
+        className={`w-full border px-3 py-1.5 rounded focus:outline-none focus:ring-2 ${theme.background} ${theme.text} ${
           disabled ? "bg-gray-100 text-gray-500" : "focus:ring-blue-500"
         }`}
       />
 
       {dropdownOpen && (
-        <ul className="absolute z-30 mt-1 w-full border border-gray-200 rounded shadow-md max-h-60 overflow-y-auto bg-white dark:bg-slate-900">
+        <ul className={`absolute z-30 mt-1 w-full border border-gray-200 rounded shadow-md max-h-60 overflow-y-auto bg-white `}>
           {filteredOptions.length > 0 ? (
             filteredOptions.map((item) => (
               <li
@@ -153,7 +153,7 @@ function AddNewPopup({ label, onAdd, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="p-6 rounded-lg shadow-xl w-96 bg-white dark:bg-slate-900">
+      <div className="p-6 rounded-lg shadow-xl w-96 bg-white ">
         <h2 className="text-lg font-semibold mb-4">Add New</h2>
         <input
           className="w-full border px-3 py-2 rounded mb-4"
