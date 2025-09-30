@@ -165,7 +165,7 @@ const LoginPage = () => {
       <div className="hidden md:flex w-1/2 relative text-white z-20">
         <div className="relative flex flex-col justify-center items-center p-10 text-center">
           <Truck className="w-20 h-20 mb-6 drop-shadow-lg" />
-          <h1 className="text-5xl font-extrabold tracking-tight">FrightLens</h1>
+          <h1 className="text-5xl font-extrabold tracking-tight">Freightliner</h1>
           <p className="mt-4 text-lg text-gray-100 max-w-md">
             Freight tracking & operations, streamlined in one platform.
           </p>
@@ -184,7 +184,7 @@ const LoginPage = () => {
         <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl w-full max-w-md p-8 shadow-lg relative z-10">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-white drop-shadow-lg">Welcome Back</h2>
-            <p className="text-gray-200 text-sm mt-1">Login to your FrightLens account</p>
+            <p className="text-gray-200 text-sm mt-1">Login to your Freightliner account</p>
           </div>
 
           {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}

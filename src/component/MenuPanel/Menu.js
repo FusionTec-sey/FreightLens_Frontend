@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
-import logo from "../../assets/Images/FrightLens.png";
+import logo from "../../assets/Images/Freightliner.png";
 
 function Sidebar({ onLinkClick }) {
   const [isContainerOpen, setIsContainerOpen] = useState(false);
@@ -47,7 +47,7 @@ function Sidebar({ onLinkClick }) {
       <div className={`flex items-center justify-between gap-3 px-4 py-4 border-b ${theme.border}`}>
         <div className="flex items-center gap-3">
           <img src={logo} alt="Logo" className="w-8 h-8" />
-          <span className={`${textClass} font-semibold`}>FrightLens</span>
+          <span className={`${textClass} font-semibold`}>Freightliner</span>
         </div>
         {onLinkClick && (
           <button
