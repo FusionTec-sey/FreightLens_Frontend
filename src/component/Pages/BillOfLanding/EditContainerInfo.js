@@ -11,7 +11,6 @@ import { useTheme } from "../../../context/ThemeContext";
 function ContainerEntryForm({
   editData,
   onSubmitSuccess,
-  
   onCancel,
   userPermissions = [],
   handleDeleteFunction=null,
@@ -343,9 +342,9 @@ function ContainerEntryForm({
     //   emptyImages: emptyImages.filter(img => img.file),
     //   documents: documents.filter(doc => doc.file)
     // };
-      for (var pair of payload.entries()) {
-          console.log(pair[0]+ ', ' + pair[1]); 
-      }
+      // for (var pair of payload.entries()) {
+      //     console.log(pair[0]+ ', ' + pair[1]); 
+      // }
     onSubmitSuccess(payload)
 
   };
@@ -713,7 +712,7 @@ function ContainerEntryForm({
 
                     <button
               type="button"
-              onClick={() => handleDeleteFunction(editData.container_no)}
+              onClick={() => handleDeleteFunction(editData.Container_ID)}
               className="px-4 bg-red-600 "
             >
               Delete

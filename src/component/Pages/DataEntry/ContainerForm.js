@@ -347,9 +347,9 @@ function ContainerEntryForm({
       payload.append("remove_doc_ids", id);
     });
     
-    // for (const [key, value] of payload.entries()) {
-    //   console.log(`${key}: ${value}`);
-    // }
+    for (const [key, value] of payload.entries()) {
+      console.log(`${key}: ${value}`);
+    }
     // ✅ Decide URL based on container_id
 
     const isUpdate = !!formData.container_id;

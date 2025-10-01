@@ -250,8 +250,9 @@ export default function BillOfLandingInfo() {
     }
 
     const handleAddContainer = useCallback((data) => {
+
         setContainersToAdd(prev => [...prev, data]);
-        console.log("Data: ", containersToAdd)
+        // console.log("Data: ", containersToAdd)
         setIsAddMode(false);
     }, []);
 
@@ -286,7 +287,7 @@ export default function BillOfLandingInfo() {
             
             } else {
                 
-                console.log(data, "fetched container data")
+                // console.log(data, "fetched container data")
                 if (typeof data === 'string') {
                     try {
                         data = JSON.parse(data);
@@ -295,10 +296,14 @@ export default function BillOfLandingInfo() {
                         data = [];
                     }
                 }
-                setFormData()
+                console.log(data, "data from fetchContainerData")
+                setFormData({
+                    billOfLadingNumber: blNumber,
+                })
                 // Transform the data before setting it
                 const transformedData = transformData(data);
-                // console.log(transformedData)
+
+
                 if (data.length > 0){
                     setFormDataOfBl(data[0]);
                 }
@@ -310,9 +315,20 @@ export default function BillOfLandingInfo() {
                     }
                     return newData;
                 });
-                
+                console.log(transformedData, "data length")
                 setTotalItems(data.length || 0);
                 setLoadedServerPages(prev => new Set(prev).add(pageNum));
+
+                setContainersToAdd([]);
+                const containerIds = [];
+                transformedData.forEach(item => {
+                    const newContainer = new FormData();
+                    newContainer.append("bill_of_landing.BillOfLanding", blNumber || null)
+                    newContainer.append("container_no", item.container_no || null)
+                    containerIds.push(newContainer);
+                });
+                console.log(containerIds, "containerIds")
+                setContainersToAdd(containerIds);
             }
         } catch (error) {
             console.error("Failed to fetch containers:", error);
@@ -359,6 +375,7 @@ export default function BillOfLandingInfo() {
 
     // Save bill of lading
     const handleSave = async () => {
+        // console.log("Saving B/L info:", formData);
         const payload = {
             BillOfLanding: formData.billOfLadingNumber,
             Consignee: formData.consignee || null,
@@ -371,7 +388,7 @@ export default function BillOfLandingInfo() {
 
             new_containers: containerData?.map(item => ({ container_no: item.container_no }))
         };
-        
+        console.log(payload, "payload to save")
         const url = decodedIdId !== "new" ? 
             `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateBl/${decodedIdId}` :
             `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addBl`;
@@ -396,6 +413,7 @@ export default function BillOfLandingInfo() {
     }, []);
 
     const handleDelete = async (containerId) => {
+        console.log("Deleting container:", containerId);
         if (!window.confirm("Are you sure you want to delete this container?")) return;
         try {
             await axios.delete(
@@ -439,11 +457,21 @@ export default function BillOfLandingInfo() {
                     return;
                 }
             }
-
-            // 2. Process new containers with file uploads
+            // console.log(containersToAdd, "data")
+            containersToAdd.forEach((item) => {
+            
+                console.log("New Container to add:", item);
+                item.forEach((value, key) => {
+                    console.log(`${key}: ${value}`);
+                });
+            })
+                // 2. Process new containers with file uploads
+            
             if (containersToAdd.length > 0) {
                 const newContainerPromises = containersToAdd.map(async (container) => {
+
                     container.append("bill_of_landing.BillOfLanding", formData.billOfLadingNumber || null)
+
                     return axios.post(
                         `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/createContainer`,
                         container,
@@ -500,35 +528,35 @@ export default function BillOfLandingInfo() {
     };
 
     // Action column configuration
-    const actionColumn = useMemo(() => ({
-        render: (row) => (
-            <div className="flex justify-center space-x-2">
-                {permissions.includes('Edit_Container') && (
-                    <button 
-                        onClick={() => handleEdit(row)} 
-                        className="text-blue-500 hover:text-blue-700"
-                        title="Edit container"
-                    >
-                        <Pencil size={18} />
-                    </button>
-                )}
-                {permissions.includes('Delete_Container') && (
-                    <button 
-                        onClick={() => handleDelete(row.rawData.Container_ID)} 
-                        className="text-red-500 hover:text-red-700"
-                        title="Delete container"
-                    >
-                        <Trash2 size={18} />
-                    </button>
-                )}
-            </div>
-        )
-    }), [handleDelete, handleEdit, permissions]);
+    // const actionColumn = useMemo(() => ({
+    //     render: (row) => (
+    //         <div className="flex justify-center space-x-2">
+    //             {permissions.includes('Edit_Container') && (
+    //                 <button 
+    //                     onClick={() => handleEdit(row)} 
+    //                     className="text-blue-500 hover:text-blue-700"
+    //                     title="Edit container"
+    //                 >
+    //                     <Pencil size={18} />
+    //                 </button>
+    //             )}
+    //             {permissions.includes('Delete_Container') && (
+    //                 <button 
+    //                     onClick={() => handleDelete(row)} 
+    //                     className="text-red-500 hover:text-red-700"
+    //                     title="Delete container"
+    //                 >
+    //                     <Trash2 size={18} />
+    //                 </button>
+    //             )}
+    //         </div>
+    //     )
+    // }), [handleDelete, handleEdit, permissions]);
 
     // Initialize form with edit data if available
     useEffect(() => {
         if (editData) {
-            console.log(editData, "sdfsv")
+            // console.log(editData, "sdfsv")
             setFormData({
                         billOfLadingNumber: editData.BillOfLanding,
                         consignee: consignees.find((opt) => opt.name === editData.consignee_name)?.id || "",
