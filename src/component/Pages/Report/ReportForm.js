@@ -21,7 +21,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
     const fetchContainers = async () => {
       try {
         const response = await axios.get(
-          `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getAllContainers`,
+          `${process.env.REACT_APP_NETWORK}/getAllContainers`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -74,7 +74,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
         product.files?.map((doc) => ({
           id: doc.id,
           name: doc.filename || "file",
-          url: `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getReportImage/${doc.id}`,
+          url: `${process.env.REACT_APP_NETWORK}/getReportImage/${doc.id}`,
           type: doc.filename?.match(/\.(mp4|webm|ogg)$/i) ? "video" : "image",
         })) || [],
     }));
@@ -273,7 +273,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       });
     });
 
-    const url = `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/submitDamagedProducts`;
+    const url = `${process.env.REACT_APP_NETWORK}/submitDamagedProducts`;
 
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -342,7 +342,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       formData.append("remove_product_ids", id.toString());
     });
 
-    const url = `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateDamagedProducts/${editData.report_id}`;
+    const url = `${process.env.REACT_APP_NETWORK}/updateDamagedProducts/${editData.report_id}`;
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
     };

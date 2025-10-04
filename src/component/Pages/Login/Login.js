@@ -120,7 +120,7 @@ const LoginPage = () => {
       body.append("password", password);
 
       const response = await axios.post(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/token`,
+        `${process.env.REACT_APP_NETWORK}/token`,
         body.toString(),
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );

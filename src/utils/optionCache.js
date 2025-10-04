@@ -9,7 +9,7 @@ export async function getOption(path) {
 
   try {
     const response = await axios.get(
-      `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/${path}`, 
+      `${process.env.REACT_APP_NETWORK}/${path}`, 
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`

@@ -77,7 +77,7 @@ const Dashboard = () => {
     async function getDashboardInfo() {
       try {
         setIsLoading(true);
-        const res = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDashboardInfo`, {
+        const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getDashboardInfo`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         let data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
@@ -104,7 +104,7 @@ const Dashboard = () => {
     async function updateGraph() {
       try {
         setIsChartLoading(true);
-        const res = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getContainerCountsByMonth/${selectedYear}`, {
+        const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;

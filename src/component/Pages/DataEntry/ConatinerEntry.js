@@ -179,7 +179,7 @@ export default function ContainerEntry() {
             searchParams.append("order_by_arrival", false);
         setIsLoading(true);
         const response = await axios.get(
-            `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getContainerDetails?${searchParams.toString()}`,
+            `${process.env.REACT_APP_NETWORK}/getContainerDetails?${searchParams.toString()}`,
             {
             
             headers: {
@@ -260,7 +260,7 @@ export default function ContainerEntry() {
         
         try {
             await axios.delete(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainerDetails/${containerId}`,
+                `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
             
@@ -309,7 +309,7 @@ export default function ContainerEntry() {
 
 
         try {
-        const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/toPickup`, {
+        const response = await axios.get(`${process.env.REACT_APP_NETWORK}/toPickup`, {
             headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`
             }
@@ -345,7 +345,7 @@ export default function ContainerEntry() {
 
 
         try {
-        const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/arrived`, {
+        const response = await axios.get(`${process.env.REACT_APP_NETWORK}/arrived`, {
             headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`
             }, // 👈 pass as query parameter

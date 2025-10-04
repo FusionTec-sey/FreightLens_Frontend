@@ -54,7 +54,7 @@ export default function GenericSelector({
 
     try {
       await axios.post(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/${addApi}`,
+        `${process.env.REACT_APP_NETWORK}/${addApi}`,
         { [labelKey]: newName.trim() },
         {
           headers: {

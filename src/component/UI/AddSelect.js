@@ -47,7 +47,7 @@ export default function VesselSelector({
   const handleAddNew = async (name) => {
     try {
       const response = await axios.post(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/setVessal`,
+        `${process.env.REACT_APP_NETWORK}/setVessal`,
         {
           VessalNo: name, // only send the name as VessalNo
         },

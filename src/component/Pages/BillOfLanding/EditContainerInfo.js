@@ -515,7 +515,7 @@ function ContainerEntryForm({
                     <a
                       href={
                         doc.isExisting
-                          ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDocument/${doc.id}`
+                          ? `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`
                           : URL.createObjectURL(doc.file)
                       }
                       target="_blank"
@@ -599,7 +599,7 @@ function ContainerEntryForm({
                     <a
                       href={
                         doc.isExisting
-                          ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDocument/${doc.id}`
+                          ? `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`
                           : URL.createObjectURL(doc.file)
                       }
                       target="_blank"
@@ -660,7 +660,7 @@ function ContainerEntryForm({
                     : img.file?.name;
 
                   const fileUrl = img.isExisting
-                    ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getEmptyImage/${img.id}`
+                    ? `${process.env.REACT_APP_NETWORK}/getEmptyImage/${img.id}`
                     : URL.createObjectURL(img.file);
 
                   return (

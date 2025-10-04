@@ -21,7 +21,7 @@ import { useTheme } from '../../../context/ThemeContext';
 
 // async function getContainerData() {
 //   try {
-//     const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/containerDetaiils`, {
+//     const response = await axios.get(`${process.env.REACT_APP_NETWORK}/containerDetaiils`, {
 //       headers: {
 //         Authorization: `Bearer ${localStorage.getItem('token')}`
 //       }
@@ -65,7 +65,7 @@ function Setting({ currentUser }) {
     async function handleAddUser (username, password, roles) {
             // console.log("Adding user:", username, "with roles:", roles);
             try {
-                const response = await axios.post(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addUser`,
+                const response = await axios.post(`${process.env.REACT_APP_NETWORK}/addUser`,
                 {
                      username: username,
                      password: password,
@@ -104,7 +104,7 @@ function Setting({ currentUser }) {
 
     async function handleDeleteUser(id){
         try {
-            await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteUser/${id}`,
+            await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteUser/${id}`,
 
             {
                 headers: {
@@ -134,7 +134,7 @@ function Setting({ currentUser }) {
         // print(rolePermissions)
         // console.log("Adding role:", name, "with permissions:", newRolePermissions);
         try {
-                const response = await axios.post(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addPermission`,
+                const response = await axios.post(`${process.env.REACT_APP_NETWORK}/addPermission`,
                 {
                      name: name,
                     //  password: password,
@@ -179,7 +179,7 @@ function Setting({ currentUser }) {
         }
 
         try {
-            await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteRole/${roleId}`, {
+            await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteRole/${roleId}`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
@@ -203,7 +203,7 @@ function Setting({ currentUser }) {
         
         async function getUser() {
             try {
-                const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getUser`, {
+                const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getUser`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
@@ -223,7 +223,7 @@ function Setting({ currentUser }) {
 
         async function getRole() {
             try {
-                const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getRole`, {
+                const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getRole`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }
@@ -243,7 +243,7 @@ function Setting({ currentUser }) {
 
         async function getPermission() {
             try {
-                const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getPermission`, {
+                const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getPermission`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`
                 }

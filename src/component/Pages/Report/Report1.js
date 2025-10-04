@@ -45,7 +45,7 @@ export default function ContainerForReport1() {
   //   limit = SERVER_PAGE_SIZE,
   //   filters = filterData) {
   //   try {
-  //     const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getContainerReports`, {
+  //     const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerReports`, {
   //       headers: {
   //         Authorization: `Bearer ${localStorage.getItem('token')}`
   //       }
@@ -85,7 +85,7 @@ export default function ContainerForReport1() {
       // if (filters.Material) params.material = filters.Material;
 
       const response = await axios.get(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDamageReport`,
+        `${process.env.REACT_APP_NETWORK}/getDamageReport`,
         {
           params,
           headers: {
@@ -167,7 +167,7 @@ export default function ContainerForReport1() {
   const handleEditClick = async (row) => {
     
     try {
-      const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDamageReportById/${row.ReportId}`, {
+      const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getDamageReportById/${row.ReportId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
         }
@@ -189,7 +189,7 @@ export default function ContainerForReport1() {
     if (!window.confirm("Are you sure you want to delete this row?")) return;
 
     try {
-      const response = await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteDamagedReport/${row.ReportId}`, {
+      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.ReportId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
         }
@@ -217,7 +217,7 @@ export default function ContainerForReport1() {
   const handleGenerateReport = async (row) => {
     try {
       const response = await axios.get(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/reports/${row.ReportId}`,
+        `${process.env.REACT_APP_NETWORK}/reports/${row.ReportId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,

@@ -54,7 +54,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
 
   const handleEditClick = async (row) => {
     try {
-      const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDamageReportById/${row.reportId}`, {
+      const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getDamageReportById/${row.reportId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
         }
@@ -76,7 +76,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     if (!window.confirm("Are you sure you want to delete this row?")) return;
 
     try {
-      const response = await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteDamagedReport/${row.reportId}`, {
+      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.reportId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
         }
@@ -103,7 +103,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   const handleGenerateReport = async (row) => {
     try {
       const response = await axios.get(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/reports/${row.reportId}`,
+        `${process.env.REACT_APP_NETWORK}/reports/${row.reportId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,

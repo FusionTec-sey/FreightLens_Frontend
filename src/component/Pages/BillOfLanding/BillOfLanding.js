@@ -80,7 +80,7 @@ export default function BillOfLanding() {
             }
             // console.log(filters);
             const response = await axios.get(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getBl?${searchParams.toString()}`,
+                `${process.env.REACT_APP_NETWORK}/getBl?${searchParams.toString()}`,
                 {
                     headers: { 
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -156,7 +156,7 @@ export default function BillOfLanding() {
         
         try {
             await axios.delete(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteBl/${id}`,
+                `${process.env.REACT_APP_NETWORK}/deleteBl/${id}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
             toast.success("Deleted successfully");

@@ -245,7 +245,7 @@ export default function BillOfLandingInfo() {
         setIsLoading(true);
         try {
             const response = await axios.get(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/track_and_trace`, 
+                `${process.env.REACT_APP_NETWORK}/track_and_trace`, 
                 {
                     params: { 
                         bl: blNumber,
@@ -349,8 +349,8 @@ export default function BillOfLandingInfo() {
             new_containers: containerData?.map(item => ({ container_no: item.container_no }))
         };
         const url = decodedId !== "new" ? 
-            `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateBl/${decodedId}` :
-            `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addBl`;
+            `${process.env.REACT_APP_NETWORK}/updateBl/${decodedId}` :
+            `${process.env.REACT_APP_NETWORK}/addBl`;
 
         try {
             await axios.post(url, payload, {
@@ -375,7 +375,7 @@ export default function BillOfLandingInfo() {
         if (!window.confirm("Are you sure you want to delete this container?")) return;
         try {
             await axios.delete(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainerDetails/${containerId}`,
+                `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
             setRows(prev => prev.filter(item => item.rawData.container_id !== containerId));
@@ -390,7 +390,7 @@ export default function BillOfLandingInfo() {
         
         try {
             await axios.delete(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteBl/${decodedId}`,
+                `${process.env.REACT_APP_NETWORK}/deleteBl/${decodedId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
             );
         } catch (error) {
@@ -424,7 +424,7 @@ export default function BillOfLandingInfo() {
                 const newContainerPromises = containersToAdd.map(async (container) => {
                     container.append("bill_of_landing.BillOfLanding", formData.billOfLadingNumber || null)
                     return axios.post(
-                        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/createContainer`,
+                        `${process.env.REACT_APP_NETWORK}/createContainer`,
                         container,
                         {
                             headers: {
@@ -441,7 +441,7 @@ export default function BillOfLandingInfo() {
             if (Object.keys(containersToEdit).length > 0) {
                 const editPromises = Object.entries(containersToEdit).map(async ([id, container]) => {
                     return axios.post(
-                        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateContainer/${id}`,
+                        `${process.env.REACT_APP_NETWORK}/updateContainer/${id}`,
                         container,
                         {
                             headers: {

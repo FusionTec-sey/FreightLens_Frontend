@@ -94,7 +94,7 @@ export default function CompleteContainer() {
       if (filters.Material) params.material = filters.Material;
 
       const response = await axios.get(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getContainerDetails`,
+        `${process.env.REACT_APP_NETWORK}/getContainerDetails`,
         {
           params,
           headers: {
@@ -154,7 +154,7 @@ export default function CompleteContainer() {
 
     try {
       await axios.delete(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainerDetails/${containerId}`,
+        `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
 
