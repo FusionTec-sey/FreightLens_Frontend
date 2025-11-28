@@ -77,7 +77,7 @@ function Setting({ currentUser }) {
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
                         "skip_zrok_interstitial": "true",
                     },
-                    withCredentials: true,
+                    withCredentials: false,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -113,7 +113,7 @@ function Setting({ currentUser }) {
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true,
+                withCredentials: false,
             });
 
         } catch (error) {
@@ -150,7 +150,7 @@ function Setting({ currentUser }) {
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
                         "skip_zrok_interstitial": "true",
                     },
-                    withCredentials: true,
+                    withCredentials: false,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -190,7 +190,7 @@ function Setting({ currentUser }) {
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true,
+                withCredentials: false,
             });
 
             // Remove role from state if successful
@@ -216,7 +216,7 @@ function Setting({ currentUser }) {
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true,
+                withCredentials: false,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -238,7 +238,7 @@ function Setting({ currentUser }) {
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true,
+                withCredentials: false,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -260,7 +260,7 @@ function Setting({ currentUser }) {
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true,
+                withCredentials: false,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {

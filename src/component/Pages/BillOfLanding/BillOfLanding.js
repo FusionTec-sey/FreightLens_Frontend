@@ -86,7 +86,7 @@ export default function BillOfLanding() {
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
                         "skip_zrok_interstitial": "true",
                     },
-                    withCredentials: true,
+                    withCredentials: false,
                 },
                 
             );
@@ -163,7 +163,7 @@ export default function BillOfLanding() {
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true, 
+                withCredentials: false, 
             }
             );
 
