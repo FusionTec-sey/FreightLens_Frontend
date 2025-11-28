@@ -56,8 +56,10 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     try {
       const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getDamageReportById/${row.reportId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true
       });
 
       let data = response.data;
@@ -78,8 +80,10 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     try {
       const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.reportId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true
       });
 
       if (response.status === 200) {
@@ -107,8 +111,10 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
           responseType: "blob", // Important to receive PDF file
+          withCredentials: true
         }
       );
 

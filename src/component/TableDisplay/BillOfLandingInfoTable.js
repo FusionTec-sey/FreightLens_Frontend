@@ -68,8 +68,10 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     try {
       const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteBl/${row.BillOfLanding}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true,
       });
 
       if (response.status === 200) {

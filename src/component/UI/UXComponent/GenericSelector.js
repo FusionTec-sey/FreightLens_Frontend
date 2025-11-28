@@ -59,7 +59,9 @@ export default function GenericSelector({
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
+          withCredentials: true,
         }
       );
       onAddNew?.(); // Notify parent to refresh

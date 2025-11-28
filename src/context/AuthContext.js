@@ -206,7 +206,11 @@ export const AuthProvider = ({ children }) => {
         const resp = await axios.post(
           `${process.env.REACT_APP_NETWORK}/refresh`,
           { refreshToken }, // send in body (adapt if your API expects other shape)
-          { headers: { "Content-Type": "application/json" } }
+          { headers: { "Content-Type": "application/json",
+            "skip_zrok_interstitial": "true"
+           },
+          
+          withCredentials: true  }
         );
 
         const newAccessToken = resp?.data?.access_token || resp?.data?.accessToken || null;

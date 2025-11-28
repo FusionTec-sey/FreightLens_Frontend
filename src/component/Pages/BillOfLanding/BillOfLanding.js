@@ -84,10 +84,13 @@ export default function BillOfLanding() {
                 {
                     headers: { 
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
-                    }
-                }
+                        "skip_zrok_interstitial": "true",
+                    },
+                    withCredentials: true,
+                },
+                
             );
-            
+
             const { data, total_count } = response.data;
             
             if (typeof data === 'string') {
@@ -157,8 +160,13 @@ export default function BillOfLanding() {
         try {
             await axios.delete(
                 `${process.env.REACT_APP_NETWORK}/deleteBl/${id}`,
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true, 
+            }
             );
+
             toast.success("Deleted successfully");
             setState(prev => ({
                 ...prev,

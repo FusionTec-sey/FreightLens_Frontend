@@ -35,7 +35,9 @@ const MaterialTagSelector = ({
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
+          withCredentials: true,
         }
       );
 

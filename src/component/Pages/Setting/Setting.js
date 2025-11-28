@@ -74,8 +74,10 @@ function Setting({ currentUser }) {
                 
                 {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem('token')}`
-                    }
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true",
+                    },
+                    withCredentials: true,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -108,8 +110,10 @@ function Setting({ currentUser }) {
 
             {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true,
             });
 
         } catch (error) {
@@ -143,8 +147,10 @@ function Setting({ currentUser }) {
                 
                 {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem('token')}`
-                    }
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true",
+                    },
+                    withCredentials: true,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -181,8 +187,10 @@ function Setting({ currentUser }) {
         try {
             await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteRole/${roleId}`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true,
             });
 
             // Remove role from state if successful
@@ -205,8 +213,10 @@ function Setting({ currentUser }) {
             try {
                 const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getUser`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -225,8 +235,10 @@ function Setting({ currentUser }) {
             try {
                 const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getRole`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -245,8 +257,10 @@ function Setting({ currentUser }) {
             try {
                 const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getPermission`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true,
                 });
                 let data = response.data;
                 if (typeof data === 'string') {

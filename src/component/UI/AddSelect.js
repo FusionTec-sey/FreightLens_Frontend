@@ -54,7 +54,9 @@ export default function VesselSelector({
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
+          withCredentials: true,
         }
       );
 

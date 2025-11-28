@@ -122,7 +122,13 @@ const LoginPage = () => {
       const response = await axios.post(
         `${process.env.REACT_APP_NETWORK}/token`,
         body.toString(),
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "skip_zrok_interstitial": "true",
+          },
+          withCredentials: true, // keep/remove depending on your auth setup
+        }
       );
 
       const data = response.data;

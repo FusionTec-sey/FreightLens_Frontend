@@ -12,8 +12,10 @@ export async function getOption(path) {
       `${process.env.REACT_APP_NETWORK}/${path}`, 
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true
       }
     );
 

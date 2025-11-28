@@ -98,8 +98,11 @@ export default function CompleteContainer() {
         {
           params,
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            withCredentials: true,
+            
+          },
+          withCredentials: true,
         }
       );
 
@@ -155,7 +158,11 @@ export default function CompleteContainer() {
     try {
       await axios.delete(
         `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
+            "skip_zrok_interstitial": "true"
+         },
+        withCredentials: true,
+      }
       );
 
       setLoadedServerPages(new Set());

@@ -251,11 +251,15 @@ export default function BillOfLandingInfo() {
                         bl: blNumber,
                     },
                     headers: { 
-                        Authorization: `Bearer ${localStorage.getItem('token')}` 
-                    }
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true", 
+                    },
+                    withCredentials: true, 
                 }
             );
-            
+
+
+
             let data = response.data;
             if (data.length === 0) {
                 setErrorMessage("No containers found for this B/L number");
@@ -355,9 +359,12 @@ export default function BillOfLandingInfo() {
         try {
             await axios.post(url, payload, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true,
             });
+
             return true;
         } catch (error) {
             return false;
@@ -376,8 +383,14 @@ export default function BillOfLandingInfo() {
         try {
             await axios.delete(
                 `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` ,
+                    "skip_zrok_interstitial": "true"
+                },
+            withCredentials: true,}
+
             );
+
+
             setRows(prev => prev.filter(item => item.rawData.container_id !== containerId));
         } catch (error) {
             console.error("Failed to delete container:", error);
@@ -391,7 +404,11 @@ export default function BillOfLandingInfo() {
         try {
             await axios.delete(
                 `${process.env.REACT_APP_NETWORK}/deleteBl/${decodedId}`,
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                withCredentials: true,
+            }
             );
         } catch (error) {
             console.error("Delete error:", error);
@@ -429,8 +446,10 @@ export default function BillOfLandingInfo() {
                         {
                             headers: {
                                 Authorization: `Bearer ${localStorage.getItem('token')}`,
-                                'Content-Type': 'multipart/form-data'
-                            }
+                                'Content-Type': 'multipart/form-data',
+                                "skip_zrok_interstitial": "true",
+                            },
+                            withCredentials: true,
                         }
                     );
                 });
@@ -446,8 +465,10 @@ export default function BillOfLandingInfo() {
                         {
                             headers: {
                                 Authorization: `Bearer ${localStorage.getItem('token')}`,
-                                'Content-Type': 'multipart/form-data'
-                            }
+                                'Content-Type': 'multipart/form-data',
+                                "skip_zrok_interstitial": "true",
+                            },
+                             withCredentials: true,
                         }
                     );
                 });

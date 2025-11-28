@@ -362,7 +362,9 @@ function ContainerEntryForm({
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "multipart/form-data",
+          "skip_zrok_interstitial": "true",
         },
+        withCredentials: true
       });
 
       // Optional: success callback

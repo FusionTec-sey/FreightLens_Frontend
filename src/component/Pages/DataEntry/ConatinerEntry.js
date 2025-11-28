@@ -183,15 +183,17 @@ export default function ContainerEntry() {
             {
             
             headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
+                Authorization: `Bearer ${localStorage.getItem('token')}`,
+                "skip_zrok_interstitial": "true",
+            },
+            withCredentials: true,
             }
         );
 
         const { data, total_count } = response.data;
         
         const transformedData = transformData(data);
-        // console.log(transformedData)
+        console.log(transformedData)
         for (const i of transformedData){
         console.log( i.Status);
 
@@ -261,7 +263,10 @@ export default function ContainerEntry() {
         try {
             await axios.delete(
                 `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true"
+                 },
+                withCredentials: true,}
             );
             
             // Invalidate cache and reload
@@ -311,8 +316,10 @@ export default function ContainerEntry() {
         try {
         const response = await axios.get(`${process.env.REACT_APP_NETWORK}/toPickup`, {
             headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-            }
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
+            },
+            withCredentials: true,
             // 👈 pass as query parameter
         });
 
@@ -347,8 +354,13 @@ export default function ContainerEntry() {
         try {
         const response = await axios.get(`${process.env.REACT_APP_NETWORK}/arrived`, {
             headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-            }, // 👈 pass as query parameter
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
+        
+            
+            }, 
+            withCredentials: true
+            // 👈 pass as query parameter
         });
 
         const containers = response.data;

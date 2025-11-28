@@ -89,8 +89,10 @@ export default function ContainerForReport1() {
         {
           params,
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            "skip_zrok_interstitial": "true",
+          },
+          withCredentials: true,
         }
       );
 
@@ -169,8 +171,10 @@ export default function ContainerForReport1() {
     try {
       const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getDamageReportById/${row.ReportId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true,
       });
 
       let data = response.data;
@@ -191,8 +195,10 @@ export default function ContainerForReport1() {
     try {
       const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.ReportId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true,
       });
 
       if (response.status === 200) {
@@ -221,8 +227,10 @@ export default function ContainerForReport1() {
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
           responseType: "blob", // Important to receive PDF file
+          withCredentials: true,
         }
       );
 

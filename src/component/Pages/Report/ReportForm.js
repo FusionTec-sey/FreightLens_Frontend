@@ -25,7 +25,9 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "skip_zrok_interstitial": "true",
             },
+            withCredentials: true,
           }
         );
 
@@ -277,9 +279,10 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
 
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "skip_zrok_interstitial": "true",
     };
 
-    return axios.post(url, formData, { headers });
+    return axios.post(url, formData, { headers, withCredentials: true });
   };
 
   // Submit edited report - only changed data
@@ -345,9 +348,10 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
     const url = `${process.env.REACT_APP_NETWORK}/updateDamagedProducts/${editData.report_id}`;
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "skip_zrok_interstitial": "true",
     };
 
-    return axios.post(url, formData, { headers });
+    return axios.post(url, formData, { headers, withCredentials: true });
   };
 
   const handleSubmit = async (e) => {

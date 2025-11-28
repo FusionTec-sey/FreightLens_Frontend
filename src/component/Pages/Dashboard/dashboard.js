@@ -78,7 +78,11 @@ const Dashboard = () => {
       try {
         setIsLoading(true);
         const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getDashboardInfo`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true", 
+            
+          },
+          withCredentials: true,
         });
         let data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
         setStats({
@@ -105,7 +109,10 @@ const Dashboard = () => {
       try {
         setIsChartLoading(true);
         const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
+           },
+          withCredentials: true,
         });
         const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
         setYearlyData(data || []);
