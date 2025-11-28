@@ -16,7 +16,7 @@ async function getContainerReportData() {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
         "skip_zrok_interstitial": "true"
       },
-      withCredentials: false
+      withCredentials: true
     });
     let data = response.data;
     if (typeof data === 'string') {

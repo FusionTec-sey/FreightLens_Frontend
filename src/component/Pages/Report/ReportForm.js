@@ -27,7 +27,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
               "skip_zrok_interstitial": "true",
             },
-            withCredentials: false,
+            withCredentials: true,
           }
         );
 
@@ -282,7 +282,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       "skip_zrok_interstitial": "true",
     };
 
-    return axios.post(url, formData, { headers, withCredentials: false });
+    return axios.post(url, formData, { headers, withCredentials: true });
   };
 
   // Submit edited report - only changed data
@@ -351,7 +351,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       "skip_zrok_interstitial": "true",
     };
 
-    return axios.post(url, formData, { headers, withCredentials: false });
+    return axios.post(url, formData, { headers, withCredentials: true });
   };
 
   const handleSubmit = async (e) => {

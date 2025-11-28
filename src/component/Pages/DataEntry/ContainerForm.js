@@ -364,7 +364,7 @@ function ContainerEntryForm({
           "Content-Type": "multipart/form-data",
           "skip_zrok_interstitial": "true",
         },
-        withCredentials: false
+        withCredentials: true
       });
 
       // Optional: success callback

@@ -210,7 +210,7 @@ export const AuthProvider = ({ children }) => {
             "skip_zrok_interstitial": "true"
            },
           
-          withCredentials: false  }
+          withCredentials: true  }
         );
 
         const newAccessToken = resp?.data?.access_token || resp?.data?.accessToken || null;
