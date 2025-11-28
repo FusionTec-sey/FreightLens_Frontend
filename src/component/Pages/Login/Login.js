@@ -119,17 +119,34 @@ const LoginPage = () => {
       body.append("username", username);
       body.append("password", password);
 
-      const response = await axios.post(
-        `${process.env.REACT_APP_NETWORK}/token`,
-        body.toString(),
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "skip_zrok_interstitial": "true",
-          },
-          withCredentials: true, // keep/remove depending on your auth setup
-        }
-      );
+      console.log("NETWORK BASE:", process.env.REACT_APP_NETWORK);
+
+const url = `${process.env.REACT_APP_NETWORK}/token`;
+console.log("TOKEN URL:", url);
+
+const response = await axios.post(
+  url,
+  body.toString(),
+  {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "skip_zrok_interstitial": "true",
+    },
+    withCredentials: true,
+  }
+);
+
+      // const response = await axios.post(
+      //   `${process.env.REACT_APP_NETWORK}/token`,
+      //   body.toString(),
+      //   {
+      //     headers: {
+      //       "Content-Type": "application/x-www-form-urlencoded",
+      //       "skip_zrok_interstitial": "true",
+      //     },
+      //     withCredentials: true, // keep/remove depending on your auth setup
+      //   }
+      // );
 
       const data = response.data;
       login(data.access_token, data.refresh_token, data.permissions || [], username);
