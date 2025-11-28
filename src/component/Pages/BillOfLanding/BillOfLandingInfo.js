@@ -254,7 +254,7 @@ export default function BillOfLandingInfo() {
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
                         "skip_zrok_interstitial": "true", 
                     },
-                    withCredentials: true, 
+                    withCredentials: false, 
                 }
             );
 
@@ -362,7 +362,7 @@ export default function BillOfLandingInfo() {
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true,
+                withCredentials: false,
             });
 
             return true;
@@ -386,7 +386,7 @@ export default function BillOfLandingInfo() {
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` ,
                     "skip_zrok_interstitial": "true"
                 },
-            withCredentials: true,}
+            withCredentials: false,}
 
             );
 
@@ -407,7 +407,7 @@ export default function BillOfLandingInfo() {
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
-                withCredentials: true,
+                withCredentials: false,
             }
             );
         } catch (error) {
@@ -449,7 +449,7 @@ export default function BillOfLandingInfo() {
                                 'Content-Type': 'multipart/form-data',
                                 "skip_zrok_interstitial": "true",
                             },
-                            withCredentials: true,
+                            withCredentials: false,
                         }
                     );
                 });
@@ -468,7 +468,7 @@ export default function BillOfLandingInfo() {
                                 'Content-Type': 'multipart/form-data',
                                 "skip_zrok_interstitial": "true",
                             },
-                             withCredentials: true,
+                             withCredentials: false,
                         }
                     );
                 });

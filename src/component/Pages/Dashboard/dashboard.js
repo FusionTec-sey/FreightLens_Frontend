@@ -82,7 +82,7 @@ const Dashboard = () => {
             "skip_zrok_interstitial": "true", 
             
           },
-          withCredentials: true,
+          withCredentials: false,
         });
         let data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
         setStats({
@@ -112,7 +112,7 @@ const Dashboard = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}`,
             "skip_zrok_interstitial": "true",
            },
-          withCredentials: true,
+          withCredentials: false,
         });
         const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
         setYearlyData(data || []);

@@ -99,10 +99,10 @@ export default function CompleteContainer() {
           params,
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
-            withCredentials: true,
+            withCredentials: false,
             
           },
-          withCredentials: true,
+          withCredentials: false,
         }
       );
 
@@ -161,7 +161,7 @@ export default function CompleteContainer() {
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
             "skip_zrok_interstitial": "true"
          },
-        withCredentials: true,
+        withCredentials: false,
       }
       );
 
