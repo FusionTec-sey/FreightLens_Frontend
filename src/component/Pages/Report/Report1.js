@@ -92,7 +92,7 @@ export default function ContainerForReport1() {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
             "skip_zrok_interstitial": "true",
           },
-          withCredentials: true,
+          
         }
       );
 
@@ -174,7 +174,7 @@ export default function ContainerForReport1() {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
         },
-        withCredentials: true,
+        
       });
 
       let data = response.data;
@@ -198,7 +198,7 @@ export default function ContainerForReport1() {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
         },
-        withCredentials: true,
+        
       });
 
       if (response.status === 200) {
@@ -230,7 +230,7 @@ export default function ContainerForReport1() {
             "skip_zrok_interstitial": "true",
           },
           responseType: "blob", // Important to receive PDF file
-          withCredentials: true,
+          
         }
       );
 

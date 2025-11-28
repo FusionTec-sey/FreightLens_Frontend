@@ -27,7 +27,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
               "skip_zrok_interstitial": "true",
             },
-            withCredentials: true,
+            
           }
         );
 

@@ -186,7 +186,7 @@ export default function ContainerEntry() {
                 Authorization: `Bearer ${localStorage.getItem('token')}`,
                 "skip_zrok_interstitial": "true",
             },
-            withCredentials: true,
+            
             }
         );
 
@@ -266,7 +266,7 @@ export default function ContainerEntry() {
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true"
                  },
-                withCredentials: true,}
+                }
             );
             
             // Invalidate cache and reload
@@ -319,7 +319,7 @@ export default function ContainerEntry() {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "skip_zrok_interstitial": "true",
             },
-            withCredentials: true,
+            
             // 👈 pass as query parameter
         });
 
