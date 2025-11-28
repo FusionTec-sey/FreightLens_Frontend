@@ -125,7 +125,7 @@ const LoginPage = () => {
         {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
-            // "skip_zrok_interstitial": "true",
+            "skip_zrok_interstitial": "true",
           },
           // withCredentials: true, // keep/remove depending on your auth setup
         }
