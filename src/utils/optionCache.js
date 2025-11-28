@@ -15,7 +15,7 @@ export async function getOption(path) {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
         },
-        withCredentials: false
+        withCredentials: true
       }
     );
 

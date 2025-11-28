@@ -127,7 +127,7 @@ const LoginPage = () => {
             "Content-Type": "application/x-www-form-urlencoded",
             "skip_zrok_interstitial": "true",
           },
-          withCredentials: false, // keep/remove depending on your auth setup
+          withCredentials: true, // keep/remove depending on your auth setup
         }
       );
 
