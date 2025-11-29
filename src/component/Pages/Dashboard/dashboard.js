@@ -108,14 +108,16 @@ const Dashboard = () => {
     async function updateGraph() {
       try {
         setIsChartLoading(true);
-        const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}`,
-            // "skip_zrok_interstitial": "true",
-           },
+        const res = await axios.get(
+          `${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, 
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`
+            },
+            withCredentials: false
+          }
+        );
 
-          withCredentials: false,
-          
-        });
         const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
         setYearlyData(data || []);
       } catch (err) {
