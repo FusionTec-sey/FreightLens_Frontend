@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }) => {
 
         // schedule the next refresh
         scheduleRefresh(newAccessToken);
-
+        console.log(token);
         console.log("✅ Token refreshed successfully");
         return newAccessToken;
       } catch (err) {
