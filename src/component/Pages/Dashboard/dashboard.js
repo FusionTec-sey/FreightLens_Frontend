@@ -79,7 +79,7 @@ const Dashboard = () => {
         setIsLoading(true);
         const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getDashboardInfo`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "skip_zrok_interstitial": "true", 
+            // "skip_zrok_interstitial": "true", 
             
           },
           withCredentials: false,
@@ -110,7 +110,7 @@ const Dashboard = () => {
         setIsChartLoading(true);
         const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "skip_zrok_interstitial": "true",
+            // "skip_zrok_interstitial": "true",
            },
 
           withCredentials: false,
