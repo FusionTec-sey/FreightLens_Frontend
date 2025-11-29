@@ -108,19 +108,12 @@ const Dashboard = () => {
     async function updateGraph() {
       try {
         setIsChartLoading(true);
-const token = localStorage.getItem("token");
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: false
+        });
 
-const res = await axios.post(
-  `${process.env.REACT_APP_NETWORK}/getDashboardInfo`,
-  {},
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    },
-    withCredentials: false
-  }
-);
 
         const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
         setYearlyData(data || []);
