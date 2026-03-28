@@ -11,10 +11,12 @@ import { useAuth } from '../../../context/AuthContext.js';
 
 async function getContainerReportData() {
   try {
-    const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getContainerReports`, {
+    const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerReports`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      }
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        "skip_zrok_interstitial": "true"
+      },
+      withCredentials: true
     });
     let data = response.data;
     if (typeof data === 'string') {

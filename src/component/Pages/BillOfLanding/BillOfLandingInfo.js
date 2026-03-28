@@ -6,16 +6,19 @@ import axios from 'axios';
 import { useAuth } from '../../../context/AuthContext';
 import { convertToLocalDateTimeInput } from '../../../utils/DateFormater';
 import { useOptions } from "../../../hooks/useOptions";
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Plus, Save, X, AlertTriangle } from 'lucide-react';
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import { useTheme } from '../../../context/ThemeContext';
+
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 200;
 
 export default function BillOfLandingInfo() {
-    const {theme } = useTheme();
+    const { theme } = useTheme();
     const { permissions } = useAuth();
     const { Id } = useParams();
+    const decodedId = decodeURIComponent(Id); // will be "abc/ba"
+
     const location = useLocation();
     const editData = location.state?.data;
     const formRef = useRef();
@@ -42,6 +45,9 @@ export default function BillOfLandingInfo() {
     const [loadedServerPages, setLoadedServerPages] = useState(new Set());
     const [isSaving, setIsSaving] = useState(false);
     const [isBlModified, setIsBlModified] = useState(false);
+    const [showPendingSection, setShowPendingSection] = useState(true);
+    const [errorMessage, setErrorMessage] = useState(null);
+    const [pendingEditIndex, setPendingEditIndex] = useState(-1);
     
     const [formData, setFormData] = useState({
         billOfLadingNumber: "",
@@ -51,7 +57,9 @@ export default function BillOfLandingInfo() {
         supplier: "",
         Provider: "",
         shippingType: null,
-        tax: 0
+        tax: 0,
+        freeDays: "",   // BoL-level FreeDays
+        status: "",     // BoL-level default status
     });
 
     // Define form fields configuration
@@ -67,7 +75,7 @@ export default function BillOfLandingInfo() {
             customRender: (field) => (
                 <div className="col-span-1 flex items-end gap-2">
                     <div className="flex-1">
-                        <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
                         </label>
                         <input
@@ -77,14 +85,14 @@ export default function BillOfLandingInfo() {
                             placeholder={field.placeholder}
                             value={formData[field.id]}
                             onChange={handleChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                            className={`w-full border rounded-md px-3 py-2 text-sm ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                             required={field.required}
                         />
                     </div>
                     {field.searchButton && (
                         <button
                             onClick={handleSearch}
-                            className="px-4 py-2 bg-blue-600 text-sm text-white rounded hover:bg-blue-700 h-fit"
+                            className="px-4 py-2 bg-blue-600 text-sm text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 h-fit"
                             disabled={isLoading || !formData.billOfLadingNumber}
                         >
                             Search
@@ -98,7 +106,6 @@ export default function BillOfLandingInfo() {
             label: 'Logistics provider',
             type: 'select',
             options: logistics,
-            // labelKey: 'name',
             valueKey: 'id',
             refreshKey: 'logistics',
             addApi: 'setProvider',
@@ -109,7 +116,6 @@ export default function BillOfLandingInfo() {
             label: 'Consignee',
             type: 'select',
             options: consignees,
-            // labelKey: 'consignee_name',
             valueKey: 'id',
             refreshKey: 'consignees',
             addApi: 'setConsignee',
@@ -120,7 +126,6 @@ export default function BillOfLandingInfo() {
             label: 'Vessel Name',
             type: 'select',
             options: vesselList,
-            // labelKey: 'VessalNo',
             valueKey: 'id',
             refreshKey: 'vessal',
             addApi: 'setVessal',
@@ -133,7 +138,7 @@ export default function BillOfLandingInfo() {
             colSpan: 1,
             customRender: (field) => (
                 <div>
-                    <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                         {field.label}
                     </label>
                     <input
@@ -142,7 +147,7 @@ export default function BillOfLandingInfo() {
                         id={field.id}
                         value={formData[field.id]}
                         onChange={handleChange}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        className={`w-full border rounded-md px-3 py-2 text-sm ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                     />
                 </div>
             )
@@ -152,7 +157,6 @@ export default function BillOfLandingInfo() {
             label: 'Supplier',
             type: 'select',
             options: suppliers,
-            // labelKey: 'name',
             valueKey: 'id',
             refreshKey: 'suppliers',
             addApi: 'setSupplier',
@@ -163,40 +167,19 @@ export default function BillOfLandingInfo() {
             label: 'Shipping Type',
             type: 'select',
             options: shipping,
-            // labelKey: 'type',
             valueKey: 'id',
             refreshKey: 'shipping',
             addApi: 'setShippingDocument',
             colSpan: 1
         },
-        // {
-        //     id: 'tax',
-        //     label: 'TAX',
-        //     type: 'checkbox',
-        //     colSpan: 1,
-        //     customRender: (field) => (
-        //         <div className="flex items-center">
-        //             <input
-        //                 type="checkbox"
-        //                 name={field.id}
-        //                 id={field.id}
-        //                 checked={formData[field.id] === 1}
-        //                 onChange={(e) => {
-        //                     setFormData(prev => ({ 
-        //                         ...prev, 
-        //                         [field.id]: e.target.checked ? 1 : 0 
-        //                     }));
-        //                     setIsBlModified(true);
-        //                 }}
-        //                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-        //             />
-        //             <label htmlFor={field.id} className="ml-2 block text-sm text-gray-700">
-        //                 {field.label}
-        //             </label>
-        //         </div>
-        //     )
-        // }
-    ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping]);
+        {
+            id: 'freeDays',
+            label: 'Free Days',
+            type: 'number',
+            placeholder: 'e.g. 14',
+            colSpan: 1,
+        },
+    ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping, theme]);
 
     // Columns configuration
     const columns = useMemo(() => [
@@ -204,25 +187,25 @@ export default function BillOfLandingInfo() {
             key: "container_no", 
             label: "Container No", 
             sortable: true,
-            width: '150px'
+            width: '30%'
         },
         { 
             key: "status", 
             label: "Status",
             cellClassName: (value) => 
-                value === "On port" ? 'bg-blue-100' : 
-                value === "Gate Pass" ? 'bg-green-100' : '',
-            width: '120px'
+                value === "On port" ? 'bg-blue-100 text-blue-800' : 
+                value === "Gate Pass" ? 'bg-green-100 text-green-800' : '',
+            width: '20%'
         },
         { 
             key: "location", 
             label: "Location",
-            width: '150px'
+            width: '30%'
         },
         { 
             key: "weight", 
             label: "Weight",
-            width: '120px'
+            width: '20%'
         }
     ], []);
 
@@ -240,7 +223,6 @@ export default function BillOfLandingInfo() {
     }, []);
 
     function setFormDataOfBl(data){
-        console.log(convertToLocalDateTimeInput(data.eventDateTime));
         setFormData(prev => ({
             ...prev,
             arrivalDate: convertToLocalDateTimeInput(data.eventDateTime)
@@ -256,6 +238,13 @@ export default function BillOfLandingInfo() {
         setContainersToAdd(prev => prev.filter((_, i) => i !== index));
     };
 
+    const handleEditPending = (index) => {
+        const formData = containersToAdd[index];
+        const dataObj = Object.fromEntries(formData.entries());
+        setEditingContainer(dataObj);
+        setPendingEditIndex(index);
+        setIsEditFormOpen(true);
+    };
 
     // Fetch container data
     const fetchContainerData = useCallback(async (blNumber, offset = 0, limit = SERVER_PAGE_SIZE) => {
@@ -265,48 +254,58 @@ export default function BillOfLandingInfo() {
         setIsLoading(true);
         try {
             const response = await axios.get(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/track_and_trace`, 
+                `${process.env.REACT_APP_NETWORK}/track_and_trace`, 
                 {
                     params: { 
                         bl: blNumber,
-            
                     },
                     headers: { 
-                        Authorization: `Bearer ${localStorage.getItem('token')}` 
-                    }
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true", 
+                    },
+                     
                 }
             );
-            
+
+
+
             let data = response.data;
-            console.log(data, "fetched container data")
-            if (typeof data === 'string') {
-                try {
-                    data = JSON.parse(data);
-                } catch (e) {
-                    console.error("Failed to parse response data:", e);
-                    data = [];
+            if (data.length === 0) {
+                setErrorMessage("No containers found for this B/L number");
+            } else {
+                if (typeof data === 'string') {
+                    try {
+                        data = JSON.parse(data);
+                    } catch (e) {
+                        console.error("Failed to parse response data:", e);
+                        data = [];
+                    }
                 }
-            }
-            setFormData()
-            // Transform the data before setting it
-            const transformedData = transformData(data);
-            // console.log(transformedData)
-            if (data.length > 0){
-                setFormDataOfBl(data[0]);
-            }
-           
-            setRows(prev => {
-                const newData = [...prev];
-                for (let i = 0; i < transformedData.length; i++) {
-                    newData[offset + i] = transformedData[i];
+                setFormData({
+                    billOfLadingNumber: blNumber,
+                })
+                const transformedData = transformData(data);
+
+                if (data.length > 0){
+                    setFormDataOfBl(data[0]);
                 }
-                return newData;
-            });
             
-            setTotalItems(data.length || 0);
-            setLoadedServerPages(prev => new Set(prev).add(pageNum));
+                setTotalItems(data.length || 0);
+                setLoadedServerPages(prev => new Set(prev).add(pageNum));
+
+                setContainersToAdd([]);
+                const containerIds = [];
+                transformedData.forEach(item => {
+                    const newContainer = new FormData();
+                    newContainer.append("bill_of_landing.BillOfLanding", blNumber || null)
+                    newContainer.append("container_no", item.container_no || null)
+                    containerIds.push(newContainer);
+                });
+                setContainersToAdd(containerIds);
+            }
         } catch (error) {
             console.error("Failed to fetch containers:", error);
+            setErrorMessage("Failed to fetch containers. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -322,12 +321,12 @@ export default function BillOfLandingInfo() {
         
         for (let page = firstNeededPage; page <= lastNeededPage; page++) {
             if (!loadedServerPages.has(page)) {
-            //    fetchContainerData(formData.billOfLadingNumber, (page - 1) * SERVER_PAGE_SIZE, SERVER_PAGE_SIZE);
+                // fetchContainerData(formData.billOfLadingNumber, (page - 1) * SERVER_PAGE_SIZE, SERVER_PAGE_SIZE);
             }
         }
         
         setCurrentServerPage(firstNeededPage);
-    }, [ formData.billOfLadingNumber, loadedServerPages]);
+    }, [formData?.billOfLadingNumber, loadedServerPages]);
 
     // Handle form field changes
     const handleChange = (e) => {
@@ -336,7 +335,7 @@ export default function BillOfLandingInfo() {
             ...prev,
             [name]: value,
         }));
-        setIsBlModified(true); // Mark BL form as modified
+        setIsBlModified(true);
     };
 
     // Search for bill of lading
@@ -344,9 +343,10 @@ export default function BillOfLandingInfo() {
         if (!formData.billOfLadingNumber) return;
         
         setLoadedServerPages(new Set());
-        setRows([]);
+        // setRows([]);
         fetchContainerData(formData.billOfLadingNumber);
-    }, [formData.billOfLadingNumber]);
+        setShowPendingSection(true);
+    }, [formData?.billOfLadingNumber, fetchContainerData]);
 
     // Save bill of lading
     const handleSave = async () => {
@@ -358,23 +358,25 @@ export default function BillOfLandingInfo() {
             Doc: formData.shippingType || null,
             Supplier: formData.supplier || null,
             Provider: formData.Provider || null,
-            // tax: formData.tax || 0,
-
+            FreeDays: formData.freeDays !== "" ? Number(formData.freeDays) : null,
+            status: formData.status !== "" ? Number(formData.status) : null,
             new_containers: containerData?.map(item => ({ container_no: item.container_no }))
         };
-        
-        const url = Id !== "new" ? 
-            `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateBl/${Id}` :
-            `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addBl`;
+        const url = decodedId !== "new" ? 
+            `${process.env.REACT_APP_NETWORK}/updateBl/${decodedId}` :
+            `${process.env.REACT_APP_NETWORK}/addBl`;
 
         try {
             await axios.post(url, payload, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                
             });
+
+            return true;
         } catch (error) {
-            //  console.error("Error posting data:", error); // ✅ Log full error
             return false;
         }
     };
@@ -382,6 +384,7 @@ export default function BillOfLandingInfo() {
     // Container CRUD operations
     const handleEdit = useCallback((row) => {  
         setEditingContainer(row.rawData);
+        setPendingEditIndex(-1);
         setIsEditFormOpen(true);
     }, []);
 
@@ -389,44 +392,74 @@ export default function BillOfLandingInfo() {
         if (!window.confirm("Are you sure you want to delete this container?")) return;
         try {
             await axios.delete(
-                `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainerDetails/${containerId}`,
-                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+                `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` ,
+                    "skip_zrok_interstitial": "true"
+                },
+            }
+
             );
+
+
             setRows(prev => prev.filter(item => item.rawData.container_id !== containerId));
         } catch (error) {
             console.error("Failed to delete container:", error);
+            setErrorMessage("Failed to delete container.");
+        }
+    };
+
+    const handleDeleteBl = async () => {
+        if (!window.confirm("Delete this bill of landing?")) return;
+        
+        try {
+            await axios.delete(
+                `${process.env.REACT_APP_NETWORK}/deleteBl/${decodedId}`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                
+            }
+            );
+        } catch (error) {
+            console.error("Delete error:", error);
+            setErrorMessage("Failed to delete bill of lading.");
+        }
+        finally{
+            window.history.back();
         }
     };
 
     const handleEditFormClose = () => {
         setIsEditFormOpen(false);
         setEditingContainer(null);
+        setPendingEditIndex(-1);
     };
 
     const handleSaveAll = async () => {
         setIsSaving(true);
+        setErrorMessage(null);
         try {
-            // 1. First save the bill of lading info if modified
             if (isBlModified) {
                 const blSaved = await handleSave();
                 if (!blSaved) {
-                    alert("Failed to save Bill of Lading. Please entered BL number and date ?");
+                    setErrorMessage("Failed to save Bill of Lading. Please check required fields.");
                     return;
                 }
             }
 
-            // 2. Process new containers with file uploads
             if (containersToAdd.length > 0) {
                 const newContainerPromises = containersToAdd.map(async (container) => {
                     container.append("bill_of_landing.BillOfLanding", formData.billOfLadingNumber || null)
                     return axios.post(
-                        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/createContainer`,
+                        `${process.env.REACT_APP_NETWORK}/createContainer`,
                         container,
                         {
                             headers: {
                                 Authorization: `Bearer ${localStorage.getItem('token')}`,
-                                'Content-Type': 'multipart/form-data'
-                            }
+                                'Content-Type': 'multipart/form-data',
+                                "skip_zrok_interstitial": "true",
+                            },
+                            
                         }
                     );
                 });
@@ -434,20 +467,18 @@ export default function BillOfLandingInfo() {
                 await Promise.all(newContainerPromises);
             }
 
-            // 3. Process edited containers with file uploads
             if (Object.keys(containersToEdit).length > 0) {
                 const editPromises = Object.entries(containersToEdit).map(async ([id, container]) => {
-                    for (const [key, value] of container.entries()) {
-                        console.log(`${key}: ${value}`);
-                    }
                     return axios.post(
-                        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateContainer/${id}`,
+                        `${process.env.REACT_APP_NETWORK}/updateContainer/${id}`,
                         container,
                         {
                             headers: {
                                 Authorization: `Bearer ${localStorage.getItem('token')}`,
-                                'Content-Type': 'multipart/form-data'
-                            }
+                                'Content-Type': 'multipart/form-data',
+                                "skip_zrok_interstitial": "true",
+                            },
+                             
                         }
                     );
                 });
@@ -455,11 +486,8 @@ export default function BillOfLandingInfo() {
                 await Promise.all(editPromises);
             }
 
-            // 4. Refresh data and reset states
             setLoadedServerPages(new Set());
             setRows([]);
-            // await fetchContainerData(formData.billOfLadingNumber, 0, SERVER_PAGE_SIZE);
-            
             setContainersToAdd([]);
             setContainersToEdit({});
             setIsBlModified(false);
@@ -467,53 +495,36 @@ export default function BillOfLandingInfo() {
             alert("All changes saved successfully!");
         } catch (error) {
             console.error("Save failed:", error);
-            alert(error.response?.data?.message || "Failed to save changes");
+            // HTTP 409 — FreeDays or status conflict between BoL and individual containers
+            if (error.response?.status === 409) {
+                setErrorMessage(
+                    `Conflict: ${error.response.data?.detail || "Cannot update Bill of Lading value."}` +
+                    " Some containers have custom values. Update them individually first, or reset all containers to the BoL value."
+                );
+            } else {
+                setErrorMessage(error.response?.data?.message || "Failed to save changes. Please try again.");
+            }
         } finally {
             setIsSaving(false);
             window.history.back();
         }
     };
 
-    // Action column configuration
-    const actionColumn = useMemo(() => ({
-        render: (row) => (
-            <div className="flex justify-center space-x-2">
-                {permissions.includes('Edit_Container') && (
-                    <button 
-                        onClick={() => handleEdit(row)} 
-                        className="text-blue-500 hover:text-blue-700"
-                        title="Edit container"
-                    >
-                        <Pencil size={18} />
-                    </button>
-                )}
-                {permissions.includes('Delete_Container') && (
-                    <button 
-                        onClick={() => handleDelete(row.rawData.Container_ID)} 
-                        className="text-red-500 hover:text-red-700"
-                        title="Delete container"
-                    >
-                        <Trash2 size={18} />
-                    </button>
-                )}
-            </div>
-        )
-    }), [handleDelete, handleEdit, permissions]);
-
     // Initialize form with edit data if available
     useEffect(() => {
         if (editData) {
-            console.log(editData, "sdfsv")
             setFormData({
-                        billOfLadingNumber: editData.BillOfLanding,
-                        consignee: consignees.find((opt) => opt.name === editData.consignee_name)?.id || "",
-                        supplier: suppliers.find((opt) => opt.name === editData.supplier_name)?.id || "",
-                        arrivalDate: editData.ArrivalDate?.slice(0, 16) || "",
-                        Provider: logistics.find((opt) => opt.name === editData.provider_name)?.id || "",
-                        vesselName: vesselList.find((opt) => opt.name === editData.vessel_name)?.id || "",
-                        tax: editData.tax || 0, // Initialize tax field
-                        shippingType: shipping.find((opt) => opt.name === editData.Doc_name)?.id || ""
-                    });
+                billOfLadingNumber: editData.BillOfLanding,
+                consignee: consignees.find((opt) => opt.name === editData.consignee_name)?.id || "",
+                supplier: suppliers.find((opt) => opt.name === editData.supplier_name)?.id || "",
+                arrivalDate: editData.ArrivalDate?.slice(0, 16) || "",
+                Provider: logistics.find((opt) => opt.name === editData.provider_name)?.id || "",
+                vesselName: vesselList.find((opt) => opt.name === editData.vessel_name)?.id || "",
+                tax: editData.tax || 0,
+                shippingType: shipping.find((opt) => opt.name === editData.Doc_name)?.id || "",
+                freeDays: editData.FreeDays ?? "",  // BoL-level FreeDays
+                status: editData.status ?? "",      // BoL-level default status
+            });
             
             if (editData.containers) {
                 const transformed = transformData(editData.containers);
@@ -521,7 +532,7 @@ export default function BillOfLandingInfo() {
                 setContainerData(transformed);
             }
         }
-    }, [editData, consignees, suppliers, logistics, vesselList, transformData]);
+    }, [editData, consignees, suppliers, logistics, vesselList, shipping, transformData]);
 
     // Render form field based on configuration
     const renderFormField = (field) => {
@@ -533,7 +544,7 @@ export default function BillOfLandingInfo() {
             case 'select':
                 return (
                     <div key={field.id}>
-                        <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
                         </label>
                         <GenericSelector
@@ -542,7 +553,7 @@ export default function BillOfLandingInfo() {
                                 setFormData(prev => ({ ...prev, [field.id]: val }));
                                 setIsBlModified(true);
                             }}
-                            placeholder={`Enter ${field.label}`}
+                            placeholder={`Select ${field.label}`}
                             options={field.options}
                             labelKey="name"
                             valueKey={field.valueKey}
@@ -551,30 +562,12 @@ export default function BillOfLandingInfo() {
                         />
                     </div>
                 );
-            case 'checkbox':
-                return (
-                <input
-                  id={field.id}
-                  type="checkbox"
-                  name={field.label}
-                  checked={!!formData[field.id]}
-                  onChange={(e) => {
-                    {
-                      setFormData(prev => ({
-                        ...prev,
-                        [field.id]: e.target.checked ? 1 : 0
-                      }));
-                    }
-                  }}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  
-                />);
             case 'text':
             case 'datetime-local':
             default:
                 return (
                     <div key={field.id}>
-                        <label htmlFor={field.id} className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
                         </label>
                         <input
@@ -584,7 +577,7 @@ export default function BillOfLandingInfo() {
                             placeholder={field.placeholder}
                             value={formData[field.id]}
                             onChange={handleChange}
-                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                            className={`w-full border rounded-md px-3 py-2 text-sm ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                             required={field.required}
                         />
                     </div>
@@ -593,46 +586,45 @@ export default function BillOfLandingInfo() {
     };
 
     return (
-        <div className='flex flex-col w-full h-full p-4 space-y-4'>
+        <div className={`flex flex-col w-full h-full  ${theme.background} `}>
             <div className="flex justify-between items-center">
-                <h1 className="text-xl font-semibold">Container Management</h1>
-                <button
-                    onClick={handleSaveAll}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    disabled={
-                        isSaving || isLoading || (
-                            !isBlModified && 
-                            containersToAdd.length === 0 && 
-                            Object.keys(containersToEdit).length === 0
-                        )
-                    }
-                >
-                    {isSaving ? 'Saving...' : 'Save All Changes'}
-                </button>
+                <h1 className={`text-2xl font-bold ${theme.text}`}>Bill of Lading Management</h1>
+                <div className="flex gap-1">
+                    <button
+                        onClick={handleSaveAll}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+                        disabled={
+                            isSaving || isLoading || (
+                                !isBlModified && 
+                                containersToAdd.length === 0 && 
+                                Object.keys(containersToEdit).length === 0
+                            )
+                        }
+                    >
+                        <Save size={16} className="mr-2" />
+                        {isSaving ? 'Saving...' : 'Save All Changes'}
+                    </button>
+                    {decodedId !== "new" && (
+                        <button
+                            onClick={handleDeleteBl}
+                            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                        >
+                            <Trash2 size={16} className="mr-2" />
+                            Delete B/L
+                        </button>
+                    )}
+                </div>
             </div>
 
-            {/* Pending additions section */}
-            {containersToAdd.length > 0 && (
-                <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                    <h3 className="font-medium text-blue-800 mb-2">
-                        Containers to be added ({containersToAdd.length})
-                    </h3>
-                    {containersToAdd.map((container, index) => (
-                        <div key={`pending-${index}`} className="flex items-center justify-between bg-white p-2 rounded mb-1">
-                            <span>{container.container_no || `New Container ${index + 1}`}</span>
-                            <button 
-                                onClick={() => handleRemoveContainer(index)}
-                                className="text-red-500 hover:text-red-700"
-                            >
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
-                    ))}
+            {errorMessage && (
+                <div className="flex items-center p-4 bg-red-100 text-red-700 rounded-md">
+                    <AlertTriangle size={20} className="mr-2" />
+                    {errorMessage}
                 </div>
             )}
 
-            {/* Form fields rendered from configuration */}
-            <div className="grid grid-cols-2 gap-4 mb-2">
+            {/* Form fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {formFields.map(field => (
                     <div key={field.id} className={`col-span-${field.colSpan || 1}`}>
                         {renderFormField(field)}
@@ -640,58 +632,113 @@ export default function BillOfLandingInfo() {
                 ))}
             </div>
 
-            <h3 className="text-md font-semibold mb-2">Container Information</h3>
-            <TableDisplay 
-                key={`container-table-${rows.length}`}
-                columns={columns} 
-                data={rows.filter(Boolean)}
-                totalItems={totalItems}
-                title="Container Management"
-                onDataChange={() => {
-                    setLoadedServerPages(new Set());
-                    fetchContainerData(formData.billOfLadingNumber, 0, SERVER_PAGE_SIZE);
-                }}
-                userPermissions={["View_container_no", "Add"]}
-                actionColumn={actionColumn}
-                itemsPerPage={CLIENT_PAGE_SIZE}
-                serverPageSize={SERVER_PAGE_SIZE}
-                isLoading={isLoading || optionsLoading}
-                onPageChange={handlePageChange}
-                theme={theme}
-                addDataComponent={
-                    <ContainerEntryForm 
-                        onSubmitSuccess={handleAddContainer}
-                        onCancel={() => setIsAddMode(false)}
-                        userPermissions={permissions}
-                        mode="add"
-                    />
-                }
-                showAddButton={permissions.includes('Add_Container')}
-                addButtonText="Add Container"
-                onAddButtonClick={() => setIsAddMode(true)}
-                isAddFormOpen={isAddMode}
-                height='calc(36vh)'
-            />
+            {/* Pending additions section - Simplified with toggle */}
+            {containersToAdd.length > 0 && (
+                <div className="bg-blue-50 p-3 rounded-md">
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-semibold text-blue-800">
+                            Pending Containers to Add ({containersToAdd.length})
+                        </h3>
+                        <button 
+                            onClick={() => setShowPendingSection(!showPendingSection)}
+                            className="text-blue-600 hover:text-blue-800"
+                        >
+                            {showPendingSection ? 'Hide' : 'Show'}
+                        </button>
+                    </div>
+                    {showPendingSection && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {containersToAdd.map((container, index) => (
+                                <div 
+                                    key={`pending-${index}`} 
+                                    className="flex items-center justify-between bg-white p-2 rounded-md shadow-sm border border-blue-200"
+                                >
+                                    <span className="font-medium">{container.get("container_no")}</span>
+                                    <div className="flex gap-2">
+                                        {/* <button 
+                                            onClick={() => handleEditPending(index)}
+                                            className="text-blue-500 hover:text-blue-700"
+                                        >
+                                            <Pencil size={16} />
+                                        </button> */}
+                                        <button 
+                                            onClick={() => handleRemoveContainer(index)}
+                                            className="text-red-500 hover:text-red-700"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
-            {/* Edit Form Modal */}
+            <h3 className={`text-lg font-semibold ${theme.text} mb-1`}>Containers</h3>
+            <div className={`flex flex-col w-full h-full  ${
+        theme.background
+      }`}>
+                <TableDisplay 
+                    key={`container-table-${rows.length}`}
+                    columns={columns} 
+                    data={rows.filter(Boolean)}
+                    totalItems={totalItems}
+                    title="container_no"
+                    onDataChange={handleAddContainer}
+                    userPermissions={["View_container_no", "Add"]}
+                    itemsPerPage={CLIENT_PAGE_SIZE}
+                    serverPageSize={SERVER_PAGE_SIZE}
+                    isLoading={isLoading || optionsLoading}
+                    onPageChange={handlePageChange}
+                    theme={theme}
+                    addDataComponent={
+                        <ContainerEntryForm 
+                            userPermissions={permissions}
+                            mode="add"
+                        />
+                    }
+                    addButtonText="Add Container"
+                    onRowClick={(row) => { permissions.includes('Edit_Container') && handleEdit(row)}}
+                    onAddButtonClick={() => setIsAddMode(true)}
+                    isAddFormOpen={isAddMode}
+                    height={'calc(40vh)'}
+                />
+            </div>
+
+            {/* Edit Form Modal - Improved with better styling */}
             {isEditFormOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold">Edit Container</h2>
+                            <h2 className="text-xl font-bold">{pendingEditIndex !== -1 ? 'Edit Pending Container' : 'Edit Container'}</h2>
+                            <button onClick={handleEditFormClose} className="text-gray-500 hover:text-gray-700">
+                                <X size={24} />
+                            </button>
                         </div>
                         <ContainerEntryForm 
-                            editData={editingContainer}
+                            editData={pendingEditIndex === -1 ? editingContainer : null}
+                            initialData={pendingEditIndex !== -1 ? editingContainer : null}
                             onSubmitSuccess={(data) => {
-                                setContainersToEdit(prev => ({
-                                    ...prev,
-                                    [editingContainer.Container_ID]: data
-                                }));
+                                if (pendingEditIndex !== -1) {
+                                    setContainersToAdd(prev => {
+                                        const newArr = [...prev];
+                                        newArr[pendingEditIndex] = data;
+                                        return newArr;
+                                    });
+                                    setPendingEditIndex(-1);
+                                } else {
+                                    setContainersToEdit(prev => ({
+                                        ...prev,
+                                        [editingContainer.Container_ID]: data
+                                    }));
+                                }
                                 handleEditFormClose();
                             }}
-                            onCancel={() => handleEditFormClose()}
+                            onCancel={handleEditFormClose}
                             userPermissions={permissions}
-                            mode="edit"
+                            mode={pendingEditIndex === -1 ? "edit" : "add"}
+                            handleDeleteFunction={pendingEditIndex === -1 ? handleDelete : null}
                         />
                     </div>
                 </div>

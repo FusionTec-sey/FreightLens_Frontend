@@ -3,6 +3,8 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import  { useState, useMemo } from "react";
 import { Pencil, Trash, Settings, Filter, X, Plus } from "lucide-react";
+import CollapsibleCard from '../UI/CollapsibleCard';
+import { useTheme } from "../../context/ThemeContext";
 
 const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataChange, permissions, newBl  }) => {
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
@@ -14,6 +16,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     columns.reduce((acc, col) => ({ ...acc, [col.key]: true }), {})
   );
   const navigate = useNavigate();
+  const { theme } = useTheme();
   // const [editRow, setEditRow] = useState(null);  // <- track which row is being edited
   const [currentBlState, setCurrentBlState] = useState(newBl);
   const [visibleColumns, setVisibleColumns] = useState(tempVisibleColumns);
@@ -60,10 +63,12 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     if (!window.confirm("Are you sure you want to delete this row?")) return;
 
     try {
-      const response = await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteDamagedReport/${row.reportId}`, {
+      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.reportId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        
       });
 
       if (response.status === 200) {
@@ -87,7 +92,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   // const handleGenerateReport = async (row) => {
   //   try {
   //     const response = await axios.get(
-  //       `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/reports/${row.reportId}`,
+  //       `${process.env.REACT_APP_NETWORK}/reports/${row.reportId}`,
   //       {
   //         headers: {
   //           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -109,6 +114,41 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   
   const hasPermission = (field) => permissions.includes(`${field}`);
 
+  const renderMobileCardView = () => (
+    <div className="space-y-2">
+      {filteredData.map((row, index) => (
+        <CollapsibleCard
+          key={index}
+          title={`Bill: ${row.BillOfLanding || row.billOfLandingNumber || row.BillOfLandingNumber || `#${index + 1}`}`}
+          theme={theme}
+          className="mb-2"
+        >
+          <div className="p-4 space-y-3">
+            {columns.map(col => (
+              <div key={col.key} className="flex justify-between items-start">
+                <span className="font-medium text-sm text-gray-500 dark:text-gray-400">{col.label}:</span>
+                <span className="text-right text-sm flex-1 ml-2">
+                  {row[col.key]}
+                </span>
+              </div>
+            ))}
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-end">
+                {currentBlState !== "new" && (
+                  <button
+                    className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                    onClick={() => handleEditClick(row)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CollapsibleCard>
+      ))}
+    </div>
+  );
 
   return (
 
@@ -136,18 +176,18 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
       </div>
 
       {isFilterPopupOpen && (
-        <div className="absolute right-0 mr-2 bg-white border p-4 shadow-md z-50 w-64 rounded">
+        <div className={`absolute right-0 mr-2  p-4 shadow-md z-50 w-64 rounded max-h-[70vh] overflow-y-auto ${theme.border} ${theme.background} ${theme.shadow}`}>
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-lg font-semibold">Filter</h3>
             <button onClick={() => setIsFilterPopupOpen(false)}><X className="w-5 h-5" /></button>
           </div>
           <hr/>
-          <select className="w-full p-2 border mb-2" value={filterColumn} onChange={(e) => setFilterColumn(e.target.value)}>
+          <select className={`w-full p-2 mb-2 border-2 rounded ${theme.border}`} value={filterColumn} onChange={(e) => setFilterColumn(e.target.value)}>
             {columns.map(col => <option key={col.key} value={col.key}>{col.label}</option>)}
           </select>
           <input
             type="text"
-            className="w-full p-2 border mb-2"
+            className={`w-full p-2 mb-2 border-2 rounded ${theme.border}`}
             placeholder="Filter value"
             value={filterValue}
             onChange={(e) => setFilterValue(e.target.value)}
@@ -156,7 +196,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
       )}
 
       {isSettingsPopupOpen && (
-        <div className="absolute right-0 mr-2 bg-white border p-4 shadow-md z-50 w-48 rounded">
+        <div className={`absolute right-0 mr-2  p-4 shadow-md z-50 w-48 rounded max-h-[70vh] overflow-y-auto ${theme.border} ${theme.background} ${theme.shadow}`}>
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold"> Visibility</h3>
             <button onClick={() => setIsSettingsPopupOpen(false)}><X className="w-5 h-5 " /></button>
@@ -172,14 +212,14 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
               <span>{col.label}</span>
             </label>
           ))}
-          <button className="w-full p-2 bg-black text-white mt-2" onClick={handleSaveSettings}>Save</button>
+          <button className={`w-full p-2 mt-2 rounded border-2 ${theme.button} ${theme.border}`} onClick={handleSaveSettings}>Save</button>
         </div>
       )}
 
       {/* {isAddDataPopupOpen && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
           
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className={`rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden ${theme.background}`}>
 
            
             <div className="flex justify-between items-center p-4 border-b">
@@ -212,9 +252,15 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
         </div> 
       )} */}
 
-      <div className="customParentTableClass TableClass relative max-h-[calc(88vh)] overflow-auto border border-gray-300  mb-1">
+      {/* Mobile Cards */}
+      <div className="md:hidden">
+        {renderMobileCardView()}
+      </div>
+
+      {/* Desktop Table */}
+      <div className={`customParentTableClass TableClass relative max-h-[calc(88vh)] overflow-auto border mb-1 ${theme.border} hidden md:block`}>
         <table className="w-full table-auto border-collapse max-h-full">
-          <thead className="sticky top-0 bg-black text-white z-0 text-center">
+          <thead className={`sticky top-0 z-0 text-center border-b ${theme.tableHeader} ${theme.border}`}>
             <tr>
               {columns
               // .filter(col => 
@@ -244,11 +290,11 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
                 // (hasPermission("Edit_Container") || hasPermission("Delete_Container") )
                 true
                 &&  
-                <td className="px-4 py-2 flex justify-center space-x-2">
+                <td className="px-4 py-2 flex justify-center">
                   {/* { hasPermission("Edit_Container") && */}
                   { currentBlState !== "new" &&
                     <button
-                      className="p-1 text-blue-500"
+                      className="p-1 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
                       onClick={() => {
                         handleEditClick(row) // Set selected row for editing
                         // setIsAddDataPopupOpen(true); // Open modal
@@ -257,17 +303,6 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
                       <Pencil className="w-4 h-4" />
                     </button> 
                    }
-                  {/* {hasPermission("Delete_Container") && */}
-                    <button className="p-1 text-red-500"
-                                          onClick={() => {
-                        handleDeleteClick(row); // Set selected row for editing
-                        // setIsAddDataPopupOpen(true); // Open modal
-                      }}
-                      >
-                      <Trash className="w-4 h-4" />
-                    </button>
-                  {/* } */}
-
                 </td>}
               </tr>
             ))}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import axios from 'axios';
+import { useTheme } from '../../../context/ThemeContext';
 
 // const allPermissions = [
 //   { name: 'View_Report', description: 'Can view reports' },
@@ -20,7 +21,7 @@ import axios from 'axios';
 
 // async function getContainerData() {
 //   try {
-//     const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/containerDetaiils`, {
+//     const response = await axios.get(`${process.env.REACT_APP_NETWORK}/containerDetaiils`, {
 //       headers: {
 //         Authorization: `Bearer ${localStorage.getItem('token')}`
 //       }
@@ -38,6 +39,7 @@ import axios from 'axios';
 // }
 
 function Setting({ currentUser }) {
+    const { theme } = useTheme();
 
     const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
@@ -63,7 +65,7 @@ function Setting({ currentUser }) {
     async function handleAddUser (username, password, roles) {
             // console.log("Adding user:", username, "with roles:", roles);
             try {
-                const response = await axios.post(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addUser`,
+                const response = await axios.post(`${process.env.REACT_APP_NETWORK}/addUser`,
                 {
                      username: username,
                      password: password,
@@ -72,8 +74,10 @@ function Setting({ currentUser }) {
                 
                 {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem('token')}`
-                    }
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true",
+                    },
+                    
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -102,12 +106,14 @@ function Setting({ currentUser }) {
 
     async function handleDeleteUser(id){
         try {
-            await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteUser/${id}`,
+            await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteUser/${id}`,
 
             {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                
             });
 
         } catch (error) {
@@ -132,7 +138,7 @@ function Setting({ currentUser }) {
         // print(rolePermissions)
         // console.log("Adding role:", name, "with permissions:", newRolePermissions);
         try {
-                const response = await axios.post(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/addPermission`,
+                const response = await axios.post(`${process.env.REACT_APP_NETWORK}/addPermission`,
                 {
                      name: name,
                     //  password: password,
@@ -141,8 +147,10 @@ function Setting({ currentUser }) {
                 
                 {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem('token')}`
-                    }
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true",
+                    },
+                    
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -177,10 +185,12 @@ function Setting({ currentUser }) {
         }
 
         try {
-            await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteRole/${roleId}`, {
+            await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteRole/${roleId}`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                
             });
 
             // Remove role from state if successful
@@ -201,10 +211,12 @@ function Setting({ currentUser }) {
         
         async function getUser() {
             try {
-                const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getUser`, {
+                const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getUser`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -221,10 +233,12 @@ function Setting({ currentUser }) {
 
         async function getRole() {
             try {
-                const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getRole`, {
+                const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getRole`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -241,10 +255,12 @@ function Setting({ currentUser }) {
 
         async function getPermission() {
             try {
-                const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getPermission`, {
+                const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getPermission`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
+                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    "skip_zrok_interstitial": "true",
+                },
+                
                 });
                 let data = response.data;
                 if (typeof data === 'string') {
@@ -266,12 +282,12 @@ function Setting({ currentUser }) {
 
   
     return (
-        <div className="max-w-5xl mx-auto p-6 space-y-10 bg-white rounded shadow justify-center">
-        <h1 className="text-2xl font-bold">User Role Settings</h1>
+        <div className={`max-w-5xl mx-auto p-6 space-y-10 rounded shadow justify-center ${theme.background}`}>
+        <h1 className={`text-2xl font-bold ${theme.text}`}>User Role Settings</h1>
 
         {/* USERS */}
         <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Users</h2>
+            <h2 className={`text-lg font-semibold ${theme.text}`}>Users</h2>
             {canEdit && (
                 <button
                     onClick={() => setShowAddUserModal(true)}
@@ -284,8 +300,8 @@ function Setting({ currentUser }) {
 
             {showAddUserModal && (
             <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                <div className="bg-white rounded shadow-lg p-6 w-full max-w-lg space-y-6">
-                <h3 className="text-xl font-semibold">Add New User</h3>
+                <div className={`rounded shadow-lg p-6 w-full max-w-lg space-y-6 border ${theme.surface} ${theme.border} ${theme.text}`}>
+                <h3 className={`text-xl font-semibold ${theme.text}`}>Add New User</h3>
 
                 {/* User Name */}
                 <input
@@ -293,7 +309,7 @@ function Setting({ currentUser }) {
                     placeholder="Username"
                     value={newUser.name}
                     onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    className="w-full border px-3 py-2 rounded"
+                    className={`w-full border px-3 py-2 rounded ${theme.border} ${theme.background} ${theme.text}`}
                 />
 
                 {/* Password */}
@@ -302,22 +318,22 @@ function Setting({ currentUser }) {
                     placeholder="Password"
                     value={newUser.password || ""}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="w-full border px-3 py-2 rounded"
+                    className={`w-full border px-3 py-2 rounded ${theme.border} ${theme.background} ${theme.text}`}
                 />
 
                 {/* Role Selection Table */}
                 <div>
-                    <p className="text-sm font-medium mb-2">Assign Roles:</p>
-                    <table className="w-full text-sm border">
-                        <thead className="bg-gray-100">
+                    <p className={`text-sm font-medium mb-2 ${theme.text}`}>Assign Roles:</p>
+                    <table className={`w-full text-sm border ${theme.border}`}>
+                        <thead className={`${theme.mutedBg}`}>
                             <tr>
-                            <th className="p-2 text-left">Role</th>
-                            <th className="p-2 text-center">Include</th>
+                            <th className={`p-2 text-left ${theme.profileText}`}>Role</th>
+                            <th className={`p-2 text-center ${theme.profileText}`}>Include</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className={`${theme.text}`}>
                             {roles.map((role) => (
-                            <tr key={role.id} className="border-t">
+                            <tr key={role.id} className={`border-t ${theme.border}`}>
                                 <td className="p-2 capitalize">{role.name}</td>
                                 <td className="p-2 text-center">
                                 <input
@@ -341,7 +357,7 @@ function Setting({ currentUser }) {
                 <div className="flex justify-end gap-3">
                     <button
                         onClick={() => setShowAddUserModal(false)}
-                        className="px-4 py-2 border rounded hover:bg-gray-100"
+                        className={`px-4 py-2 border rounded hover:bg-gray-100 ${theme.border}`}
                      >
                         Cancel
                     </button>
@@ -365,17 +381,17 @@ function Setting({ currentUser }) {
             </div>
             )}
             
-            <table className="w-full text-sm border">
-                <thead className="bg-gray-100">
+            <table className={`w-full text-sm border ${theme.border}`}>
+                <thead className={`${theme.mutedBg}`}>
                     <tr>
-                    <th className="p-2 text-left">Name</th>
-                    <th className="p-2 text-left">Role</th>
-                    {canEdit && <th className="p-2 text-center">Actions</th>}
+                    <th className={`p-2 text-left ${theme.profileText}`}>Name</th>
+                    <th className={`p-2 text-left ${theme.profileText}`}>Role</th>
+                    {canEdit && <th className={`p-2 text-center ${theme.profileText}`}>Actions</th>}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody className={`${theme.text}`}>
                     {users.map(user => (
-                    <tr key={user.id} className="border-t hover:bg-gray-50">
+                    <tr key={user.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
                         <td className="p-2">{user.username}</td>
                         <td className="p-2 capitalize">
                             {user.roles?.join(", ")}
@@ -399,7 +415,7 @@ function Setting({ currentUser }) {
         {/* ROLES */}
         <section className="space-y-4">
             <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Roles</h2>
+            <h2 className={`text-lg font-semibold ${theme.text}`}>Roles</h2>
             {canEdit && (
                 <button
                 onClick={() => setShowRoleModal(true)}
@@ -410,16 +426,16 @@ function Setting({ currentUser }) {
             )}
             </div>
 
-            <table className="w-full text-sm border">
-            <thead className="bg-gray-100">
+            <table className={`w-full text-sm border ${theme.border}`}>
+            <thead className={`${theme.mutedBg}`}>
                 <tr>
-                <th className="p-2 text-left">Role Name</th>
-                {canEdit && <th className="p-2 text-center">Actions</th>}
+                <th className={`p-2 text-left ${theme.profileText}`}>Role Name</th>
+                {canEdit && <th className={`p-2 text-center ${theme.profileText}`}>Actions</th>}
                 </tr>
             </thead>
-            <tbody>
+            <tbody className={`${theme.text}`}>
                 {roles.map(role => (
-                <tr key={role.id} className="border-t hover:bg-gray-50">
+                <tr key={role.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
                     <td className="p-2 capitalize">{role.name}</td>
                     {canEdit && (
                     <td className="p-2 flex justify-center gap-2">
@@ -443,28 +459,28 @@ function Setting({ currentUser }) {
         {/* ================== ADD ROLE MODAL ================== */}
         {showRoleModal && (
             <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-2xl space-y-4 relative overflow-y-auto max-h-[80vh]">
-                <h3 className="text-xl font-semibold">Add New Role</h3>
+            <div className={`rounded shadow-lg p-6 w-full max-w-2xl space-y-4 relative overflow-y-auto max-h-[80vh] border ${theme.surface} ${theme.border} ${theme.text}`}>
+                <h3 className={`text-xl font-semibold ${theme.text}`}>Add New Role</h3>
 
                 <input
                 type="text"
                 placeholder="Role name"
                 value={newRoleName}
                 onChange={(e) => setNewRoleName(e.target.value)}
-                className="w-full border px-3 py-2 rounded"
+                className={`w-full border px-3 py-2 rounded ${theme.border} ${theme.background} ${theme.text}`}
                 />
 
-                <table className="w-full text-sm border mt-4 ">
-                <thead className="bg-gray-100">
+                <table className={`w-full text-sm border mt-4 ${theme.border}`}>
+                <thead className={`${theme.mutedBg}`}>
                     <tr>
-                    <th className="p-2 text-left">Permission</th>
-                    <th className="p-2 text-left">Description</th>
-                    <th className="p-2 text-center">Include</th>
+                    <th className={`p-2 text-left ${theme.profileText}`}>Permission</th>
+                    <th className={`p-2 text-left ${theme.profileText}`}>Description</th>
+                    <th className={`p-2 text-center ${theme.profileText}`}>Include</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody className={`${theme.text}`}>
                     {rolePermissions.map((perm) => (
-                    <tr key={perm.name} className="border-t">
+                    <tr key={perm.name} className={`border-t ${theme.border}`}>
                         <td className="p-2">{perm.name}</td>
                         <td className="p-2">{perm.description}</td>
                         <td className="p-2 text-center">
@@ -482,7 +498,7 @@ function Setting({ currentUser }) {
                 <div className="flex justify-end gap-2 pt-4">
                 <button
                     onClick={() => setShowRoleModal(false)}
-                    className="px-4 py-2 border rounded hover:bg-gray-100"
+                    className={`px-4 py-2 border rounded hover:bg-gray-100 ${theme.border}`}
                 >
                     Cancel
                 </button>

@@ -6,23 +6,39 @@ const ThemeContext = createContext();
 
 const themes = {
   light: {
-    background: "bg-white text-slate-900",
-    border: "border-slate-200",
-    hover: "hover:bg-slate-200",
-    profileText: "text-slate-400",
-    scrollbar: "scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100",
-    shadow: "shadow-lg shadow-blue-500/40 dark:shadow-white/40",
-    button: "bg-slate-900 text-white hover:bg-slate-700",
-    text: "text-slate-900",
+    background: "bg-white text-gray-900",
+    surface: "bg-white",
+    mutedBg: "bg-gray-100",
+    border: "border-gray-200",
+    hover: "hover:bg-gray-50",
+    profileText: "text-gray-600",
+    mutedText: "text-gray-600",
+    accentText: "text-blue-600",
+    tableHeader: "bg-gray-100 text-gray-700",
+    tableRow: "hover:bg-gray-50",
+    tableText: "text-gray-900",
+    tableMutedText: "text-gray-600",
+    scrollbar: "scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100",
+    shadow: "shadow-lg shadow-gray-200",
+    button: "bg-blue-600 text-white hover:bg-blue-700",
+    text: "text-gray-900",
   },
   dark: {
     background: "bg-slate-950 text-white",
-    border: "border-slate-800",
+    surface: "bg-slate-900",
+    mutedBg: "bg-slate-800",
+    border: "border-slate-700",
     hover: "hover:bg-slate-800",
-    profileText: "text-slate-400", // tweak if you want lighter
-    scrollbar: "scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900",
-    shadow: "shadow-lg shadow-blue-500/40 dark:shadow-white/40",
-    button: "bg-white text-slate-900 hover:bg-slate-200",
+    profileText: "text-slate-300",
+    mutedText: "text-slate-300",
+    accentText: "text-blue-400",
+    tableHeader: "bg-slate-800 text-slate-200",
+    tableRow: "hover:bg-slate-800",
+    tableText: "text-white",
+    tableMutedText: "text-slate-300",
+    scrollbar: "scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800",
+    shadow: "shadow-lg shadow-slate-900",
+    button: "bg-blue-600 text-white hover:bg-blue-700",
     text: "text-white",
   },
 };
@@ -32,7 +48,7 @@ export const ThemeProvider = ({ children }) => {
     const stored = localStorage.getItem("theme");
     if (stored === "light") return false;
     if (stored === "dark") return true;
-    return true;
+    return false;
   });
 
   useEffect(() => {

@@ -3,11 +3,13 @@ import axios from "axios";
 
 import React, { useState, useMemo } from "react";
 import { Pencil, Trash, Settings, Filter, X, Plus, FileText } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataChange, permissions  }) => {
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [isSettingsPopupOpen, setIsSettingsPopupOpen] = useState(false);
   const [isAddDataPopupOpen, setIsAddDataPopupOpen] = useState(false);
+  const { theme } = useTheme();
   const [filterColumn, setFilterColumn] = useState(columns[0]?.key || "");
   const [filterValue, setFilterValue] = useState("");
   const [tempVisibleColumns, setTempVisibleColumns] = useState(
@@ -52,10 +54,12 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
 
   const handleEditClick = async (row) => {
     try {
-      const response = await axios.get(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDamageReportById/${row.reportId}`, {
+      const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getDamageReportById/${row.reportId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true
       });
 
       let data = response.data;
@@ -74,10 +78,12 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     if (!window.confirm("Are you sure you want to delete this row?")) return;
 
     try {
-      const response = await axios.delete(`http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteDamagedReport/${row.reportId}`, {
+      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.reportId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "skip_zrok_interstitial": "true",
+        },
+        withCredentials: true
       });
 
       if (response.status === 200) {
@@ -101,12 +107,14 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   const handleGenerateReport = async (row) => {
     try {
       const response = await axios.get(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/reports/${row.reportId}`,
+        `${process.env.REACT_APP_NETWORK}/reports/${row.reportId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
           responseType: "blob", // Important to receive PDF file
+          withCredentials: true
         }
       );
 
@@ -146,18 +154,18 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
       </div>
 
       {isFilterPopupOpen && (
-        <div className="absolute right-0 mr-2 bg-white border p-4 shadow-md z-50 w-64 rounded">
+        <div className={`absolute right-0 mr-2  p-4 shadow-md z-50 w-64 rounded max-h-[70vh] overflow-y-auto ${theme.border} ${theme.background} ${theme.shadow}`}>
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-lg font-semibold">Filter</h3>
             <button onClick={() => setIsFilterPopupOpen(false)}><X className="w-5 h-5" /></button>
           </div>
           <hr/>
-          <select className="w-full p-2 border mb-2" value={filterColumn} onChange={(e) => setFilterColumn(e.target.value)}>
+          <select className={`w-full p-2 mb-2 border-2 rounded ${theme.border}`} value={filterColumn} onChange={(e) => setFilterColumn(e.target.value)}>
             {columns.map(col => <option key={col.key} value={col.key}>{col.label}</option>)}
           </select>
           <input
             type="text"
-            className="w-full p-2 border mb-2"
+            className={`w-full p-2 mb-2 border-2 rounded ${theme.border}`}
             placeholder="Filter value"
             value={filterValue}
             onChange={(e) => setFilterValue(e.target.value)}
@@ -166,7 +174,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
       )}
 
       {isSettingsPopupOpen && (
-        <div className="absolute right-0 mr-2 bg-white border p-4 shadow-md z-50 w-48 rounded">
+        <div className={`absolute right-0 mr-2  p-4 shadow-md z-50 w-48 rounded max-h-[70vh] overflow-y-auto ${theme.border} ${theme.background} ${theme.shadow}`}>
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold"> Visibility</h3>
             <button onClick={() => setIsSettingsPopupOpen(false)}><X className="w-5 h-5 " /></button>
@@ -182,14 +190,14 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
               <span>{col.label}</span>
             </label>
           ))}
-          <button className="w-full p-2 bg-black text-white mt-2" onClick={handleSaveSettings}>Save</button>
+          <button className={`w-full p-2 mt-2 rounded border-2 ${theme.button} ${theme.border}`} onClick={handleSaveSettings}>Save</button>
         </div>
       )}
 
       {isAddDataPopupOpen && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
           {/* Modal Container */}
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className={`rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden ${theme.background}`}>
 
             {/* Modal Header */}
             <div className="flex justify-between items-center p-4 border-b">
@@ -222,9 +230,9 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
         </div>
       )}
 
-      <div className="customParentTableClass TableClass relative max-h-[calc(88vh)] overflow-auto border border-gray-300  mb-1">
+      <div className={`customParentTableClass TableClass relative max-h-[calc(88vh)] overflow-auto border  mb-1 ${theme.border}`}>
         <table className="w-full table-auto border-collapse max-h-full">
-          <thead className="sticky top-0 bg-black text-white z-10 text-center">
+          <thead className={`sticky top-0 z-10 text-center border-b ${theme.tableHeader} ${theme.border}`}>
             <tr>
               {columns?.filter(col => !col.hidden && visibleColumns[col.key]).map(col => (
                 <th key={col.key} className="px-4 py-2 cursor-pointer" onClick={() => handleSort(col.key)}>
@@ -245,7 +253,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
                 <td className="px-4 py-2 flex justify-center space-x-2">
                   { hasPermission("Edit_Report") &&
                     <button
-                      className="p-1 text-blue-500"
+                      className="p-1 text-blue-500 hover:text-blue-600"
                       onClick={() => {
                         handleEditClick(row) // Set selected row for editing
                         setIsAddDataPopupOpen(true); // Open modal
@@ -255,7 +263,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
                     </button>
                   }
                   {hasPermission("Delete_Report") &&
-                    <button className="p-1 text-red-500"
+                    <button className="p-1 text-red-500 hover:text-red-600"
                                           onClick={() => {
                         handleDeleteClick(row); // Set selected row for editing
                         // setIsAddDataPopupOpen(true); // Open modal
@@ -265,7 +273,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
                     </button>
                   }
                   {hasPermission("Generate_Report") &&
-                    <button className="p-1 text-green-600" onClick={() => handleGenerateReport(row)} title="Generate Report">
+                    <button className="p-1 text-green-600 hover:text-green-700" onClick={() => handleGenerateReport(row)} title="Generate Report">
                       <FileText className="w-4 h-4" />
                     </button>
                   }

@@ -12,7 +12,9 @@ function ContainerEntryForm({
   editData, 
   onSubmitSuccess, 
   onFormSubmit, 
-  userPermissions = [] }) {
+  userPermissions = [],
+  handleDeleteFunction =null,
+  }) {
   // console.log("ContainerEntryForm rendered with editData:", editData);
   const [formData, setFormData] = useState({
     container_id: null,
@@ -35,6 +37,9 @@ function ContainerEntryForm({
     tax: 0,
     status: null,
     provider: null,
+    freeDays: null,           // container-level FreeDays override
+    blFreeDays: null,         // bill_of_landing.FreeDays (updates parent BoL)
+    blStatus: null,           // bill_of_landing.status (updates parent BoL)
   });
   const [originalData, setOriginalData] = useState({});
   const [documents, setDocuments] = useState([]);
@@ -46,6 +51,7 @@ function ContainerEntryForm({
   const inboundInputRef = useRef(null);
   const emptyInputRef = useRef(null);
   const [selectedVessel, setSelectedVessel] = useState([]);
+  const [todelete, setToDelete] = useState(false);
 
   const { isDark, theme } = useTheme();
   const {
@@ -94,7 +100,10 @@ function ContainerEntryForm({
         empty_date: editData.empty_date,
         out_bound: editData.out_bound?.slice(0, 16),
         unloaded_at_port: editData.unloaded_at_port,
-        emptied_at: emptyLocations.find((opt) => opt.name === editData.location)?.id || null
+        emptied_at: emptyLocations.find((opt) => opt.name === editData.location)?.id || null,
+        freeDays: editData.FreeDays ?? null,           // individual container FreeDays
+        blFreeDays: bill?.FreeDays ?? null,            // parent BoL FreeDays
+        blStatus: status.find((opt) => opt.name === bill?.status_name)?.id || null, // parent BoL status
       }));
       // console.log(formData., "sjkdfbh")
       // console.log(shipping.find((opt) => opt.name === bill?.Doc_name) , "jf")
@@ -219,6 +228,41 @@ function ContainerEntryForm({
   };
 
 
+  // const handleDelete = async () => {
+  //   // if (todelete) {
+  //     // console.log(id);
+  //     handleDeleteFunction(editData.Container_ID)
+  //     return;
+  //   }
+
+  //   if (!window.confirm("Are you sure you want to delete this container? This action cannot be undone.")) {
+  //     return;
+  //   }
+
+  //   // try {
+  //   //   const response = await axios.delete(
+  //   //     `${process.env.REACT_APP_NETWORK}/deleteContainer/${editData.rawData.Container_ID}`,
+  //   //     {
+  //   //       headers: {
+  //   //         Authorization: `Bearer ${localStorage.getItem("token")}`
+  //   //       }
+  //   //     }
+  //   //   );
+
+  //   //   if (response.status === 200) {
+  //   //     alert("Container deleted successfully");
+  //   //     if (onSubmitSuccess) {
+  //   //       onSubmitSuccess();
+  //   //     }
+  //   //   } else {
+  //   //     alert("Failed to delete container");
+  //   //   }
+  //   // } catch (error) {
+  //   //   console.error("Failed to delete container:", error);
+  //   //   alert("Error deleting container");
+  //   // }
+  // };
+
   //V1
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -258,7 +302,7 @@ function ContainerEntryForm({
       }
     };
     // ✅ Basic fields
-    safeAppend("container_no", formData.container_no || null);
+    safeAppend("container_no", formData.containerNo || null);  // fix: was formData.container_no (undefined)
     safeAppend("in_bound", formData.in_bound || null);
     safeAppend("empty_date", formData.empty_date || null);
     safeAppend("out_bound", formData.out_bound || null);
@@ -266,10 +310,10 @@ function ContainerEntryForm({
     safeAppend("note", formData.note || null);
     safeAppend("tax", formData.tax || 0);
     safeAppend("PONo", formData.PONo || null);
-    safeAppend("status", formData.status || null);
+    safeAppend("status", formData.status || null);        // container-level status
+    safeAppend("FreeDays", formData.freeDays || null);  // container-level FreeDays override
     safeAppend("type", formData.type || null);
     safeAppend("emptied_at", formData.emptied_at || null);
-    // console.log(formData.inBound, "ljh")
     // ✅ Bill of Lading
     safeAppend("bill_of_landing.BillOfLanding", formData.BillOfLanding || null);
     safeAppend("bill_of_landing.Vessel", formData.vessal || null);
@@ -278,6 +322,8 @@ function ContainerEntryForm({
     safeAppend("bill_of_landing.Supplier", formData.supplier || null);
     safeAppend("bill_of_landing.Doc", formData.shippingType || null);
     safeAppend("bill_of_landing.ArrivalDate", formData.arrival_on_port || null);
+    safeAppend("bill_of_landing.FreeDays", formData.blFreeDays || null); // updates parent BoL FreeDays
+    safeAppend("bill_of_landing.status", formData.blStatus || null);     // updates parent BoL status
 
     formData.material?.forEach(mat => {
       payload.append("materials", mat)
@@ -309,37 +355,46 @@ function ContainerEntryForm({
       payload.append("remove_doc_ids", id);
     });
     
-    // for (const [key, value] of payload.entries()) {
-    //   console.log(`${key}: ${value}`);
-    // }
+    for (const [key, value] of payload.entries()) {
+      console.log(`${key}: ${value}`);
+    }
     // ✅ Decide URL based on container_id
 
     const isUpdate = !!formData.container_id;
     const url = isUpdate
-      ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateContainer/${formData.container_id}`
-      : `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/createContainer`;
+      ? `${process.env.REACT_APP_NETWORK}/updateContainer/${formData.container_id}`
+      : `${process.env.REACT_APP_NETWORK}/createContainer`;
 
     try {
       await axios.post(url, payload, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "multipart/form-data",
+          "skip_zrok_interstitial": "true",
         },
+        withCredentials: true
       });
 
       // Optional: success callback
       onSubmitSuccess();
-      // onFormSubmit();
     } catch (error) {
       console.error("Submission failed:", error);
-      alert(error.response?.data?.detail || "Submission failed");
+      // HTTP 409 — FreeDays or status conflict on the parent BoL
+      if (error.response?.status === 409) {
+        alert(
+          `Conflict: ${error.response.data?.detail || "Cannot update Bill of Lading value."}\n\n` +
+          "Some containers have custom values. Update them individually first, or reset all containers to the BoL value."
+        );
+      } else {
+        alert(error.response?.data?.detail || "Submission failed");
+      }
     }
   };
 
   // console.log(suppliers, "Sup")
   const fields = [
     { label: "Bill Of Landing", name: "BillOfLanding", type: "text", permission: "BL", options: [] },
-    { label: "Container No", name: "container_no", type: "text", permission: "ContainerNo" },
+    { label: "Container No", name: "containerNo", type: "text", permission: "ContainerNo" },
     { label: "Type", name: "type", type: "addSelect", options: type, permission: "ContainerType", api: "setContainerType", refreshVal:"type"},
     { label: "Arrival Date", name: "arrival_on_port", type: "datetime-local", permission: "ArrivalDate" },
     { label: "PO No", name: "PONo", type: "text", permission: "PoNo" },
@@ -352,6 +407,7 @@ function ContainerEntryForm({
     { label: "Material", name: "material", type: "tagselect", permission: "Material", options: materialOptions},
 
     { label: "Status", name: "status", type: "select", options: status, permission: "Status", api: "", refreshVal:"" },
+    { label: "Free Days (Container Override)", name: "freeDays", type: "number", permission: "FreeDays" },
     { label: "In Bound", name: "in_bound", type: "datetime-local", permission: "InBound" },
     { label: "Empty Date", name: "empty_date", type: "date", permission: "EmptyDate" },
     { label: "Out Bound", name: "out_bound", type: "datetime-local", permission: "OutBound" },
@@ -361,8 +417,7 @@ function ContainerEntryForm({
   ];
   
   return (
-    <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 `}>
-
+    <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 `}>
         {fields
           .filter(({ permission }) => hasViewPermission(permission))
           .map(({ label, name, type, options, permission, api, refreshVal }) => (
@@ -387,7 +442,7 @@ function ContainerEntryForm({
                   value={formData[name] || ''}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full border rounded px-3 py-1.5 resize-none text-base"
+                  className={`w-full border rounded px-3 py-1.5 resize-none text-base ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                   disabled={!hasEditPermission(permission)}
                 />
               ) : type === "checkbox" ? (
@@ -451,7 +506,7 @@ function ContainerEntryForm({
                   onFocus={(e) => {
                     if (type === "date" && e.target.showPicker) e.target.showPicker();
                   }}
-                  className="w-full border rounded px-3 py-1.5 text-base"
+                  className={`w-full border rounded px-3 py-1.5 text-base ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                   disabled={!hasEditPermission(permission)}
                 />
               )}
@@ -466,7 +521,7 @@ function ContainerEntryForm({
               name="note"
               value={formData.note || ''}
               onChange={handleChange}
-              className="w-full border rounded px-2 py-1.5"
+              className={`w-full border rounded px-2 py-1.5 ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
               rows={2}
               disabled={!hasEditPermission("PersonalNote")}
             />
@@ -480,12 +535,12 @@ function ContainerEntryForm({
               {documents
               
               ?.map((doc, idx) => (
-                <div key={idx} className="border rounded p-3 relative bg-gray-50 text-sm shadow-sm">
+                <div key={idx} className={`border rounded p-3 relative ${theme.mutedBg} ${theme.text} text-sm shadow-sm`}>
                   <div className="flex justify-between items-center mb-2">
                     <a
                       href={
                         doc.isExisting
-                          ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDocument/${doc.id}`
+                          ? `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`
                           : URL.createObjectURL(doc.file)
                       }
                       target="_blank"
@@ -564,12 +619,12 @@ function ContainerEntryForm({
             {inboundImages
               
               ?.map((doc, idx) => (
-                <div key={idx} className="border rounded p-3 relative bg-gray-50 text-sm shadow-sm">
+                <div key={idx} className={`border rounded p-3 relative ${theme.mutedBg} ${theme.text} text-sm shadow-sm`}>
                   <div className="flex justify-between items-center mb-2">
                     <a
                       href={
                         doc.isExisting
-                          ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDocument/${doc.id}`
+                          ? `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`
                           : URL.createObjectURL(doc.file)
                       }
                       target="_blank"
@@ -630,11 +685,11 @@ function ContainerEntryForm({
                     : img.file?.name;
 
                   const fileUrl = img.isExisting
-                    ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getEmptyImage/${img.id}`
+                    ? `${process.env.REACT_APP_NETWORK}/getEmptyImage/${img.id}`
                     : URL.createObjectURL(img.file);
 
                   return (
-                    <div key={idx} className="flex items-center justify-between text-sm bg-gray-100 px-3 py-1.5 rounded shadow">
+                    <div key={idx} className={`flex items-center justify-between text-sm ${theme.mutedBg} ${theme.text} px-3 py-1.5 rounded shadow`}>
                       <a
                         href={fileUrl}
                         target="_blank"
@@ -660,17 +715,26 @@ function ContainerEntryForm({
         </div>
       )}
 
-
-      {/* Submit */}
-      {hasEditPermission("Submit") &&
-      <div className="col-span-full mt-3">
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-1.5 rounded hover:bg-blue-700 text-sm"
-        >
-          Submit
-        </button>
-      </div>}
+      {/* Sticky Submit Footer - Always visible */}
+      <div className={`col-span-full sticky bottom-0 ${theme.surface} border-t ${theme.border} p-3 -mx-4 md:mx-0 z-10`}>
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            className="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 text-sm active:scale-[.99]"
+          >
+            Save
+          </button>
+          {editData && (
+            <button
+              type="button"
+              onClick={() => handleDeleteFunction(editData.Container_ID)}
+              className="px-4 bg-red-600 text-white py-2 rounded-md hover:bg-red-700 text-sm active:scale-[.99]"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      </div>
     </form>
   );
 }

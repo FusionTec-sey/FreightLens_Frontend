@@ -6,15 +6,18 @@ import TypableSelect from "../../UI/UXComponent/TypebleSelect.js";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput.js";
 import GenericSelector from    "../../UI/UXComponent/GenericSelector.js";
 import { useOptions } from "../../../hooks/useOptions";
+import { useTheme } from "../../../context/ThemeContext";
 
 function ContainerEntryForm({
   editData,
   onSubmitSuccess,
   onCancel,
   userPermissions = [],
+  handleDeleteFunction=null,
   mode = "edit" // "add" or "edit"
  }) {
-
+    // console.log("Edit Data in ContainerEntryForm:", onSubmitSuccess);
+    const { theme } = useTheme();
     const {
       suppliers,
       consignees,
@@ -29,7 +32,9 @@ function ContainerEntryForm({
       errors: optionErrors
     } = useOptions();
 
-  console.log("ContainerEntryForm rendered with editData:", editData);
+
+
+  // console.log("ContainerEntryForm rendered with editData:", editData);
   const [formData, setFormData] = useState({
     container_id: null,
     consignee: null,
@@ -233,7 +238,7 @@ function ContainerEntryForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submission triggered");
+    // console.log("Form submission triggered");
     // Check if any update is needed
     const hasChangedFields = Object.entries(formData).some(
       ([key, value]) => originalData && value !== originalData[key]
@@ -337,6 +342,9 @@ function ContainerEntryForm({
     //   emptyImages: emptyImages.filter(img => img.file),
     //   documents: documents.filter(doc => doc.file)
     // };
+      // for (var pair of payload.entries()) {
+      //     console.log(pair[0]+ ', ' + pair[1]); 
+      // }
     onSubmitSuccess(payload)
 
   };
@@ -385,12 +393,12 @@ function ContainerEntryForm({
   ];
   
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+    <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 ${theme.background}`}>
         {fields
           .filter(({ permission }) => hasViewPermission(permission))
           .map(({ label, name, type, options, permission, api, refreshVal }) => (
             <div key={name} className={name === "material" ? "col-span-full md:col-span-3" : ""}>
-              <label htmlFor={name} className="block mb-1 font-medium text-gray-700">{label}</label>
+              <label htmlFor={name} className={`block mb-1 font-medium ${theme.text}`}>{label}</label>
               {type === "select" ? (
                 <TypableSelect
                   options={options}
@@ -410,7 +418,7 @@ function ContainerEntryForm({
                   value={formData[name] || ''}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full border rounded px-3 py-1.5 resize-none text-base"
+                  className={`w-full border rounded px-3 py-1.5 resize-none text-base ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                   disabled={!hasEditPermission(permission)}
                 />
               ) : type === "checkbox" ? (
@@ -473,7 +481,7 @@ function ContainerEntryForm({
                   onFocus={(e) => {
                     if (type === "date" && e.target.showPicker) e.target.showPicker();
                   }}
-                  className="w-full border rounded px-3 py-1.5 text-base"
+                  className={`w-full border rounded px-3 py-1.5 text-base ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
                   disabled={!hasEditPermission(permission)}
                 />
               )}
@@ -482,13 +490,13 @@ function ContainerEntryForm({
 
         {hasViewPermission("PersonalNote") && (
           <div className="col-span-full">
-            <label htmlFor="note" className="block mb-1 font-medium">Personal Note</label>
+            <label htmlFor="note" className={`block mb-1 font-medium ${theme.text}`}>Personal Note</label>
             <textarea
               id="note"
               name="note"
               value={formData.note || ''}
               onChange={handleChange}
-              className="w-full border rounded px-2 py-1.5"
+              className={`w-full border rounded px-2 py-1.5 ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500`}
               rows={2}
               disabled={!hasEditPermission("PersonalNote")}
             />
@@ -497,17 +505,17 @@ function ContainerEntryForm({
 
       {/* Documents */}
       {hasViewPermission("Document") && (  <div className="col-span-full">
-          <label className="block mb-2 font-semibold">Documents</label>
+          <label className={`block mb-2 font-semibold ${theme.text}`}>Documents</label>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
               {documents
               
               ?.map((doc, idx) => (
-                <div key={idx} className="border rounded p-3 relative bg-gray-50 text-sm shadow-sm">
+                <div key={idx} className={`border rounded p-3 relative ${theme.mutedBg} ${theme.text} text-sm shadow-sm`}>
                   <div className="flex justify-between items-center mb-2">
                     <a
                       href={
                         doc.isExisting
-                          ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDocument/${doc.id}`
+                          ? `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`
                           : URL.createObjectURL(doc.file)
                       }
                       target="_blank"
@@ -586,12 +594,12 @@ function ContainerEntryForm({
             {inboundImages
               
               ?.map((doc, idx) => (
-                <div key={idx} className="border rounded p-3 relative bg-gray-50 text-sm shadow-sm">
+                <div key={idx} className={`border rounded p-3 relative ${theme.mutedBg} ${theme.text} text-sm shadow-sm`}>
                   <div className="flex justify-between items-center mb-2">
                     <a
                       href={
                         doc.isExisting
-                          ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getDocument/${doc.id}`
+                          ? `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`
                           : URL.createObjectURL(doc.file)
                       }
                       target="_blank"
@@ -652,7 +660,7 @@ function ContainerEntryForm({
                     : img.file?.name;
 
                   const fileUrl = img.isExisting
-                    ? `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getEmptyImage/${img.id}`
+                    ? `${process.env.REACT_APP_NETWORK}/getEmptyImage/${img.id}`
                     : URL.createObjectURL(img.file);
 
                   return (
@@ -685,6 +693,8 @@ function ContainerEntryForm({
 
       {/* Submit */}
       <div className="col-span-full flex justify-end space-x-2">
+
+
         <button
           type="button"
           onClick={onCancel}
@@ -698,6 +708,17 @@ function ContainerEntryForm({
         >
           {mode === "add" ? "Add to List" : "Update"}
         </button>
+        { mode === "edit" &&(
+
+                    <button
+              type="button"
+              onClick={() => handleDeleteFunction(editData.Container_ID)}
+              className="px-4 bg-red-600 "
+            >
+              Delete
+            </button>
+        )
+        }
       </div>
     </form>
   // </div>  

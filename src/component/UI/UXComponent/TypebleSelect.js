@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../../../context/ThemeContext";
 
 function TypableSelect({ options, value, onChange, placeholder, disabled }) {
+  const { theme } = useTheme();
   const [filter, setFilter] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
   // const formattedOptions = Array.isArray(options) ? options.map((opt) => ({ label: opt, value: opt })) : [];
+  // console.log(theme);
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
@@ -47,16 +50,18 @@ function TypableSelect({ options, value, onChange, placeholder, disabled }) {
         onFocus={() => setShowDropdown(true)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full border rounded px-3 py-2 text-base ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}
+        className={`w-full border rounded px-3 py-2 text-base ${theme.border} ${theme.background} ${theme.text} placeholder-gray-400 dark:placeholder-gray-500 ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
         autoComplete="off"
       />
       {showDropdown && !disabled && filteredOptions.length > 0 && (
-        <ul className="absolute z-10 bg-white border w-full max-h-40 overflow-auto mt-1 rounded shadow">
+        <ul 
+        className={`absolute z-10 border w-full max-h-40 overflow-auto mt-1 rounded shadow ${theme.border} ${theme.background}`}
+        >
           {filteredOptions.map((opt) => (
             <li
               key={opt.id}
               onMouseDown={() => handleOptionClick(opt)} // onMouseDown prevents input blur before click
-              className="px-3 py-2 cursor-pointer hover:bg-blue-200"
+              className={`px-3 py-2 cursor-pointer ${theme.text} ${theme.hover}  hover:bg-gray-200 dark:hover:bg-gray-700`}
             >
               {opt.name}
             </li>

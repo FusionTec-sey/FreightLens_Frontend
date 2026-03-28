@@ -26,11 +26,13 @@ export const OptionsProvider = ({ children }) => {
     const path = OPTION_PATHS[pathKey];
     try {
       const res = await axios.get(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/${path}`,
+        `${process.env.REACT_APP_NETWORK}/${path}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
+          
         }
       );
 

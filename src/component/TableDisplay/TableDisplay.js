@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Filter, Settings, X, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { th } from 'framer-motion/m';
+import CollapsibleCard from '../UI/CollapsibleCard';
+import { useTheme } from '../../context/ThemeContext';
 
 const TableDisplay = ({
-  theme ,
+  theme: propTheme,
   columns,
   data,
   totalItems,
@@ -24,8 +26,12 @@ const TableDisplay = ({
   height = 'calc(78vh)',
   filterPopup = null,
   extraButton = null,
-  onRowClick = null // ✅ New prop for row click action
+  onRowClick = null, // ✅ New prop for row click action
+  primaryKey = 'id', // Key to use as title for collapsible cards
+  showCollapsibleCards = true // Whether to show collapsible cards on mobile
 }) => {
+  const { theme: contextTheme } = useTheme();
+  const theme = propTheme || contextTheme;
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [isSettingsPopupOpen, setIsSettingsPopupOpen] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({});
@@ -127,6 +133,7 @@ const TableDisplay = ({
     }
     return result;
   }, [currentData, sortConfig]);
+  // console.log(processedData);
   const handleClientPageChange = (newPage) => {
     const newStart = (newPage - 1) * itemsPerPage;
     const newServerPage = Math.floor(newStart / serverPageSize) + 1;
@@ -140,24 +147,60 @@ const TableDisplay = ({
   };
 
   const renderPagination = () => (
-    <div className={`flex items-center justify-between mt-4 `}>
-      <div className={`text-sm text-gray-600 `}>
+    <div className={`flex items-center justify-between mt-4 flex-col md:flex-row gap-3`}>
+      <div className={`text-sm w-full md:w-auto text-center md:text-left ${theme.tableMutedText}`}>
         Showing {(currentPage - 1) * itemsPerPage + 1}-
         {Math.min(currentPage * itemsPerPage, data.length)} of {totalItems}
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center justify-center md:justify-end w-full md:w-auto space-x-2">
         <button
           disabled={currentPage === 1}
           onClick={() => handleClientPageChange(currentPage - 1)}
-          className="p-2 border rounded disabled:opacity-50"
-        ><ChevronLeft /></button>
-        <span className="px-3 py-1  rounded">Page {currentPage} of {totalClientPages}</span>
+          className="px-3 py-2 border rounded-lg hover:bg-gray-50 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
+        ><ChevronLeft size={18} /></button>
+        <span className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-100 min-h-[44px] flex items-center">Page {currentPage} of {totalClientPages}</span>
         <button
           disabled={currentPage === totalClientPages}
           onClick={() => handleClientPageChange(currentPage + 1)}
-          className="p-2 border rounded disabled:opacity-50"
-        ><ChevronRight /></button>
+          className="px-3 py-2 border rounded-lg hover:bg-gray-50 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
+        ><ChevronRight size={18} /></button>
       </div>
+    </div>
+  );
+
+  const renderMobileCardView = () => (
+    <div className="space-y-2">
+      {isLoading ? (
+        <div className="text-center py-8">Loading...</div>
+      ) : processedData.length === 0 ? (
+        <div className="text-center py-8">No records found</div>
+      ) : processedData.map((row, i) => (
+        <CollapsibleCard
+          key={i}
+          title={row[primaryKey] || row[title] || `Item ${i + 1}`}
+          theme={theme }
+          getCustomtheam={getRowClassName(row)}
+          className="mb-2"
+        >
+          <div className="p-4 space-y-3" onClick={() => onRowClick && onRowClick(row)}>
+            {columns.filter(col => visibleColumns[col.key] && hasPermission(`View_${col.key}`)).map(col => (
+              <div key={col.key} className="flex justify-between items-start">
+                <span className="font-medium text-sm text-gray-500 dark:text-gray-400">{col.label}:</span>
+                <span className="text-right text-sm flex-1 ml-2">
+                  {col.render ? col.render(row[col.key], row) : row[col.key]}
+                </span>
+              </div>
+            ))}
+            {actionColumn && (
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-end">
+                  {actionColumn.render(row)}
+                </div>
+              </div>
+            )}
+          </div>
+        </CollapsibleCard>
+      ))}
     </div>
   );
 
@@ -166,13 +209,13 @@ const TableDisplay = ({
       <div className="flex justify-between mb-2 pr-2">
         <div className="flex items-center space-x-2">
           {showAddButton && (
-            <button onClick={handleAddClick} className="flex items-center gap-1 p-2 border rounded bg-black text-white hover:bg-gray-800">
-              <Plus /><span>{addButtonText}</span>
+            <button onClick={handleAddClick} className="flex items-center gap-2 px-4 py-3 border rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all duration-200 min-h-[44px] touch-manipulation">
+              <Plus size={18} /><span className="font-medium">{addButtonText}</span>
             </button>
           )}
           {customActions.map((action, i) =>
             hasPermission(action.permission) && (
-              <button key={i} onClick={action.handler} className={`p-2 border rounded ${action.className || ''}`} title={action.tooltip}>
+              <button key={i} onClick={action.handler} className={`px-3 py-2 border rounded-lg hover:bg-gray-50 active:scale-95 transition-all duration-200 min-h-[44px] touch-manipulation ${action.className || ''}`} title={action.tooltip}>
                 {action.icon || action.label}
               </button>
             )
@@ -200,9 +243,9 @@ const TableDisplay = ({
             </div>
           )}
           {filterPopup && (
-            <button onClick={() => setIsFilterPopupOpen(!isFilterPopupOpen)} className="p-2 border rounded"><Filter /></button>
+            <button onClick={() => setIsFilterPopupOpen(!isFilterPopupOpen)} className="px-3 py-2 border rounded-lg hover:bg-gray-50 active:scale-95 transition-all duration-200 min-h-[44px] touch-manipulation"><Filter size={18} /></button>
           )}
-          <button onClick={() => setIsSettingsPopupOpen(!isSettingsPopupOpen)} className="p-2 border rounded"><Settings /></button>
+          <button onClick={() => setIsSettingsPopupOpen(!isSettingsPopupOpen)} className="px-3 py-2 border rounded-lg hover:bg-gray-50 active:scale-95 transition-all duration-200 min-h-[44px] touch-manipulation"><Settings size={18} /></button>
         </div>
       </div>
 
@@ -217,7 +260,7 @@ const TableDisplay = ({
               <h3 className="text-lg font-semibold">Add New Item</h3>
               <button onClick={() => setShowAddForm(false)}><X /></button>
             </div>
-            <div className={`overflow-y-auto p-4 ${theme.scrollbar}`} style={{ maxHeight: 'calc(90vh - 64px)' }}>
+            <div className={`overflow-y-auto px-4 pt-4 pb-0 ${theme.scrollbar}`} style={{ maxHeight: 'calc(90vh - 64px)' }}>
               {React.cloneElement(addDataComponent, {
                 onSubmitSuccess: (d) => { onDataChange && onDataChange(d); setShowAddForm(false); },
                 onCancel: () => setShowAddForm(false)
@@ -241,7 +284,7 @@ const TableDisplay = ({
 
       {/* Settings Popup */}
       {isSettingsPopupOpen && (
-         <div className={`absolute right-0 mr-2  border-2 p-4 shadow-md z-50 w-48 rounded max-h-[70vh] overflow-y-auto ${theme.border} ${theme.background} ${theme.shadow}`}>
+         <div className={`absolute right-0 mr-2  border-2 p-4 shadow-md z-50 w-48 rounded max-h-[70vh] md:max-h-[70vh] max-h-[80vh] overflow-y-auto ${theme.border} ${theme.background} ${theme.shadow}`}>
           <div className="flex justify-between mb-2">
             <h3 className="text-lg font-semibold">Columns</h3>
             <button onClick={() => setIsSettingsPopupOpen(false)}><X /></button></div>
@@ -256,8 +299,22 @@ const TableDisplay = ({
         </div>
       )}
 
-      {/* Table */}
-      <div className={`relative  rounded-lg shadow-sm bg-white overflow-hidden ${theme.border}`} style={{ height }}>
+      {/* Mobile Cards */}
+      {showCollapsibleCards && (
+        <div className="md:hidden">
+          {renderMobileCardView()}
+        </div>
+      )}
+
+      {/* Sticky bottom pagination for mobile */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+        <div className={`border-t ${theme.border} ${theme.surface} p-2`}>
+          <div className={`${theme.text}`}>{renderPagination()}</div>
+        </div>
+      </div>
+
+      {/* Desktop Table */}
+      <div className={`relative rounded-lg shadow-sm ${theme.surface} overflow-hidden ${theme.border} hidden md:block`} style={{ height }}>
         <div className={`overflow-auto h-full rounded-lg ${theme.scrollbar} border-2 ${theme.border}`}>
           <table className="w-full table-fixed border-collapse">
             <colgroup>
@@ -266,7 +323,7 @@ const TableDisplay = ({
               ))}
               {actionColumn && <col style={{ width: '120px' }} />}
             </colgroup>
-            <thead className={`sticky top-0 ${theme.background} z-10 border-b border-gray-300`}>
+            <thead className={`sticky top-0 ${theme.tableHeader} z-10 border-b ${theme.border}`}>
               <tr>
                 {columns.filter(col => visibleColumns[col.key] && hasPermission(`View_${col.key}`)).map(col => (
                   <th key={col.key} className="relative px-4 py-3 cursor-pointer select-none">
@@ -284,26 +341,26 @@ const TableDisplay = ({
                 {actionColumn && <th className="px-4 py-3">Actions</th>}
               </tr>
             </thead>
-              <tbody className="divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr><td colSpan={columns.length + (actionColumn ? 1 : 0)} className="text-center py-8">Loading...</td></tr>
-                ) : processedData.length === 0 ? (
-                  <tr><td colSpan={columns.length + (actionColumn ? 1 : 0)} className="text-center py-8">No records found</td></tr>
-                ) : processedData.map((row, i) => (
-                  <tr
-                    key={i}
-                    className={`cursor-pointer hover:bg-gray-100 ${getRowClassName(row)}`}
-                    onClick={() => onRowClick && onRowClick(row)} // ✅ Row click handler
-                  >
-                    {columns.filter(col => visibleColumns[col.key] && hasPermission(`View_${col.key}`)).map(col => (
-                      <td key={col.key} className="px-4 py-3 truncate">
-                        {col.render ? col.render(row[col.key], row) : row[col.key]}
-                      </td>
-                    ))}
-                    {actionColumn && <td className="px-4 py-3">{actionColumn.render(row)}</td>}
-                  </tr>
-                ))}
-              </tbody>
+            <tbody className={`divide-y ${theme.border}`}>
+              {isLoading ? (
+                <tr><td colSpan={columns.length + (actionColumn ? 1 : 0)} className={`text-center py-8 ${theme.tableText}`}>Loading...</td></tr>
+              ) : processedData.length === 0 ? (
+                <tr><td colSpan={columns.length + (actionColumn ? 1 : 0)} className={`text-center py-8 ${theme.tableText}`}>No records found</td></tr>
+              ) : processedData.map((row, i) => (
+                <tr
+                  key={i}
+                  className={`cursor-pointer ${theme.tableRow} ${getRowClassName(row)}`}
+                  onClick={() => onRowClick && onRowClick(row)}
+                >
+                  {columns.filter(col => visibleColumns[col.key] && hasPermission(`View_${col.key}`)).map(col => (
+                    <td key={col.key} className={`px-4 py-3 truncate ${theme.tableText}`}>
+                      {col.render ? col.render(row[col.key], row) : row[col.key]}
+                    </td>
+                  ))}
+                  {actionColumn && <td className={`px-4 py-3 ${theme.tableText}`}>{actionColumn.render(row)}</td>}
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </div>

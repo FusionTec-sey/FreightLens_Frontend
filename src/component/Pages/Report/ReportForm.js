@@ -7,6 +7,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
   const [products, setProducts] = useState([
     { name: null, quantity: null, reason: null, files: [], previews: [] },
   ]);
+  // console.log(editData);
   const [containers, setContainers] = useState([]);
   const [selectedContainer, setSelectedContainer] = useState("");
   const [originalData, setOriginalData] = useState(null); // For change detection
@@ -20,11 +21,13 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
     const fetchContainers = async () => {
       try {
         const response = await axios.get(
-          `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getAllContainers`,
+          `${process.env.REACT_APP_NETWORK}/getAllContainers`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "skip_zrok_interstitial": "true",
             },
+            
           }
         );
 
@@ -73,7 +76,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
         product.files?.map((doc) => ({
           id: doc.id,
           name: doc.filename || "file",
-          url: `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getReportImage/${doc.id}`,
+          url: `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`,
           type: doc.filename?.match(/\.(mp4|webm|ogg)$/i) ? "video" : "image",
         })) || [],
     }));
@@ -272,13 +275,14 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       });
     });
 
-    const url = `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/submitDamagedProducts`;
+    const url = `${process.env.REACT_APP_NETWORK}/submitDamagedProducts`;
 
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "skip_zrok_interstitial": "true",
     };
 
-    return axios.post(url, formData, { headers });
+    return axios.post(url, formData, { headers, withCredentials: true });
   };
 
   // Submit edited report - only changed data
@@ -341,12 +345,13 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       formData.append("remove_product_ids", id.toString());
     });
 
-    const url = `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/updateDamagedProducts/${editData.report_id}`;
+    const url = `${process.env.REACT_APP_NETWORK}/updateDamagedProducts/${editData.report_id}`;
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "skip_zrok_interstitial": "true",
     };
 
-    return axios.post(url, formData, { headers });
+    return axios.post(url, formData, { headers, withCredentials: true });
   };
 
   const handleSubmit = async (e) => {
@@ -507,7 +512,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
                   <button
                     type="button"
                     onClick={() => handleRemoveFile(index, i)}
-                    className="ml-4 px-2 py-1  text-black rounded hover:bg-red-700"
+                    className="ml-4 px-2 py-1 rounded text-gray-800 dark:text-slate-100 hover:bg-red-700 hover:text-white"
                     aria-label="Remove file"
                   >
                     <Trash2 className="w-4 h-4" />

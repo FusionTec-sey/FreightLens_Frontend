@@ -6,7 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { formatDateTime12hr } from '../../../utils/DateFormater';
 import { getMaterialNames } from '../../../utils/reSolveMaterial';
 import { useOptions } from "../../../hooks/useOptions";
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
 // import { X } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
@@ -22,7 +22,7 @@ export default function CompleteContainer() {
   const [currentServerPage, setCurrentServerPage] = useState(1);
   const [loadedServerPages, setLoadedServerPages] = useState(new Set());
   const [filterData, setFilterData] = useState({});
-  const { theme } = useTheme();
+  const { isDark, theme } = useTheme();
   const { permissions } = useAuth();
   const {
     material: materialOptions,
@@ -94,12 +94,15 @@ export default function CompleteContainer() {
       if (filters.Material) params.material = filters.Material;
 
       const response = await axios.get(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/getContainerDetails`,
+        `${process.env.REACT_APP_NETWORK}/getContainerDetails`,
         {
           params,
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            
+            
+          },
+          
         }
       );
 
@@ -154,8 +157,12 @@ export default function CompleteContainer() {
 
     try {
       await axios.delete(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/deleteContainerDetails/${containerId}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
+            "skip_zrok_interstitial": "true"
+         },
+        
+      }
       );
 
       setLoadedServerPages(new Set());
@@ -185,7 +192,7 @@ export default function CompleteContainer() {
     }
   }, [optionsLoading, materialOptions, fetchData]);
     
-    function handleFilterSubmit(col, val) {
+  function handleFilterSubmit(col, val) {
         const newFilters = { [col]: val };
 
         // console.log("Applied Filters:", newFilters);
@@ -194,7 +201,7 @@ export default function CompleteContainer() {
         setLoadedServerPages(new Set());
         setRows([]);
         fetchData(0, SERVER_PAGE_SIZE, newFilters);
-    }
+  }
 
 
 
@@ -208,28 +215,19 @@ export default function CompleteContainer() {
 
   const actionColumn = useMemo(() => ({
     render: (row) => (
-      <div className="flex justify-center space-x-2">
+      <div className="flex justify-center">
         {permissions.includes('Edit_Container') && (
           <button
             onClick={() => handleEdit(row)}
-            className="text-blue-500 hover:text-blue-700"
+            className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded p-1"
             title="Edit container"
           >
             <Pencil size={18} />
           </button>
         )}
-        {permissions.includes('Delete_Container') && (
-          <button
-            onClick={() => handleDelete(row.ContainerId)}
-            className="text-red-500 hover:text-red-700"
-            title="Delete container"
-          >
-            <Trash2 size={18} />
-          </button>
-        )}
       </div>
     )
-  }), [handleDelete, handleEdit, permissions]);
+  }), [permissions]);
 
   return (
     <div className={`flex items-stretch flex-col w-full max-h-screen ${theme.background}`}>
@@ -247,19 +245,23 @@ export default function CompleteContainer() {
           setLoadedServerPages(new Set());
           fetchData(0, SERVER_PAGE_SIZE, filterData);
         }}
-        actionColumn={actionColumn}
-        title="Complete Containers"
+        onRowClick={(row) => {permissions.includes('Edit_Container') && handleEdit(row)}}
+        // actionColumn={actionColumn}
+        title="Container"
         userPermissions={permissions}
         filterPopup={filterPopup}
         getRowClassName={(row) => {
-                return 'hover:bg-gray-100 bg-white text-gray-900'}}
+                if (isDark) {
+                  return 'hover:bg-slate-800 bg-slate-900 text-slate-200';
+                }
+                return `hover:bg-gray-100 bg-white ${theme.text}`}}
       />
 
       {isEditFormOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+          <div className={`rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto ${theme.background}`}>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Edit Container</h2>
+              <h2 className="text-xl font-semibold">{editingContainer ? "Edit Container" : "Add New Item"}</h2>
               <button
                 onClick={handleEditFormClose}
                 className="text-gray-500 hover:text-gray-700"
@@ -272,6 +274,8 @@ export default function CompleteContainer() {
               onSubmitSuccess={handleEditFormSubmitSuccess}
               onCancel={handleEditFormClose}
               userPermissions={permissions}
+              handleDeleteFunction={handleDelete}
+
             />
           </div>
         </div>

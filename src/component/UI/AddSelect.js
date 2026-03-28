@@ -47,14 +47,16 @@ export default function VesselSelector({
   const handleAddNew = async (name) => {
     try {
       const response = await axios.post(
-        `http://${process.env.REACT_APP_NETWORK}:${process.env.REACT_APP_PORT}/setVessal`,
+        `${process.env.REACT_APP_NETWORK}/setVessal`,
         {
           VessalNo: name, // only send the name as VessalNo
         },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "skip_zrok_interstitial": "true",
           },
+          
         }
       );
 
@@ -92,7 +94,7 @@ export default function VesselSelector({
       />
 
       {dropdownOpen && filteredOptions.length > 0 && (
-        <ul className="absolute z-10 w-full max-h-48 overflow-y-auto bg-white border mt-1 rounded shadow ">
+        <ul className="absolute z-10 w-full max-h-48 overflow-y-auto border mt-1 rounded shadow bg-white dark:bg-slate-900 ">
           {filteredOptions.map((v) => (
             <li
               key={v.id}
@@ -131,7 +133,7 @@ function AddVesselPopup({ name, onAdd, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-20 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+      <div className="p-6 rounded-lg shadow-xl w-96 bg-white dark:bg-slate-900">
         <h2 className="text-lg font-semibold mb-4">Add New Vessel</h2>
         <input
           className="w-full border px-3 py-2 rounded mb-4"
