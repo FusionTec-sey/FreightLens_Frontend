@@ -57,7 +57,9 @@ export default function BillOfLandingInfo() {
         supplier: "",
         Provider: "",
         shippingType: null,
-        tax: 0
+        tax: 0,
+        freeDays: "",   // BoL-level FreeDays
+        status: "",     // BoL-level default status
     });
 
     // Define form fields configuration
@@ -169,6 +171,13 @@ export default function BillOfLandingInfo() {
             refreshKey: 'shipping',
             addApi: 'setShippingDocument',
             colSpan: 1
+        },
+        {
+            id: 'freeDays',
+            label: 'Free Days',
+            type: 'number',
+            placeholder: 'e.g. 14',
+            colSpan: 1,
         },
     ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping, theme]);
 
@@ -349,7 +358,8 @@ export default function BillOfLandingInfo() {
             Doc: formData.shippingType || null,
             Supplier: formData.supplier || null,
             Provider: formData.Provider || null,
-
+            FreeDays: formData.freeDays !== "" ? Number(formData.freeDays) : null,
+            status: formData.status !== "" ? Number(formData.status) : null,
             new_containers: containerData?.map(item => ({ container_no: item.container_no }))
         };
         const url = decodedId !== "new" ? 
@@ -485,7 +495,15 @@ export default function BillOfLandingInfo() {
             alert("All changes saved successfully!");
         } catch (error) {
             console.error("Save failed:", error);
-            setErrorMessage(error.response?.data?.message || "Failed to save changes. Please try again.");
+            // HTTP 409 — FreeDays or status conflict between BoL and individual containers
+            if (error.response?.status === 409) {
+                setErrorMessage(
+                    `Conflict: ${error.response.data?.detail || "Cannot update Bill of Lading value."}` +
+                    " Some containers have custom values. Update them individually first, or reset all containers to the BoL value."
+                );
+            } else {
+                setErrorMessage(error.response?.data?.message || "Failed to save changes. Please try again.");
+            }
         } finally {
             setIsSaving(false);
             window.history.back();
@@ -503,7 +521,9 @@ export default function BillOfLandingInfo() {
                 Provider: logistics.find((opt) => opt.name === editData.provider_name)?.id || "",
                 vesselName: vesselList.find((opt) => opt.name === editData.vessel_name)?.id || "",
                 tax: editData.tax || 0,
-                shippingType: shipping.find((opt) => opt.name === editData.Doc_name)?.id || ""
+                shippingType: shipping.find((opt) => opt.name === editData.Doc_name)?.id || "",
+                freeDays: editData.FreeDays ?? "",  // BoL-level FreeDays
+                status: editData.status ?? "",      // BoL-level default status
             });
             
             if (editData.containers) {

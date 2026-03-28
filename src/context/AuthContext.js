@@ -205,7 +205,7 @@ export const AuthProvider = ({ children }) => {
         // Adjust the endpoint and payload to your API
         const resp = await axios.post(
           `${process.env.REACT_APP_NETWORK}/refresh`,
-          { refreshToken }, // send in body (adapt if your API expects other shape)
+          refreshToken, // raw JSON string as required by the API
           { headers: { "Content-Type": "application/json",
             "skip_zrok_interstitial": "true"
            },

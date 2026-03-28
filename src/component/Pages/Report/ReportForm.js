@@ -76,7 +76,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
         product.files?.map((doc) => ({
           id: doc.id,
           name: doc.filename || "file",
-          url: `${process.env.REACT_APP_NETWORK}/getReportImage/${doc.id}`,
+          url: `${process.env.REACT_APP_NETWORK}/getDocument/${doc.id}`,
           type: doc.filename?.match(/\.(mp4|webm|ogg)$/i) ? "video" : "image",
         })) || [],
     }));

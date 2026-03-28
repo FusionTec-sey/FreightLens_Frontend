@@ -37,6 +37,9 @@ function ContainerEntryForm({
     tax: 0,
     status: null,
     provider: null,
+    freeDays: null,           // container-level FreeDays override
+    blFreeDays: null,         // bill_of_landing.FreeDays (updates parent BoL)
+    blStatus: null,           // bill_of_landing.status (updates parent BoL)
   });
   const [originalData, setOriginalData] = useState({});
   const [documents, setDocuments] = useState([]);
@@ -97,7 +100,10 @@ function ContainerEntryForm({
         empty_date: editData.empty_date,
         out_bound: editData.out_bound?.slice(0, 16),
         unloaded_at_port: editData.unloaded_at_port,
-        emptied_at: emptyLocations.find((opt) => opt.name === editData.location)?.id || null
+        emptied_at: emptyLocations.find((opt) => opt.name === editData.location)?.id || null,
+        freeDays: editData.FreeDays ?? null,           // individual container FreeDays
+        blFreeDays: bill?.FreeDays ?? null,            // parent BoL FreeDays
+        blStatus: status.find((opt) => opt.name === bill?.status_name)?.id || null, // parent BoL status
       }));
       // console.log(formData., "sjkdfbh")
       // console.log(shipping.find((opt) => opt.name === bill?.Doc_name) , "jf")
@@ -296,7 +302,7 @@ function ContainerEntryForm({
       }
     };
     // ✅ Basic fields
-    safeAppend("container_no", formData.container_no || null);
+    safeAppend("container_no", formData.containerNo || null);  // fix: was formData.container_no (undefined)
     safeAppend("in_bound", formData.in_bound || null);
     safeAppend("empty_date", formData.empty_date || null);
     safeAppend("out_bound", formData.out_bound || null);
@@ -304,10 +310,10 @@ function ContainerEntryForm({
     safeAppend("note", formData.note || null);
     safeAppend("tax", formData.tax || 0);
     safeAppend("PONo", formData.PONo || null);
-    safeAppend("status", formData.status || null);
+    safeAppend("status", formData.status || null);        // container-level status
+    safeAppend("FreeDays", formData.freeDays || null);  // container-level FreeDays override
     safeAppend("type", formData.type || null);
     safeAppend("emptied_at", formData.emptied_at || null);
-    // console.log(formData.inBound, "ljh")
     // ✅ Bill of Lading
     safeAppend("bill_of_landing.BillOfLanding", formData.BillOfLanding || null);
     safeAppend("bill_of_landing.Vessel", formData.vessal || null);
@@ -316,6 +322,8 @@ function ContainerEntryForm({
     safeAppend("bill_of_landing.Supplier", formData.supplier || null);
     safeAppend("bill_of_landing.Doc", formData.shippingType || null);
     safeAppend("bill_of_landing.ArrivalDate", formData.arrival_on_port || null);
+    safeAppend("bill_of_landing.FreeDays", formData.blFreeDays || null); // updates parent BoL FreeDays
+    safeAppend("bill_of_landing.status", formData.blStatus || null);     // updates parent BoL status
 
     formData.material?.forEach(mat => {
       payload.append("materials", mat)
@@ -369,17 +377,24 @@ function ContainerEntryForm({
 
       // Optional: success callback
       onSubmitSuccess();
-      // onFormSubmit();
     } catch (error) {
       console.error("Submission failed:", error);
-      alert(error.response?.data?.detail || "Submission failed");
+      // HTTP 409 — FreeDays or status conflict on the parent BoL
+      if (error.response?.status === 409) {
+        alert(
+          `Conflict: ${error.response.data?.detail || "Cannot update Bill of Lading value."}\n\n` +
+          "Some containers have custom values. Update them individually first, or reset all containers to the BoL value."
+        );
+      } else {
+        alert(error.response?.data?.detail || "Submission failed");
+      }
     }
   };
 
   // console.log(suppliers, "Sup")
   const fields = [
     { label: "Bill Of Landing", name: "BillOfLanding", type: "text", permission: "BL", options: [] },
-    { label: "Container No", name: "container_no", type: "text", permission: "ContainerNo" },
+    { label: "Container No", name: "containerNo", type: "text", permission: "ContainerNo" },
     { label: "Type", name: "type", type: "addSelect", options: type, permission: "ContainerType", api: "setContainerType", refreshVal:"type"},
     { label: "Arrival Date", name: "arrival_on_port", type: "datetime-local", permission: "ArrivalDate" },
     { label: "PO No", name: "PONo", type: "text", permission: "PoNo" },
@@ -392,6 +407,7 @@ function ContainerEntryForm({
     { label: "Material", name: "material", type: "tagselect", permission: "Material", options: materialOptions},
 
     { label: "Status", name: "status", type: "select", options: status, permission: "Status", api: "", refreshVal:"" },
+    { label: "Free Days (Container Override)", name: "freeDays", type: "number", permission: "FreeDays" },
     { label: "In Bound", name: "in_bound", type: "datetime-local", permission: "InBound" },
     { label: "Empty Date", name: "empty_date", type: "date", permission: "EmptyDate" },
     { label: "Out Bound", name: "out_bound", type: "datetime-local", permission: "OutBound" },

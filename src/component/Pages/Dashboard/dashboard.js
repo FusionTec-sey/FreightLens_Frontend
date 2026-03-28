@@ -111,7 +111,7 @@ const Dashboard = () => {
         const token = localStorage.getItem("token");
         const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, {
           headers: { Authorization: `Bearer ${token}` },
-          withCredentials: false
+          // withCredentials: false
         });
 
 
