@@ -47,7 +47,6 @@ function ContainerEntryForm({
   const emptyInputRef = useRef(null);
   const [selectedVessel, setSelectedVessel] = useState([]);
 
-
   const { isDark, theme } = useTheme();
   const {
     suppliers,

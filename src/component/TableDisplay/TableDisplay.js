@@ -127,7 +127,6 @@ const TableDisplay = ({
     }
     return result;
   }, [currentData, sortConfig]);
-
   const handleClientPageChange = (newPage) => {
     const newStart = (newPage - 1) * itemsPerPage;
     const newServerPage = Math.floor(newStart / serverPageSize) + 1;

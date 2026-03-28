@@ -5,7 +5,6 @@ function TypableSelect({ options, value, onChange, placeholder, disabled }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const wrapperRef = useRef(null);
   // const formattedOptions = Array.isArray(options) ? options.map((opt) => ({ label: opt, value: opt })) : [];
-
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {

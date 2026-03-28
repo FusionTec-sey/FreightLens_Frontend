@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-
 export default function GenericSelector({
   options = [],
   value = null,
@@ -16,7 +15,6 @@ export default function GenericSelector({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const containerRef = useRef(null);
-
   useEffect(() => {
     if (value === null) {
       setInput("");
