@@ -9,6 +9,7 @@ import { getMaterialNames } from '../../../utils/reSolveMaterial';
 import { useOptions } from "../../../hooks/useOptions";
 import { X, Pencil } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
+import { calculateDemurrage } from '../../../utils/DemurrageUtil';
 // import Select from 'react-select/base';
 import { Mail } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
@@ -56,55 +57,7 @@ export default function ContainerEntry() {
         { key: "Consignee", label: "Consignee" }
     ], [status]);
     // console.log(status)
-    function DemurrageColumn({ ExcludeDayBitmask, ArrivalDate, FreeDay }) {
-       try {
-        
-       console.log(ExcludeDayBitmask, FreeDay, ArrivalDate)
-        const DAY_TO_BIT = {
-            0: 64, // Sunday
-            1: 1,
-            2: 2,
-            3: 4,
-            4: 8,
-            5: 16,
-            6: 32  // Saturday
-        };
 
-        const arrival = new Date(ArrivalDate);
-        let due = new Date(arrival);
-        let daysAdded = 0;
-
-        // Loop until we add the required number of working days
-        while (daysAdded < FreeDay) {
-            const dayOfWeek = due.getDay();
-            const bit = DAY_TO_BIT[dayOfWeek];
-
-            if ((ExcludeDayBitmask & bit) === 0) {
-            daysAdded++;
-            }
-
-            if (daysAdded < FreeDay) {
-            // Move forward by 1 day (keeping time unchanged)
-            due.setDate(due.getDate() + 1);
-            }
-        }
-
-        const now = new Date();
-
-        const diffInMs = due - now;
-        const diffInDays = diffInMs / (1000 * 60 * 60 * 24); // decimal days
-        console.log(diffInDays);
-        if (diffInDays > 0) {
-            return `Remaining time: ${diffInDays.toFixed(0)} day(s)`;
-        } else if (diffInDays < 0) {
-            return `Overdue by: ${Math.abs(diffInDays).toFixed(0)} day(s)`;
-        } else {
-            return `Remaining time: 0.00 day(s)`;
-        }
-        } catch (error) {
-        return ""
-       }
-    }
 
 
     useEffect(() => {
@@ -128,7 +81,11 @@ export default function ContainerEntry() {
             Container: c.container_no || "",
             Consignee: c.bill_of_landing?.consignee_name || "",
             Supplier: c.bill_of_landing?.supplier_name || "",
-            Demurrage: c.bill_of_landing?.ArrivalDate &&  c.state !== "In Transit" ? DemurrageColumn({ExcludeDayBitmask: c.bill_of_landing.ExcludingDay, ArrivalDate: c.bill_of_landing.ArrivalDate, FreeDay: c.bill_of_landing.FreeDays }) : "",
+            Demurrage: c.bill_of_landing?.ArrivalDate &&  c.state !== "In Transit" ? calculateDemurrage({
+                ExcludeDayBitmask: c.bill_of_landing.ExcludingDay, 
+                ArrivalDate: c.bill_of_landing.ArrivalDate, 
+                FreeDay: c.FreeDays !== null && c.FreeDays !== undefined ? c.FreeDays : c.bill_of_landing.FreeDays 
+            }) : "",
             ArrivalDate: c.bill_of_landing?.ArrivalDate 
                 ? formatDateTime12hr(c.bill_of_landing.ArrivalDate.slice(0, 16)) 
                 : "",
@@ -358,7 +315,7 @@ export default function ContainerEntry() {
         
             
             }, 
-            withCredentials: true
+            withCredentials: false
             // 👈 pass as query parameter
         });
 

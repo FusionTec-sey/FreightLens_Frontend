@@ -9,12 +9,13 @@ import { useOptions } from "../../../hooks/useOptions";
 import { Pencil, Trash2, Plus, Save, X, AlertTriangle } from 'lucide-react';
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import { useTheme } from '../../../context/ThemeContext';
+import { calculateDemurrage } from '../../../utils/DemurrageUtil';
 
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 200;
 
 export default function BillOfLandingInfo() {
-    const { theme } = useTheme();
+    const { theme, isDark } = useTheme();
     const { permissions } = useAuth();
     const { Id } = useParams();
     const decodedId = decodeURIComponent(Id); // will be "abc/ba"
@@ -217,8 +218,13 @@ export default function BillOfLandingInfo() {
             key: "weight", 
             label: "Weight",
             width: '20%'
+        },
+        { 
+            key: "demurrage", 
+            label: "Demurrage",
+            width: '25%'
         }
-    ], []);
+    ], [theme]);
 
     // Transform API data to table format
     const transformData = useCallback((apiData) => {
@@ -229,9 +235,14 @@ export default function BillOfLandingInfo() {
             status: c.state || c.status || "",
             location: c.location || "",
             weight: c.weight || "",
+            demurrage: editData?.ArrivalDate && (c.state || c.status) !== "In Transit" ? calculateDemurrage({
+                ExcludeDayBitmask: editData.ExcludingDay,
+                ArrivalDate: editData.ArrivalDate,
+                FreeDay: c.FreeDays !== null && c.FreeDays !== undefined ? c.FreeDays : (c.bill_of_landing?.FreeDays ?? editData.FreeDays)
+            }) : "",
             rawData: c // Store raw data for editing
         }));
-    }, []);
+    }, [editData]);
 
     function setFormDataOfBl(data){
         setFormData(prev => ({
@@ -714,6 +725,15 @@ export default function BillOfLandingInfo() {
                     onAddButtonClick={() => setIsAddMode(true)}
                     isAddFormOpen={isAddMode}
                     height={'calc(40vh)'}
+                    getRowClassName={(row) => {
+                        if (row.demurrage && row.demurrage.includes("Overdue")) {
+                            return isDark ? 'hover:bg-red-450 bg-red-400 text-red-50' : 'hover:bg-red-450 bg-red-400 text-red-50';
+                        }
+                        if (isDark) {
+                            return 'hover:bg-slate-800 bg-slate-900 text-slate-200';
+                        }
+                        return `hover:bg-gray-100 bg-white ${theme.text}`;
+                    }}
                 />
             </div>
 

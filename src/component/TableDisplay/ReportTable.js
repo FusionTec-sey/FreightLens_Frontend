@@ -59,7 +59,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
         },
-        withCredentials: true
+        withCredentials: false
       });
 
       let data = response.data;
@@ -83,7 +83,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
         },
-        withCredentials: true
+        withCredentials: false
       });
 
       if (response.status === 200) {
@@ -114,7 +114,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
             "skip_zrok_interstitial": "true",
           },
           responseType: "blob", // Important to receive PDF file
-          withCredentials: true
+          withCredentials: false
         }
       );
 
