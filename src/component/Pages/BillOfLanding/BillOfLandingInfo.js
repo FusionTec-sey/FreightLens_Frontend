@@ -51,6 +51,15 @@ export default function BillOfLandingInfo() {
     const [errorMessage, setErrorMessage] = useState(null);
     const [pendingEditIndex, setPendingEditIndex] = useState(-1);
     
+    // Check if any containers have custom values that differ from BoL defaults
+    const hasCustomContainers = useMemo(() => {
+        if (!editData || !editData.containers) return false;
+        return editData.containers.some(c => 
+            (c.FreeDays !== null && c.FreeDays !== undefined && c.FreeDays !== editData.FreeDays) ||
+            (c.state !== null && c.state !== undefined && c.state !== editData.status_name)
+        );
+    }, [editData]);
+
     const [formData, setFormData] = useState({
         billOfLadingNumber: "",
         consignee: "",
@@ -180,6 +189,7 @@ export default function BillOfLandingInfo() {
             type: 'number',
             placeholder: 'e.g. 14',
             colSpan: 1,
+            disabled: hasCustomContainers
         },
         {
             id: 'status',
@@ -189,7 +199,8 @@ export default function BillOfLandingInfo() {
             valueKey: 'id',
             refreshKey: 'status',
             addApi: '',
-            colSpan: 1
+            colSpan: 1,
+            disabled: hasCustomContainers
         },
     ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping, theme, statusOptions]);
 
@@ -581,7 +592,13 @@ export default function BillOfLandingInfo() {
                             valueKey={field.valueKey}
                             onAddNew={() => refresh(field.refreshKey)}
                             addApi={field.addApi}
+                            disabled={field.disabled}
                         />
+                        {field.disabled && (
+                            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                                <AlertTriangle size={12} /> Locked: Individual container overrides exist.
+                            </p>
+                        )}
                     </div>
                 );
             case 'text':
