@@ -58,7 +58,7 @@ function ContainerEntryForm({
     suppliers,
     consignees,
     emptyLocations,
-    status,
+    status: statusOptions,
     type,
     shipping,
     vessal: vesselList,
@@ -95,7 +95,7 @@ function ContainerEntryForm({
         
         type: type.find((opt) => opt.name === editData.containerType)?.id || null,
         material: editData.materials?.map(item => item.Id) || [],
-        status: status.find((opt) => opt.name === editData.state)?.id || null,
+        status: statusOptions.find((opt) => opt.name === editData.state)?.id || null,
         in_bound: editData.in_bound?.slice(0, 16),
         empty_date: editData.empty_date,
         out_bound: editData.out_bound?.slice(0, 16),
@@ -103,7 +103,7 @@ function ContainerEntryForm({
         emptied_at: emptyLocations.find((opt) => opt.name === editData.location)?.id || null,
         freeDays: editData.FreeDays ?? null,           // individual container FreeDays
         blFreeDays: bill?.FreeDays ?? null,            // parent BoL FreeDays
-        blStatus: status.find((opt) => opt.name === bill?.status_name)?.id || null, // parent BoL status
+        blStatus: statusOptions.find((opt) => opt.name === bill?.status_name)?.id || null, // parent BoL status
       }));
       // console.log(formData., "sjkdfbh")
       // console.log(shipping.find((opt) => opt.name === bill?.Doc_name) , "jf")
@@ -406,8 +406,8 @@ function ContainerEntryForm({
     { label: "Tax", name: "tax", type: "checkbox", permission: "Tax" },
     { label: "Material", name: "material", type: "tagselect", permission: "Material", options: materialOptions},
 
-    { label: "Status", name: "status", type: "select", options: status, permission: "Status", api: "", refreshVal:"" },
-    { label: "Free Days (Container Override)", name: "freeDays", type: "number", permission: "FreeDays" },
+    { label: "Status", name: "status", type: "select", options: statusOptions, permission: "Status", api: "", refreshVal:"" },
+    { label: "Free Days (Container Override)", name: "freeDays", type: "number", permission: "Demurrage" },
     { label: "In Bound", name: "in_bound", type: "datetime-local", permission: "InBound" },
     { label: "Empty Date", name: "empty_date", type: "date", permission: "EmptyDate" },
     { label: "Out Bound", name: "out_bound", type: "datetime-local", permission: "OutBound" },

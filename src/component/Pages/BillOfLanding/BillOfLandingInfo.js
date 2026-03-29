@@ -30,6 +30,7 @@ export default function BillOfLandingInfo() {
         logistics,
         shipping,
         refresh,
+        status: statusOptions,
         loading: optionsLoading,
     } = useOptions();
     const [containersToAdd, setContainersToAdd] = useState([]);
@@ -179,7 +180,17 @@ export default function BillOfLandingInfo() {
             placeholder: 'e.g. 14',
             colSpan: 1,
         },
-    ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping, theme]);
+        {
+            id: 'status',
+            label: 'Default Status',
+            type: 'select',
+            options: statusOptions,
+            valueKey: 'id',
+            refreshKey: 'status',
+            addApi: '',
+            colSpan: 1
+        },
+    ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping, theme, statusOptions]);
 
     // Columns configuration
     const columns = useMemo(() => [

@@ -159,7 +159,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
     localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(userPermissions));
     if (userInfo) localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
-
+    console.log("accessToken", accessToken);
+    console.log("refresh", refresh);
+    console.log("userPermissions", userPermissions);
+    console.log("userInfo", userInfo);
     setToken(accessToken);
     setRefreshToken(refresh);
     setPermissions(userPermissions);
@@ -208,9 +211,9 @@ export const AuthProvider = ({ children }) => {
           refreshToken, // raw JSON string as required by the API
           { headers: { "Content-Type": "application/json",
             "skip_zrok_interstitial": "true"
-           },
-          
-          withCredentials: true  }
+           }
+          // withCredentials not used — refresh token is in body, not cookies
+          }
         );
 
         const newAccessToken = resp?.data?.access_token || resp?.data?.accessToken || null;
@@ -290,22 +293,44 @@ export const AuthProvider = ({ children }) => {
     [refreshAccessToken]
   );
 
-  // On mount: schedule refresh if there's a stored access token
+  // On mount: validate stored token — if already expired, clear storage immediately
+  // so the user sees a clean login page instead of a broken refresh attempt
   useEffect(() => {
-    if (token) scheduleRefresh(token);
+    if (token) {
+      const payload = decodeJwt(token);
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (payload && payload.exp && payload.exp <= nowSec) {
+        // Token is already expired — clear session silently, no refresh needed
+        console.log("⚠️ Stored token is expired on mount, clearing session.");
+        clearStorage();
+        setToken(null);
+        setRefreshToken(null);
+        setPermissions([]);
+        setUser(null);
+      } else {
+        scheduleRefresh(token);
+      }
+    }
     return () => {
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
         refreshTimeoutRef.current = null;
       }
     };
-  }, [token, scheduleRefresh]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Axios interceptors: attach token and refresh when needed
   useEffect(() => {
     // request interceptor: attach Authorization header, refresh if token expired
     const reqInterceptor = axios.interceptors.request.use(
       async (config) => {
+        // Skip auth logic for the login and refresh endpoints themselves
+        // to prevent recursive refresh loops
+        const url = config.url || "";
+        const isAuthEndpoint =
+          url.endsWith("/token") || url.endsWith("/refresh");
+        if (isAuthEndpoint) return config;
+
         // if no token, just pass through
         let access = localStorage.getItem(ACCESS_TOKEN_KEY);
         if (!access) return config;
@@ -343,8 +368,18 @@ export const AuthProvider = ({ children }) => {
         const originalRequest = error.config;
         if (!originalRequest) return Promise.reject(error);
 
+        // Never retry /token or /refresh to prevent infinite loops
+        const url = originalRequest.url || "";
+        const isAuthEndpoint =
+          url.endsWith("/token") || url.endsWith("/refresh");
+
         // Avoid infinite loop: mark retried requests
-        if (error.response && error.response.status === 401 && !originalRequest._retry) {
+        if (
+          error.response &&
+          error.response.status === 401 &&
+          !originalRequest._retry &&
+          !isAuthEndpoint
+        ) {
           originalRequest._retry = true;
           const newToken = await refreshAccessToken();
           if (newToken) {

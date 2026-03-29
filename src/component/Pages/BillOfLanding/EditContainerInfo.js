@@ -22,7 +22,7 @@ function ContainerEntryForm({
       suppliers,
       consignees,
       emptyLocations,
-      status,
+      status: statusOptions,
       type,
       shipping,
       vessal: vesselList,
@@ -96,7 +96,7 @@ function ContainerEntryForm({
         
         type: type.find((opt) => opt.name === editData.containerType)?.id || "",
         material: editData.materials?.map(item => item.Id) || [],
-        status: status.find((opt) => opt.name === editData.state)?.id || [],
+        status: statusOptions.find((opt) => opt.name === editData.state)?.id || [],
         in_bound: editData.in_bound?.slice(0, 16),
         empty_date: editData.empty_date,
         out_bound: editData.out_bound?.slice(0, 16),
@@ -383,7 +383,7 @@ function ContainerEntryForm({
     // { label: "Tax", name: "tax", type: "checkbox", permission: "Tax" },
     { label: "Material", name: "material", type: "tagselect", permission: "Material", options: materialOptions},
 
-    { label: "Status", name: "status", type: "select", options: status, permission: "Status", api: "", refreshVal:"" },
+    { label: "Status", name: "status", type: "select", options: statusOptions, permission: "Status", api: "", refreshVal:"" },
     { label: "In Bound", name: "in_bound", type: "datetime-local", permission: "InBound" },
     { label: "Empty Date", name: "empty_date", type: "date", permission: "EmptyDate" },
     { label: "Out Bound", name: "out_bound", type: "datetime-local", permission: "OutBound" },
