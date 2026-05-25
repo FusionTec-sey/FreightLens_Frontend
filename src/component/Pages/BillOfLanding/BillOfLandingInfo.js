@@ -595,8 +595,8 @@ export default function BillOfLandingInfo() {
                                     const newData = { ...prev, [field.id]: val };
                                     if (field.id === 'Provider' && val) {
                                         const selectedProvider = field.options?.find(opt => opt.id === val);
-                                        if (selectedProvider && selectedProvider.freeDays > 0) {
-                                            newData.freeDays = selectedProvider.freeDays;
+                                        if (selectedProvider && selectedProvider.freeDays !== undefined) {
+                                            newData.freeDays = selectedProvider.freeDays !== null ? selectedProvider.freeDays : 0;
                                         }
                                     }
                                     return newData;

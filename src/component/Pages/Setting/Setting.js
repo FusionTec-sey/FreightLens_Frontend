@@ -397,7 +397,7 @@ function Setting({ currentUser }) {
         <div className={`max-w-5xl mx-auto p-6 space-y-6 rounded shadow justify-center ${theme.background}`}>
         <h1 className={`text-2xl font-bold ${theme.text}`}>Users & Roles</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                 {/* USERS */}
                 <section className="space-y-4">
             <div className="flex justify-between items-center">
@@ -405,14 +405,98 @@ function Setting({ currentUser }) {
                 {canEdit && (
                     <button
                         onClick={() => setShowAddUserModal(true)}
-                        className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                        className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 shrink-0"
                     >
                         <Plus size={16} /> Add User
                     </button>
                 )}
             </div>
 
-            {showAddUserModal && (
+
+            <div className={`overflow-x-auto max-h-[60vh] overflow-y-auto border rounded ${theme.border}`}>
+                <table className={`w-full text-sm relative`}>
+                    <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
+                        <tr>
+                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Name</th>
+                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Role</th>
+                        {canEdit && <th className={`p-2 text-center font-semibold ${theme.text}`}>Actions</th>}
+                        </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme.border}`}>
+                    {users.map(user => (
+                    <tr key={user.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
+                        <td className="p-2">{user.username}</td>
+                        <td className="p-2 capitalize">
+                            {user.roles?.join(", ")}
+                        </td>
+                        {canEdit && (
+                        <td className="p-2 flex justify-center gap-2">
+                            <button onClick={() => startEditUser(user)} className="text-blue-600 hover:text-blue-800">
+                            <Pencil size={16} />
+                            </button>
+                            <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">
+                            <Trash2 size={16} />
+                            </button>
+                        </td>
+                        )}
+                    </tr>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {/* ROLES */}
+        <section className="space-y-4">
+            <div className="flex justify-between items-center">
+            <h2 className={`text-lg font-semibold ${theme.text}`}>Roles</h2>
+            {canEdit && (
+                <button
+                onClick={() => setShowRoleModal(true)}
+                className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 shrink-0"
+                >
+                <Plus size={16} /> Add Role
+                </button>
+            )}
+            </div>
+
+            <div className={`overflow-x-auto max-h-[60vh] overflow-y-auto border rounded ${theme.border}`}>
+                <table className={`w-full text-sm relative`}>
+                    <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
+                        <tr>
+                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Role Name</th>
+                        {canEdit && <th className={`p-2 text-center font-semibold ${theme.text}`}>Actions</th>}
+                        </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme.border}`}>
+                {roles.map(role => (
+                <tr key={role.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
+                    <td className="p-2 capitalize">{role.name}</td>
+                    {canEdit && (
+                    <td className="p-2 flex justify-center gap-2">
+                        <button onClick={() => startEditRole(role)} className="text-blue-600 hover:text-blue-800">
+                            <Pencil size={16} />
+                        </button>
+                        <button
+                            onClick={() => handleDeleteRole(role.id)}
+                            className="text-red-600 hover:text-red-800"
+                            >
+                            <Trash2 size={16} />
+                        </button>
+                    </td>
+                    )}
+                </tr>
+                ))}
+            </tbody>
+            </table>
+            </div>
+        </section>
+        </div>
+
+        </div>
+
+        {/* ================== ADD USER MODAL ================== */}
+        {showAddUserModal && (
             <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                 <div className={`rounded shadow-lg p-6 w-full max-w-lg space-y-6 border ${theme.surface} ${theme.border} ${theme.text}`}>
                 <h3 className={`text-xl font-semibold ${theme.text}`}>Add New User</h3>
@@ -495,86 +579,6 @@ function Setting({ currentUser }) {
                 </div>
             </div>
             )}
-            
-            <div className={`overflow-x-auto max-h-[60vh] overflow-y-auto border rounded ${theme.border}`}>
-                <table className={`w-full text-sm relative`}>
-                    <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
-                        <tr>
-                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Name</th>
-                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Role</th>
-                        {canEdit && <th className={`p-2 text-center font-semibold ${theme.text}`}>Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody className={`divide-y ${theme.border}`}>
-                    {users.map(user => (
-                    <tr key={user.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
-                        <td className="p-2">{user.username}</td>
-                        <td className="p-2 capitalize">
-                            {user.roles?.join(", ")}
-                        </td>
-                        {canEdit && (
-                        <td className="p-2 flex justify-center gap-2">
-                            <button onClick={() => startEditUser(user)} className="text-blue-600 hover:text-blue-800">
-                            <Pencil size={16} />
-                            </button>
-                            <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">
-                            <Trash2 size={16} />
-                            </button>
-                        </td>
-                        )}
-                    </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        {/* ROLES */}
-        <section className="space-y-4">
-            <div className="flex justify-between items-center">
-            <h2 className={`text-lg font-semibold ${theme.text}`}>Roles</h2>
-            {canEdit && (
-                <button
-                onClick={() => setShowRoleModal(true)}
-                className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                >
-                <Plus size={16} /> Add Role
-                </button>
-            )}
-            </div>
-
-            <div className={`overflow-x-auto max-h-[60vh] overflow-y-auto border rounded ${theme.border}`}>
-                <table className={`w-full text-sm relative`}>
-                    <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
-                        <tr>
-                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Role Name</th>
-                        {canEdit && <th className={`p-2 text-center font-semibold ${theme.text}`}>Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody className={`divide-y ${theme.border}`}>
-                {roles.map(role => (
-                <tr key={role.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
-                    <td className="p-2 capitalize">{role.name}</td>
-                    {canEdit && (
-                    <td className="p-2 flex justify-center gap-2">
-                        <button onClick={() => startEditRole(role)} className="text-blue-600 hover:text-blue-800">
-                            <Pencil size={16} />
-                        </button>
-                        <button
-                            onClick={() => handleDeleteRole(role.id)}
-                            className="text-red-600 hover:text-red-800"
-                            >
-                            <Trash2 size={16} />
-                        </button>
-                    </td>
-                    )}
-                </tr>
-                ))}
-            </tbody>
-            </table>
-            </div>
-        </section>
-        </div>
 
         {/* ================== ADD ROLE MODAL ================== */}
         {showRoleModal && (
