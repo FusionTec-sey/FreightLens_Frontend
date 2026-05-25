@@ -54,6 +54,30 @@ export default function BillOfLanding() {
             label: "Arrival Date", 
             sortable: true,
             render: (value) => formatDateTime12hr(value) || 'N/A'
+        },
+        { 
+            key: "created_at", 
+            label: "Created At", 
+            sortable: true,
+            render: (value) => formatDateTime12hr(value) || 'N/A'
+        },
+        { 
+            key: "updated_at", 
+            label: "Updated At", 
+            sortable: true,
+            render: (value) => formatDateTime12hr(value) || 'N/A'
+        },
+        { 
+            key: "created_by_name", 
+            label: "Created By", 
+            filterable: true,
+            render: (value) => value || 'System'
+        },
+        { 
+            key: "updated_by_name", 
+            label: "Updated By", 
+            filterable: true,
+            render: (value) => value || 'System'
         }
     ], []);
 
@@ -218,7 +242,11 @@ export default function BillOfLanding() {
                     "View_BillOfLanding",
                     "View_vessel_name",
                     "View_consignee_name",
-                    "View_arrivalDate"]}
+                    "View_arrivalDate",
+                    "View_created_at",
+                    "View_updated_at",
+                    "View_created_by_name",
+                    "View_updated_by_name"]}
             handleFilterChange={handleFilterSubmit}
         />
     );
@@ -242,7 +270,11 @@ export default function BillOfLanding() {
                     "View_BillOfLanding",
                     "View_vessel_name",
                     "View_consignee_name",
-                    "View_arrivalDate"]}
+                    "View_arrivalDate",
+                    "View_created_at",
+                    "View_updated_at",
+                    "View_created_by_name",
+                    "View_updated_by_name"]}
                 // actionColumn={actionColumn}
                 itemsPerPage={CLIENT_PAGE_SIZE}
                 serverPageSize={SERVER_PAGE_SIZE}

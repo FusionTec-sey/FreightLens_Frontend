@@ -46,6 +46,10 @@ export default function CompleteContainer() {
     },
     { key: "Material", label: "Materials", filterable: true, type: "text" },
     { key: "Consignee", label: "Consignee",  type: "text" },
+    { key: "created_at", label: "Created At", sortable: true },
+    { key: "updated_at", label: "Updated At", sortable: true },
+    { key: "created_by_name", label: "Created By", filterable: true, type: "text" },
+    { key: "updated_by_name", label: "Updated By", filterable: true, type: "text" }
   ], [status]);
 
   const transformData = useCallback((apiData) => {
@@ -61,6 +65,10 @@ export default function CompleteContainer() {
       EmptyAt: c.location || "",
       Status: c.state || "",
       Material: getMaterialNames(c.materials, materialOptions),
+      created_at: c.created_at ? formatDateTime12hr(c.created_at.slice(0, 16)) : "",
+      updated_at: c.updated_at ? formatDateTime12hr(c.updated_at.slice(0, 16)) : "",
+      created_by_name: c.created_by_name || "System",
+      updated_by_name: c.updated_by_name || "System",
       // vessal: vesselList.find((opt) => opt.name === bill?.vessal)?.id || null,
       rawData: c
     }));
