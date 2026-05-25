@@ -178,7 +178,7 @@ function Sidebar({ onLinkClick }) {
                 type="button"
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
-                  isActive("/settings") ? "bg-blue-600/10 text-blue-600" : ""
+                  (isActive("/settings") || isActive("/logistics") || isActive("/reference-data")) ? "bg-blue-600/10 text-blue-600" : ""
                 }`}
               >
                 <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
@@ -199,19 +199,30 @@ function Sidebar({ onLinkClick }) {
                 } ml-6 mt-1 space-y-1`}
               >
                 <Link
-                  to="/settings?tab=users"
-                  className={`block text-sm hover:text-blue-400 ${isActive("/settings") && (!location.search || location.search.includes("tab=users")) ? "text-blue-600 font-medium" : ""}`}
+                  to="/settings"
+                  className={`block text-sm hover:text-blue-400 ${isActive("/settings") ? "text-blue-600 font-medium" : ""}`}
                   onClick={onLinkClick}
                 >
                   Users & Roles
                 </Link>
-                <Link
-                  to="/settings?tab=logistics"
-                  className={`block text-sm hover:text-blue-400 ${isActive("/settings") && location.search.includes("tab=logistics") ? "text-blue-600 font-medium" : ""}`}
-                  onClick={onLinkClick}
-                >
-                  Logistics & Demurrage
-                </Link>
+                {hasPermission("View_Logistics") && (
+                  <Link
+                    to="/logistics"
+                    className={`block text-sm hover:text-blue-400 ${isActive("/logistics") ? "text-blue-600 font-medium" : ""}`}
+                    onClick={onLinkClick}
+                  >
+                    Logistics & Demurrage
+                  </Link>
+                )}
+                {hasPermission("View_ReferenceData") && (
+                  <Link
+                    to="/reference-data"
+                    className={`block text-sm hover:text-blue-400 ${isActive("/reference-data") ? "text-blue-600 font-medium" : ""}`}
+                    onClick={onLinkClick}
+                  >
+                    Reference Data
+                  </Link>
+                )}
               </div>
             </div>
           )}

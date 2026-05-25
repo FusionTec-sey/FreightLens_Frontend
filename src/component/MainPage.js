@@ -12,6 +12,8 @@ import Unauthorized from "./Pages/Unauthorized/Unauthorized.js";
 import Setting from "./Pages/Setting/Setting.js";
 import BillOfLanding from "./Pages/BillOfLanding/BillOfLanding.js";
 import BillOfLandingInfo from "./Pages/BillOfLanding/BillOfLandingInfo.js";
+import Logistics from './Pages/Setting/Logistics';
+import ReferenceData from './Pages/Setting/ReferenceData';
 import { useTheme } from "../context/ThemeContext.js";
 
 
@@ -75,6 +77,8 @@ export default function MainPage() {
             <Route path="/report" element={<PrivateRoute requiredPermissions={["View_Report"]}><ContainerForReport1 /></PrivateRoute>} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/settings" element={<PrivateRoute ><Setting currentUser={{ id: 99, name: 'Admin User', role: 'admin' }} /></PrivateRoute>} />
+            <Route path="/logistics" element={<PrivateRoute requiredPermissions={["View_Logistics"]}><Logistics currentUser={{ id: 99, name: 'Admin User', role: 'admin' }} /></PrivateRoute>} />
+            <Route path="/reference-data" element={<PrivateRoute requiredPermissions={["View_ReferenceData"]}><ReferenceData currentUser={{ id: 99, name: 'Admin User', role: 'admin' }} /></PrivateRoute>} />
             <Route path="/BillOfLanding" element={<PrivateRoute ><BillOfLanding/></PrivateRoute>} />
             <Route path="/BillOfLanding/:Id" element={<PrivateRoute><BillOfLandingInfo /></PrivateRoute>} />
           </Routes>
