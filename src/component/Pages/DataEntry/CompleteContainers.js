@@ -10,8 +10,8 @@ import { Pencil } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
 // import { X } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-const CLIENT_PAGE_SIZE = 100;
-const SERVER_PAGE_SIZE = 500;
+const CLIENT_PAGE_SIZE = 50;
+const SERVER_PAGE_SIZE = 50;
 
 export default function CompleteContainer() {
   const [rows, setRows] = useState([]);
@@ -94,7 +94,7 @@ export default function CompleteContainer() {
       if (filters.Material) params.material = filters.Material;
 
       const response = await axios.get(
-        `${process.env.REACT_APP_NETWORK}/getContainerDetails`,
+        `${process.env.REACT_APP_NETWORK}/containers`,
         {
           params,
           headers: {
@@ -157,7 +157,7 @@ export default function CompleteContainer() {
 
     try {
       await axios.delete(
-        `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
+        `${process.env.REACT_APP_NETWORK}/containers/${containerId}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
             "skip_zrok_interstitial": "true"
          },

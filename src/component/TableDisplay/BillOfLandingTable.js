@@ -63,7 +63,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
     if (!window.confirm("Are you sure you want to delete this row?")) return;
 
     try {
-      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.reportId}`, {
+      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/damage-reports/${row.reportId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",

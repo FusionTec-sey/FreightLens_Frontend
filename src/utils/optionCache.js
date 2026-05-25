@@ -37,15 +37,15 @@ export async function getOption(path) {
 
 export async function getAllOptions() {
   const paths = {
-    suppliers: "supplierDetails",
-    consignees: "consignee",
-    emptyLocations: "unloadVenue",
+    suppliers: "suppliers",
+    consignees: "consignees",
+    emptyLocations: "unload-venues",
     status: "status",
-    type: "containerType",
-    shipping: "shippingDocument",
-    vessal: "vessal",
-    logistics: "logisticsProvider",
-    material: "material"
+    type: "container-types",
+    shipping: "shipping-documents",
+    vessal: "vessels",
+    logistics: "logistics-providers",
+    material: "materials"
   };
 
   // Promise.all to fetch all simultaneously

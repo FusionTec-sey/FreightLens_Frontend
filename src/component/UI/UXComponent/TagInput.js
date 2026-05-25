@@ -30,7 +30,7 @@ const MaterialTagSelector = ({
   const handleCreate = async (input) => {
     try {
       await axios.post(
-        `${process.env.REACT_APP_NETWORK}/setMaterial`,
+        `${process.env.REACT_APP_NETWORK}/materials`,
         { material: input },
         {
           headers: {

@@ -35,6 +35,10 @@ function Sidebar({ onLinkClick }) {
     "text-sm md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 delay-200 whitespace-nowrap overflow-hidden";
 
   const isActive = (path) => location.pathname === path;
+  const isContainerActive =
+    isActive("/viewContainer") ||
+    isActive("/BillOfLanding") ||
+    isActive("/Complete");
 
   return (
     <div
@@ -78,30 +82,39 @@ function Sidebar({ onLinkClick }) {
           {/* Containers */}
           {hasPermission("View_Container") && (
             <div>
-              <Link
-                to="/viewContainer"
+              <button
+                type="button"
                 onClick={() => setIsContainerOpen(!isContainerOpen)}
-                className={`flex items-center gap-3 px-3 py-2 rounded transition ${theme.hover} ${isActive("/viewContainer") ? "bg-blue-600/10 text-blue-600" : ""}`}
+                className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
+                  isContainerActive ? "bg-blue-600/10 text-blue-600" : ""
+                }`}
               >
                 <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
                   <Container size={18} />
                 </div>
-                <span className={textClass}>View Container</span>
-                {hasPermission("View_BL") && (
-                  <ChevronDown
-                    size={16}
-                    className={`ml-auto transition-transform ${
-                      isContainerOpen ? "rotate-180" : ""
-                    } md:opacity-0 md:group-hover:opacity-100`}
-                  />
-                )}
-              </Link>
+                <span className={textClass}>Container</span>
+                <ChevronDown
+                  size={16}
+                  className={`ml-auto transition-transform ${
+                    isContainerOpen ? "rotate-180" : ""
+                  } md:opacity-0 md:group-hover:opacity-100`}
+                />
+              </button>
 
               <div
                 className={`${
                   isContainerOpen ? "block" : "hidden"
                 } ml-6 mt-1 space-y-1`}
               >
+                {hasPermission("View_Container") && (
+                  <Link
+                    to="/viewContainer"
+                    className={`block text-sm hover:text-blue-400 ${isActive("/viewContainer") ? "text-blue-600 font-medium" : ""}`}
+                    onClick={onLinkClick}
+                  >
+                    View Container
+                  </Link>
+                )}
                 {hasPermission("View_BL") && (
                   <Link
                     to="/BillOfLanding"

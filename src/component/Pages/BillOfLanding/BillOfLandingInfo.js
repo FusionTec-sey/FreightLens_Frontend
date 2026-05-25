@@ -12,7 +12,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { calculateDemurrage } from '../../../utils/DemurrageUtil';
 
 const CLIENT_PAGE_SIZE = 50;
-const SERVER_PAGE_SIZE = 200;
+const SERVER_PAGE_SIZE = 50;
 
 export default function BillOfLandingInfo() {
     const { theme, isDark } = useTheme();
@@ -396,11 +396,14 @@ export default function BillOfLandingInfo() {
             new_containers: containerData?.map(item => ({ container_no: item.container_no }))
         };
         const url = decodedId !== "new" ? 
-            `${process.env.REACT_APP_NETWORK}/updateBl/${decodedId}` :
-            `${process.env.REACT_APP_NETWORK}/addBl`;
+            `${process.env.REACT_APP_NETWORK}/bills-of-lading/${decodedId}` :
+            `${process.env.REACT_APP_NETWORK}/bills-of-lading`;
 
         try {
-            await axios.post(url, payload, {
+            await axios({
+                method: decodedId !== "new" ? 'patch' : 'post',
+                url: url,
+                data: payload,
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
@@ -425,7 +428,7 @@ export default function BillOfLandingInfo() {
         if (!window.confirm("Are you sure you want to delete this container?")) return;
         try {
             await axios.delete(
-                `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
+                `${process.env.REACT_APP_NETWORK}/containers/${containerId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` ,
                     "skip_zrok_interstitial": "true"
                 },
@@ -446,7 +449,7 @@ export default function BillOfLandingInfo() {
         
         try {
             await axios.delete(
-                `${process.env.REACT_APP_NETWORK}/deleteBl/${decodedId}`,
+                `${process.env.REACT_APP_NETWORK}/bills-of-lading/${decodedId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true",
                 },
@@ -484,7 +487,7 @@ export default function BillOfLandingInfo() {
                 const newContainerPromises = containersToAdd.map(async (container) => {
                     container.append("bill_of_landing.BillOfLanding", formData.billOfLadingNumber || null)
                     return axios.post(
-                        `${process.env.REACT_APP_NETWORK}/createContainer`,
+                        `${process.env.REACT_APP_NETWORK}/containers`,
                         container,
                         {
                             headers: {
@@ -502,8 +505,8 @@ export default function BillOfLandingInfo() {
 
             if (Object.keys(containersToEdit).length > 0) {
                 const editPromises = Object.entries(containersToEdit).map(async ([id, container]) => {
-                    return axios.post(
-                        `${process.env.REACT_APP_NETWORK}/updateContainer/${id}`,
+                    return axios.patch(
+                        `${process.env.REACT_APP_NETWORK}/containers/${id}/status`,
                         container,
                         {
                             headers: {

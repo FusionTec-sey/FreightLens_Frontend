@@ -275,7 +275,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       });
     });
 
-    const url = `${process.env.REACT_APP_NETWORK}/submitDamagedProducts`;
+    const url = `${process.env.REACT_APP_NETWORK}/damage-reports`;
 
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -345,13 +345,13 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       formData.append("remove_product_ids", id.toString());
     });
 
-    const url = `${process.env.REACT_APP_NETWORK}/updateDamagedProducts/${editData.report_id}`;
+    const url = `${process.env.REACT_APP_NETWORK}/damage-reports/${editData.report_id}`;
     const headers = {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
       "skip_zrok_interstitial": "true",
     };
 
-    return axios.post(url, formData, { headers, withCredentials: false });
+    return axios.put(url, formData, { headers, withCredentials: false });
   };
 
   const handleSubmit = async (e) => {

@@ -362,11 +362,14 @@ function ContainerEntryForm({
 
     const isUpdate = !!formData.container_id;
     const url = isUpdate
-      ? `${process.env.REACT_APP_NETWORK}/updateContainer/${formData.container_id}`
-      : `${process.env.REACT_APP_NETWORK}/createContainer`;
+      ? `${process.env.REACT_APP_NETWORK}/containers/${formData.container_id}/status`
+      : `${process.env.REACT_APP_NETWORK}/containers`;
 
     try {
-      await axios.post(url, payload, {
+      await axios({
+        method: isUpdate ? 'patch' : 'post',
+        url: url,
+        data: payload,
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "multipart/form-data",

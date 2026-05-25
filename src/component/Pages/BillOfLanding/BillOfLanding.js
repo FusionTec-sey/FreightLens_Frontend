@@ -9,8 +9,8 @@ import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import FilterForm from '../../../utils/FilterForm';
 
-const CLIENT_PAGE_SIZE = 100;
-const SERVER_PAGE_SIZE = 300;
+const CLIENT_PAGE_SIZE = 50;
+const SERVER_PAGE_SIZE = 50;
 
 export default function BillOfLanding() {
     const navigate = useNavigate();
@@ -80,7 +80,7 @@ export default function BillOfLanding() {
             }
             // console.log(filters);
             const response = await axios.get(
-                `${process.env.REACT_APP_NETWORK}/getBl?${searchParams.toString()}`,
+                `${process.env.REACT_APP_NETWORK}/bills-of-lading?${searchParams.toString()}`,
                 {
                     headers: { 
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -159,7 +159,7 @@ export default function BillOfLanding() {
         
         try {
             await axios.delete(
-                `${process.env.REACT_APP_NETWORK}/deleteBl/${id}`,
+                `${process.env.REACT_APP_NETWORK}/bills-of-lading/${id}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 
                     "skip_zrok_interstitial": "true",
                 },

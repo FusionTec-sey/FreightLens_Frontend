@@ -13,8 +13,8 @@ import { calculateDemurrage } from '../../../utils/DemurrageUtil';
 // import Select from 'react-select/base';
 import { Mail } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
-const CLIENT_PAGE_SIZE = 100;
-const SERVER_PAGE_SIZE = 500;
+const CLIENT_PAGE_SIZE = 50;
+const SERVER_PAGE_SIZE = 50;
 
 export default function ContainerEntry() {
     const { isDark, theme } = useTheme();
@@ -135,7 +135,7 @@ export default function ContainerEntry() {
             searchParams.append("order_by_arrival", false);
         setIsLoading(true);
         const response = await axios.get(
-            `${process.env.REACT_APP_NETWORK}/getContainerDetails?${searchParams.toString()}`,
+            `${process.env.REACT_APP_NETWORK}/containers?${searchParams.toString()}`,
             {
             
             headers: {
@@ -218,7 +218,7 @@ export default function ContainerEntry() {
         
         try {
             await axios.delete(
-                `${process.env.REACT_APP_NETWORK}/deleteContainerDetails/${containerId}`,
+                `${process.env.REACT_APP_NETWORK}/containers/${containerId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`,
                     "skip_zrok_interstitial": "true"
                  },

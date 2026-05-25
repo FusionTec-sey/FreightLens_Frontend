@@ -15,8 +15,8 @@ import ReportForm from './ReportForm';
 
 import { useTheme } from '../../../context/ThemeContext';
 import { div } from 'framer-motion/m';
-const CLIENT_PAGE_SIZE = 100;
-const SERVER_PAGE_SIZE = 500;
+const CLIENT_PAGE_SIZE = 50;
+const SERVER_PAGE_SIZE = 50;
 
 
 export default function ContainerForReport1() {
@@ -85,7 +85,7 @@ export default function ContainerForReport1() {
       // if (filters.Material) params.material = filters.Material;
 
       const response = await axios.get(
-        `${process.env.REACT_APP_NETWORK}/getDamageReport`,
+        `${process.env.REACT_APP_NETWORK}/damage-reports`,
         {
           params,
           headers: {
@@ -169,7 +169,7 @@ export default function ContainerForReport1() {
   const handleEditClick = async (row) => {
     
     try {
-      const response = await axios.get(`${process.env.REACT_APP_NETWORK}/getDamageReportById/${row.ReportId}`, {
+      const response = await axios.get(`${process.env.REACT_APP_NETWORK}/damage-reports/${row.ReportId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
@@ -193,7 +193,7 @@ export default function ContainerForReport1() {
     if (!window.confirm("Are you sure you want to delete this row?")) return;
 
     try {
-      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/deleteDamagedReport/${row.ReportId}`, {
+      const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/damage-reports/${row.ReportId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
