@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, Pencil, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../../../context/ThemeContext';
+import { toast } from 'react-toastify';
 
 function ReferenceData({ currentUser }) {
     const { theme } = useTheme();
@@ -69,9 +70,14 @@ function ReferenceData({ currentUser }) {
             await fetchData();
             setShowAddModal(false);
             setNewItemName('');
+            toast.success(`${currentTab.label} added successfully!`);
         } catch (error) {
             console.error(`Failed to add ${currentTab.label}:`, error);
-            alert(`Failed to add ${currentTab.label}. (Make sure the backend supports adding this item type)`);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error(`Failed to add ${currentTab.label}.`);
+            }
         }
     }
 
@@ -88,9 +94,14 @@ function ReferenceData({ currentUser }) {
             await fetchData();
             setShowEditModal(false);
             setEditingItem(null);
+            toast.success(`${currentTab.label} updated successfully!`);
         } catch (error) {
             console.error(`Failed to edit ${currentTab.label}:`, error);
-            alert(`Failed to save changes.`);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error(`Failed to save changes.`);
+            }
         }
     }
 
@@ -106,9 +117,14 @@ function ReferenceData({ currentUser }) {
             await fetchData();
             setShowDeleteWarning(false);
             setItemToDelete(null);
+            toast.success(`${currentTab.label} deleted successfully!`);
         } catch (error) {
             console.error(`Failed to delete ${currentTab.label}:`, error);
-            alert(`Failed to delete item.`);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error(`Failed to delete item.`);
+            }
         }
     }
 

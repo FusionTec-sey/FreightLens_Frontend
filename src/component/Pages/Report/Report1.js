@@ -8,12 +8,9 @@ import { formatDateTime12hr } from '../../../utils/DateFormater';
 import { getMaterialNames } from '../../../utils/reSolveMaterial';
 import { useOptions } from "../../../hooks/useOptions";
 import { X, Pencil, Trash, FileText } from 'lucide-react';
-import FilterForm from '../../../utils/FilterForm';
-// import Select from 'react-select/base';
-// import { Mail } from 'lucide-react';
-import ReportForm from './ReportForm';
-
-import { useTheme } from '../../../context/ThemeContext';
+import FilterForm from "../../UI/UXComponent/FilterForm.js";
+import { useTheme } from "../../../context/ThemeContext.js";
+import { toast } from 'react-toastify';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { div } from 'framer-motion/m';
 const CLIENT_PAGE_SIZE = 50;
@@ -187,7 +184,7 @@ export default function ContainerForReport1() {
       setIsEditFormOpen(true);
     } catch (error) {
       console.error("Failed to fetch container details:", error);
-      alert("Could not load container details");
+      toast.error("Could not load container details");
     }
   };
 
@@ -208,18 +205,18 @@ export default function ContainerForReport1() {
         // getContainerData();
         fetchData();
         // onDataChange();
-        alert("Row deleted successfully");
+        toast.success("Row deleted successfully");
 
         // if (typeof onDataChange === "function") {
         //   // onDataChange();
         // }
         // Optionally, refresh the data or remove the row from state
       } else {
-        alert("Failed to delete row");
+        toast.error("Failed to delete row");
       }
     } catch (error) {
       console.error("Failed to delete row:", error);
-      alert("Error deleting row");
+      toast.error("Error deleting row");
     }
   }
 
@@ -244,7 +241,7 @@ export default function ContainerForReport1() {
       link.click();
     } catch (error) {
       console.error("Failed to generate report:", error);
-      alert("Could not generate PDF report");
+      toast.error("Could not generate PDF report");
     }
   };  
   

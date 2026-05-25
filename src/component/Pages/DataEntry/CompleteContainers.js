@@ -177,7 +177,7 @@ export default function CompleteContainer() {
       fetchData(0, SERVER_PAGE_SIZE, filterData);
     } catch (error) {
       console.error("Failed to delete container:", error);
-      alert("Failed to delete container");
+      toast.error("Failed to delete container");
     }
   }, [fetchData, filterData]);
 

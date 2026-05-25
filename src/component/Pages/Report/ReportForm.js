@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Camera, Video, Upload, Trash2, X } from "lucide-react";
 import axios from "axios";
+import { toast } from 'react-toastify';
 import TypableSelect from "../../UI/UXComponent/TypebleSelect";
 
 function ReportForm({ editData, onSubmitSuccess, permissions }) {
@@ -358,13 +359,13 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
     e.preventDefault();
 
     if (!selectedContainer) {
-      alert("Please select a container.");
+      toast.error("Please select a container.");
       return;
     }
 
     // Check if any changes made on edit mode
     if (editData && !isDataChanged()) {
-      alert("No changes detected, nothing to submit.");
+      toast.info("No changes detected, nothing to submit.");
       return;
     }
 
@@ -372,11 +373,11 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       if (editData) {
         // Submit edits only
         await submitEditReport(selectedContainer, products, removedDocIds, removedProductIds);
-        alert("Damage report updated!");
+        toast.success("Damage report updated!");
       } else {
         // Submit new report
         await submitNewReport(selectedContainer, products);
-        alert("Damage report submitted!");
+        toast.success("Damage report submitted!");
       }
 
       if (onSubmitSuccess) onSubmitSuccess();
@@ -388,7 +389,7 @@ function ReportForm({ editData, onSubmitSuccess, permissions }) {
       }
     } catch (error) {
       console.error("Submission failed:", error);
-      alert("Failed to submit damage report.");
+      toast.error("Failed to submit damage report.");
     }
   };
 

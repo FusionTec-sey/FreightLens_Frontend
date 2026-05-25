@@ -7,6 +7,7 @@ import MaterialTagSelector from "../../UI/UXComponent/TagInput.js";
 import GenericSelector from    "../../UI/UXComponent/GenericSelector.js";
 import { useOptions } from "../../../hooks/useOptions";
 import { useTheme } from "../../../context/ThemeContext";
+import { toast } from 'react-toastify';
 
 function ContainerEntryForm({
   editData,
@@ -256,7 +257,7 @@ function ContainerEntryForm({
       !hasInboundImages &&
       !hasEmptyImages
     ) {
-      alert("No update found");
+      toast.info("No update found");
       return;
     }
 

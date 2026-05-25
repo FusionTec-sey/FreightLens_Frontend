@@ -6,6 +6,9 @@ import { OptionsProvider } from './context/OptionsContext'; // ✅ fixed import
 import { ConfirmProvider } from './context/ConfirmContext';
 import { ThemeProvider } from './context/ThemeContext';
 import IdleLogoutProvider from './utils/IdleTimer';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 function App() {
   // useIdleLogout(15 * 60 * 1000); // 15 minutes
   return (
@@ -16,6 +19,7 @@ function App() {
             <ConfirmProvider>
               <OptionsProvider>
                 <MainPage />
+                <ToastContainer position="top-right" autoClose={3000} />
               </OptionsProvider>
             </ConfirmProvider>
           </ThemeProvider>

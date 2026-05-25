@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../../../context/ThemeContext';
+import { toast } from 'react-toastify';
 
 function Logistics({ currentUser }) {
     const { theme } = useTheme();
@@ -46,9 +47,14 @@ function Logistics({ currentUser }) {
             setLogisticsProviders(prev => [...prev, newProvider]);
             setShowAddProviderModal(false);
             setNewProviderName('');
+            toast.success("Provider added successfully!");
         } catch (error) {
             console.error("Failed to add provider:", error);
-            alert("Failed to add provider.");
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Failed to add provider.");
+            }
         }
     }
 
@@ -66,9 +72,14 @@ function Logistics({ currentUser }) {
             setLogisticsProviders(prev => prev.map(p => p.Id === editingProvider.Id ? response.data : p));
             setShowProviderModal(false);
             setEditingProvider(null);
+            toast.success("Provider settings saved!");
         } catch (error) {
             console.error("Failed to update provider:", error);
-            alert("Failed to save provider settings.");
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Failed to save provider settings.");
+            }
         }
     }
 

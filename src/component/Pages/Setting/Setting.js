@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../../../context/ThemeContext';
+import { toast } from 'react-toastify';
 
 // const allPermissions = [
 //   { name: 'View_Report', description: 'Can view reports' },
@@ -88,9 +89,15 @@ function Setting({ currentUser }) {
                 }
                 console.log("Fetched API data:", data);
                 setUsers(prevUsers => [...prevUsers, data]);  // ✅ Correct
+                toast.success("User added successfully!");
                 // return data;
             } catch (error) {
                 console.error("Failed to fetch inventory:", error);
+                if (error.response?.data?.detail) {
+                    toast.error(error.response.data.detail);
+                } else {
+                    toast.error("Failed to add user.");
+                }
                 return null;
             }
         
@@ -134,9 +141,14 @@ function Setting({ currentUser }) {
             setShowAddUserModal(false);
             setEditingUserId(null);
             setNewUser({ name: '', password: '', roles: [] });
+            toast.success("User updated successfully!");
         } catch (error) {
             console.error("Failed to update user:", error);
-            alert("Failed to update user");
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Failed to update user.");
+            }
         }
     };
 
@@ -152,11 +164,13 @@ function Setting({ currentUser }) {
                 
             });
 
+            setUsers(users.filter(u => u.id !== id));
+            toast.success("User deleted successfully!");
         } catch (error) {
             console.error("Failed to fetch inventory:", error);
+            toast.error("Failed to delete user.");
             return null;
         }
-        setUsers(users.filter(u => u.id !== id));
     };
 
     // Role modal and permission logic
@@ -194,9 +208,15 @@ function Setting({ currentUser }) {
                 }
                 console.log("Fetched API data:", data);
                 setRoles(prevUsers => [...prevUsers, data]);  // ✅ Correct
+                toast.success("Role added successfully!");
                 // return data;
             } catch (error) {
                 console.error("Failed to fetch inventory:", error);
+                if (error.response?.data?.detail) {
+                    toast.error(error.response.data.detail);
+                } else {
+                    toast.error("Failed to add role.");
+                }
                 return null;
             }
 
@@ -216,7 +236,7 @@ function Setting({ currentUser }) {
         );
 
         if (isAssigned) {
-            alert('Cannot delete a role assigned to users.');
+            toast.error('Cannot delete a role assigned to users.');
             return;
         }
 
@@ -236,10 +256,11 @@ function Setting({ currentUser }) {
                 delete updated[roleId];
                 return updated;
             });
+            toast.success("Role deleted successfully!");
 
         } catch (error) {
             console.error("Failed to delete role:", error);
-            alert("An error occurred while deleting the role.");
+            toast.error("An error occurred while deleting the role.");
         }
     }
 
@@ -284,9 +305,14 @@ function Setting({ currentUser }) {
             setEditingRoleId(null);
             setNewRoleName('');
             setNewRolePermissions([]);
+            toast.success("Role updated successfully!");
         } catch (error) {
             console.error("Failed to update role:", error);
-            alert("Failed to update role.");
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Failed to update role.");
+            }
         }
     }
 
@@ -374,16 +400,17 @@ function Setting({ currentUser }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* USERS */}
                 <section className="space-y-4">
-            <h2 className={`text-lg font-semibold ${theme.text}`}>Users</h2>
-            {canEdit && (
-                <button
-                    onClick={() => setShowAddUserModal(true)}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center gap-2"
-                >
-                    <Plus size={16} /> Add User
-
-                </button>
-            )}
+            <div className="flex justify-between items-center">
+                <h2 className={`text-lg font-semibold ${theme.text}`}>Users</h2>
+                {canEdit && (
+                    <button
+                        onClick={() => setShowAddUserModal(true)}
+                        className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                    >
+                        <Plus size={16} /> Add User
+                    </button>
+                )}
+            </div>
 
             {showAddUserModal && (
             <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">

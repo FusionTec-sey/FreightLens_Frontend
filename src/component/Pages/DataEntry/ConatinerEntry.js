@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { formatDateTime12hr } from '../../../utils/DateFormater';
 import { getMaterialNames } from '../../../utils/reSolveMaterial';
 import { useOptions } from "../../../hooks/useOptions";
+import { toast } from 'react-toastify';
 import { X, Pencil } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
 import { calculateDemurrage } from '../../../utils/DemurrageUtil';
@@ -234,7 +235,7 @@ export default function ContainerEntry() {
             fetchData(0, SERVER_PAGE_SIZE);
         } catch (error) {
             console.error("Failed to delete container:", error);
-            alert("Failed to delete container");
+            toast.error("Failed to delete container");
         }
     }, [fetchData]);
 
@@ -285,7 +286,7 @@ export default function ContainerEntry() {
         const containers = response.data;
 
         if (!containers.length) {
-            alert("No arrived containers found.");
+            toast.info("No arrived containers found.");
             return;
         }
 
@@ -303,7 +304,7 @@ export default function ContainerEntry() {
 
         } catch (err) {
         console.error("Failed to fetch container data:", err);
-        alert("Error fetching container data.");
+        toast.error("Error fetching container data.");
         }
     };
     
@@ -325,7 +326,7 @@ export default function ContainerEntry() {
         const containers = response.data;
 
         if (!containers.length) {
-            alert("No containers found to drop.");
+            toast.info("No containers found to drop.");
             return;
         }
 
@@ -341,7 +342,7 @@ export default function ContainerEntry() {
 
         } catch (err) {
         console.error("Failed to fetch container data:", err);
-        alert("Error fetching container data.");
+        toast.error("Error fetching container data.");
         }
 
     };

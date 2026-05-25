@@ -39,7 +39,12 @@ export const OptionsProvider = ({ children }) => {
       let data = res.data;
       if (typeof data === "string") data = JSON.parse(data);
 
-      return data.data.map(([id, name]) => ({ id, name }));
+      return data.data.map((row) => {
+        if (row.length >= 3) {
+            return { id: row[0], name: row[1], freeDays: row[2] };
+        }
+        return { id: row[0], name: row[1] };
+      });
     } catch (err) {
       console.error(`Failed to fetch ${pathKey}:`, err);
       throw err;

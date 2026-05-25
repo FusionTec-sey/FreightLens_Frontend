@@ -11,6 +11,7 @@ import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import { useTheme } from '../../../context/ThemeContext';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { calculateDemurrage } from '../../../utils/DemurrageUtil';
+import { toast } from 'react-toastify';
 
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 50;
@@ -532,7 +533,7 @@ export default function BillOfLandingInfo() {
             setContainersToEdit({});
             setIsBlModified(false);
             
-            alert("All changes saved successfully!");
+            toast.success("All changes saved successfully!");
         } catch (error) {
             console.error("Save failed:", error);
             // HTTP 409 — FreeDays or status conflict between BoL and individual containers
@@ -590,7 +591,16 @@ export default function BillOfLandingInfo() {
                         <GenericSelector
                             value={formData[field.id] || null}
                             onChange={(val) => {
-                                setFormData(prev => ({ ...prev, [field.id]: val }));
+                                setFormData(prev => {
+                                    const newData = { ...prev, [field.id]: val };
+                                    if (field.id === 'Provider' && val) {
+                                        const selectedProvider = field.options?.find(opt => opt.id === val);
+                                        if (selectedProvider && selectedProvider.freeDays !== undefined && selectedProvider.freeDays !== null) {
+                                            newData.freeDays = selectedProvider.freeDays;
+                                        }
+                                    }
+                                    return newData;
+                                });
                                 setIsBlModified(true);
                             }}
                             placeholder={`Select ${field.label}`}

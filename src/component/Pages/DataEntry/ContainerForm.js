@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, use } from "react";
 import axios, { formToJSON } from "axios";
 import TypableSelect from "../../UI/UXComponent/TypebleSelect.js";
+import { toast } from 'react-toastify';
 // import { getAllOptions } from "../../../utils/optionCache.js";
 import { useOptions } from "../../../hooks/useOptions";
 
@@ -250,16 +251,16 @@ function ContainerEntryForm({
   //   //   );
 
   //   //   if (response.status === 200) {
-  //   //     alert("Container deleted successfully");
+  //   //     toast.success("Container deleted successfully");
   //   //     if (onSubmitSuccess) {
   //   //       onSubmitSuccess();
   //   //     }
   //   //   } else {
-  //   //     alert("Failed to delete container");
+  //   //     toast.error("Failed to delete container");
   //   //   }
   //   // } catch (error) {
   //   //   console.error("Failed to delete container:", error);
-  //   //   alert("Error deleting container");
+  //   //   toast.error("Error deleting container");
   //   // }
   // };
 
@@ -284,7 +285,7 @@ function ContainerEntryForm({
       !hasInboundImages &&
       !hasEmptyImages
     ) {
-      alert("No update found");
+      toast.info("No update found");
       return;
     }
 
@@ -378,17 +379,18 @@ function ContainerEntryForm({
       });
 
       // Optional: success callback
+      toast.success("Container saved successfully!");
       onSubmitSuccess();
     } catch (error) {
       console.error("Submission failed:", error);
       // HTTP 409 — FreeDays or status conflict on the parent BoL
       if (error.response?.status === 409) {
-        alert(
+        toast.error(
           `Conflict: ${error.response.data?.detail || "Cannot update Bill of Lading value."}\n\n` +
           "Some containers have custom values. Update them individually first, or reset all containers to the BoL value."
         );
       } else {
-        alert(error.response?.data?.detail || "Submission failed");
+        toast.error(error.response?.data?.detail || "Submission failed");
       }
     }
   };
