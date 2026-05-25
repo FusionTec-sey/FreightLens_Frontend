@@ -5,6 +5,7 @@ import  { useState, useMemo } from "react";
 import { Pencil, Trash, Settings, Filter, X, Plus } from "lucide-react";
 import CollapsibleCard from '../UI/CollapsibleCard';
 import { useTheme } from "../../context/ThemeContext";
+import { useConfirm } from "../../context/ConfirmContext";
 
 const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataChange, permissions, newBl  }) => {
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
@@ -17,6 +18,7 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   );
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { confirm } = useConfirm();
   // const [editRow, setEditRow] = useState(null);  // <- track which row is being edited
   const [currentBlState, setCurrentBlState] = useState(newBl);
   const [visibleColumns, setVisibleColumns] = useState(tempVisibleColumns);
@@ -60,7 +62,8 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   };
 
   const handleDeleteClick = async (row) => {
-    if (!window.confirm("Are you sure you want to delete this row?")) return;
+    const isConfirmed = await confirm("Are you sure you want to delete this row?");
+    if (!isConfirmed) return;
 
     try {
       const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/damage-reports/${row.reportId}`, {

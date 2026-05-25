@@ -4,12 +4,14 @@ import axios from "axios";
 import React, { useState, useMemo } from "react";
 import { Pencil, Trash, Settings, Filter, X, Plus, FileText } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
+import { useConfirm } from "../../context/ConfirmContext";
 
 const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataChange, permissions  }) => {
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
   const [isSettingsPopupOpen, setIsSettingsPopupOpen] = useState(false);
   const [isAddDataPopupOpen, setIsAddDataPopupOpen] = useState(false);
   const { theme } = useTheme();
+  const { confirm } = useConfirm();
   const [filterColumn, setFilterColumn] = useState(columns[0]?.key || "");
   const [filterValue, setFilterValue] = useState("");
   const [tempVisibleColumns, setTempVisibleColumns] = useState(
@@ -75,7 +77,8 @@ const InvoiceTable = ({ columns, rows, addDataComponent = false, title, onDataCh
   };
 
   const handleDeleteClick = async (row) => {
-    if (!window.confirm("Are you sure you want to delete this row?")) return;
+    const isConfirmed = await confirm("Are you sure you want to delete this row?");
+    if (!isConfirmed) return;
 
     try {
       const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/damage-reports/${row.reportId}`, {

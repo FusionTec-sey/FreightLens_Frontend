@@ -13,11 +13,13 @@ import { calculateDemurrage } from '../../../utils/DemurrageUtil';
 // import Select from 'react-select/base';
 import { Mail } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 50;
 
 export default function ContainerEntry() {
     const { isDark, theme } = useTheme();
+    const { confirm } = useConfirm();
     const [rows, setRows] = useState([]);
     const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
@@ -214,7 +216,8 @@ export default function ContainerEntry() {
     const handleDelete = useCallback(async (containerId) => {
         // console.log(containerId);
         setIsEditFormOpen(!isEditFormOpen);
-        if (!window.confirm("Are you sure you want to delete this container?")) return;
+        const isConfirmed = await confirm("Are you sure you want to delete this container?");
+        if (!isConfirmed) return;
         
         try {
             await axios.delete(

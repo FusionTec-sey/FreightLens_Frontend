@@ -14,6 +14,7 @@ import FilterForm from '../../../utils/FilterForm';
 import ReportForm from './ReportForm';
 
 import { useTheme } from '../../../context/ThemeContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 import { div } from 'framer-motion/m';
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 50;
@@ -29,6 +30,7 @@ export default function ContainerForReport1() {
   const [loadedServerPages, setLoadedServerPages] = useState(new Set());
   const [filterData, setFilterData] = useState({});
   const { isDark, theme } = useTheme();
+  const { confirm } = useConfirm();
   const { permissions } = useAuth();
   const [isAddDataPopupOpen, setIsAddDataPopupOpen] = useState(false);
   const [editRow, setEditRow] = useState(null);  // <- track which row is being edited
@@ -190,7 +192,8 @@ export default function ContainerForReport1() {
   };
 
   const handleDeleteClick = async (row) => {
-    if (!window.confirm("Are you sure you want to delete this row?")) return;
+    const isConfirmed = await confirm("Are you sure you want to delete this row?");
+    if (!isConfirmed) return;
 
     try {
       const response = await axios.delete(`${process.env.REACT_APP_NETWORK}/damage-reports/${row.ReportId}`, {

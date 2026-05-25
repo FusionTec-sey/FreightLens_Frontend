@@ -9,6 +9,7 @@ import { useOptions } from "../../../hooks/useOptions";
 import { Pencil, Trash2, Plus, Save, X, AlertTriangle } from 'lucide-react';
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import { useTheme } from '../../../context/ThemeContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 import { calculateDemurrage } from '../../../utils/DemurrageUtil';
 
 const CLIENT_PAGE_SIZE = 50;
@@ -16,6 +17,7 @@ const SERVER_PAGE_SIZE = 50;
 
 export default function BillOfLandingInfo() {
     const { theme, isDark } = useTheme();
+    const { confirm } = useConfirm();
     const { permissions } = useAuth();
     const { Id } = useParams();
     const decodedId = decodeURIComponent(Id); // will be "abc/ba"
@@ -425,7 +427,8 @@ export default function BillOfLandingInfo() {
     }, []);
 
     const handleDelete = async (containerId) => {
-        if (!window.confirm("Are you sure you want to delete this container?")) return;
+        const isConfirmed = await confirm("Are you sure you want to delete this container?");
+        if (!isConfirmed) return;
         try {
             await axios.delete(
                 `${process.env.REACT_APP_NETWORK}/containers/${containerId}`,
@@ -445,7 +448,8 @@ export default function BillOfLandingInfo() {
     };
 
     const handleDeleteBl = async () => {
-        if (!window.confirm("Delete this bill of landing?")) return;
+        const isConfirmed = await confirm("Delete this bill of landing?");
+        if (!isConfirmed) return;
         
         try {
             await axios.delete(

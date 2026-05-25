@@ -10,6 +10,7 @@ import { Pencil } from 'lucide-react';
 import FilterForm from '../../../utils/FilterForm';
 // import { X } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
+import { useConfirm } from '../../../context/ConfirmContext';
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 50;
 
@@ -23,6 +24,7 @@ export default function CompleteContainer() {
   const [loadedServerPages, setLoadedServerPages] = useState(new Set());
   const [filterData, setFilterData] = useState({});
   const { isDark, theme } = useTheme();
+  const { confirm } = useConfirm();
   const { permissions } = useAuth();
   const {
     material: materialOptions,
@@ -45,11 +47,7 @@ export default function CompleteContainer() {
       options: status.map(item => item.name)
     },
     { key: "Material", label: "Materials", filterable: true, type: "text" },
-    { key: "Consignee", label: "Consignee",  type: "text" },
-    { key: "created_at", label: "Created At", sortable: true },
-    { key: "updated_at", label: "Updated At", sortable: true },
-    { key: "created_by_name", label: "Created By", filterable: true, type: "text" },
-    { key: "updated_by_name", label: "Updated By", filterable: true, type: "text" }
+    { key: "Consignee", label: "Consignee",  type: "text" }
   ], [status]);
 
   const transformData = useCallback((apiData) => {
@@ -161,8 +159,9 @@ export default function CompleteContainer() {
   }, []);
 
   const handleDelete = useCallback(async (containerId) => {
-    if (!window.confirm("Are you sure you want to delete this container?")) return;
-
+    const isConfirmed = await confirm("Are you sure you want to delete this container?");
+    if (!isConfirmed) return;
+    
     try {
       await axios.delete(
         `${process.env.REACT_APP_NETWORK}/containers/${containerId}`,

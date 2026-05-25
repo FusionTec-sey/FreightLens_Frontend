@@ -8,6 +8,7 @@ import { Pencil, Trash2, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../../context/ThemeContext';
 import FilterForm from '../../../utils/FilterForm';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 const CLIENT_PAGE_SIZE = 50;
 const SERVER_PAGE_SIZE = 50;
@@ -16,6 +17,7 @@ export default function BillOfLanding() {
     const navigate = useNavigate();
     const { permissions } = useAuth();
     const { isDark, theme } = useTheme();
+    const { confirm } = useConfirm();
     
     // Consolidated state
     const [state, setState] = useState({
@@ -54,30 +56,6 @@ export default function BillOfLanding() {
             label: "Arrival Date", 
             sortable: true,
             render: (value) => formatDateTime12hr(value) || 'N/A'
-        },
-        { 
-            key: "created_at", 
-            label: "Created At", 
-            sortable: true,
-            render: (value) => formatDateTime12hr(value) || 'N/A'
-        },
-        { 
-            key: "updated_at", 
-            label: "Updated At", 
-            sortable: true,
-            render: (value) => formatDateTime12hr(value) || 'N/A'
-        },
-        { 
-            key: "created_by_name", 
-            label: "Created By", 
-            filterable: true,
-            render: (value) => value || 'System'
-        },
-        { 
-            key: "updated_by_name", 
-            label: "Updated By", 
-            filterable: true,
-            render: (value) => value || 'System'
         }
     ], []);
 
@@ -179,7 +157,8 @@ export default function BillOfLanding() {
     }, [fetchData]);
 
     const handleDelete = useCallback(async (id) => {
-        if (!window.confirm("Delete this bill of landing?")) return;
+        const isConfirmed = await confirm("Delete this bill of landing?");
+        if (!isConfirmed) return;
         
         try {
             await axios.delete(
