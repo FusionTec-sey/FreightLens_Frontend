@@ -86,6 +86,7 @@ export const OptionsProvider = ({ children }) => {
 
   useEffect(() => {
     fetchAllOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
