@@ -122,7 +122,7 @@ export default function BillOfLandingInfo() {
             options: logistics,
             valueKey: 'id',
             refreshKey: 'logistics',
-            addApi: 'setProvider',
+            addApi: 'logistics-providers',
             colSpan: 1
         },
         {
@@ -595,7 +595,7 @@ export default function BillOfLandingInfo() {
                                     const newData = { ...prev, [field.id]: val };
                                     if (field.id === 'Provider' && val) {
                                         const selectedProvider = field.options?.find(opt => opt.id === val);
-                                        if (selectedProvider && selectedProvider.freeDays !== undefined && selectedProvider.freeDays !== null) {
+                                        if (selectedProvider && selectedProvider.freeDays > 0) {
                                             newData.freeDays = selectedProvider.freeDays;
                                         }
                                     }
