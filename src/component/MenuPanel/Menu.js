@@ -205,8 +205,7 @@ function Sidebar({ onLinkClick }) {
                 >
                   Users & Roles
                 </Link>
-                {/* {hasPermission("View_Logistics") && ( */}
-                { true && ( 
+                {hasPermission("View_Setting") && (
                   <Link
                     to="/logistics"
                     className={`block text-sm hover:text-blue-400 ${isActive("/logistics") ? "text-blue-600 font-medium" : ""}`}
@@ -215,8 +214,7 @@ function Sidebar({ onLinkClick }) {
                     Logistics & Demurrage
                   </Link>
                 )}
-                {/* {hasPermission("View_ReferenceData") && ( */}
-                { true && ( 
+                {hasPermission("View_Setting") && (
                   <Link
                     to="/reference-data"
                     className={`block text-sm hover:text-blue-400 ${isActive("/reference-data") ? "text-blue-600 font-medium" : ""}`}
