@@ -58,6 +58,12 @@ function Setting({ currentUser }) {
     //   const [newUser, setNewUser] = useState({ name: '', role: roles[0] });
     const [showRoleModal, setShowRoleModal] = useState(false);
     const [newRoleName, setNewRoleName] = useState('');
+    const [newRolePermissions, setNewRolePermissions] = useState([]);
+    const [editingRoleId, setEditingRoleId] = useState(null);
+    
+    // Check if the current user has permission to edit settings
+    // In this app, admins can edit or we check permissions
+    const canEdit = currentUser?.role === 'admin';
     // User management
     async function handleAddUser (username, password, roles) {
             // console.log("Adding user:", username, "with roles:", roles);
