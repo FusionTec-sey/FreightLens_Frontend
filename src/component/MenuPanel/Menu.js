@@ -16,6 +16,7 @@ import logo from "../../assets/Images/Freightliner.png";
 
 function Sidebar({ onLinkClick }) {
   const [isContainerOpen, setIsContainerOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { permissions, user, logout } = useAuth();
   const { isDark, theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -43,7 +44,10 @@ function Sidebar({ onLinkClick }) {
   return (
     <div
       className={`flex flex-col h-full ${theme.background} group md:w-16 md:hover:w-64 w-64 transition-all duration-300 overflow-hidden border-r-2 ${theme.border}`}
-      onMouseLeave={() => setIsContainerOpen(false)}
+      onMouseLeave={() => {
+        setIsContainerOpen(false);
+        setIsSettingsOpen(false);
+      }}
       role="navigation"
       aria-label="Main"
     >
@@ -169,17 +173,47 @@ function Sidebar({ onLinkClick }) {
 
           {/* Settings */}
           {hasPermission("View_Setting") && (
-            <Link
-              to="/settings"
-              onClick={onLinkClick}
-              aria-current={isActive("/settings") ? "page" : undefined}
-              className={`flex items-center gap-3 px-3 py-2 rounded transition ${theme.hover} ${isActive("/settings") ? "bg-blue-600/10 text-blue-600" : ""}`}
-            >
-              <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                <SettingsIcon size={18} />
+            <div>
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
+                  isActive("/settings") ? "bg-blue-600/10 text-blue-600" : ""
+                }`}
+              >
+                <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
+                  <SettingsIcon size={18} />
+                </div>
+                <span className={textClass}>Settings</span>
+                <ChevronDown
+                  size={16}
+                  className={`ml-auto transition-transform ${
+                    isSettingsOpen ? "rotate-180" : ""
+                  } md:opacity-0 md:group-hover:opacity-100`}
+                />
+              </button>
+
+              <div
+                className={`${
+                  isSettingsOpen ? "block" : "hidden"
+                } ml-6 mt-1 space-y-1`}
+              >
+                <Link
+                  to="/settings?tab=users"
+                  className={`block text-sm hover:text-blue-400 ${isActive("/settings") && (!location.search || location.search.includes("tab=users")) ? "text-blue-600 font-medium" : ""}`}
+                  onClick={onLinkClick}
+                >
+                  Users & Roles
+                </Link>
+                <Link
+                  to="/settings?tab=logistics"
+                  className={`block text-sm hover:text-blue-400 ${isActive("/settings") && location.search.includes("tab=logistics") ? "text-blue-600 font-medium" : ""}`}
+                  onClick={onLinkClick}
+                >
+                  Logistics & Demurrage
+                </Link>
               </div>
-              <span className={textClass}>Settings</span>
-            </Link>
+            </div>
           )}
         </nav>
       </div>

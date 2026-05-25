@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -58,12 +59,27 @@ function Setting({ currentUser }) {
     const [showRoleModal, setShowRoleModal] = useState(false);
     const [newRoleName, setNewRoleName] = useState('');
     const [newRolePermissions, setNewRolePermissions] = useState([]);
+    const [editingRoleId, setEditingRoleId] = useState(null);
+
+    const location = useLocation();
 
     // Tab and Logistics State
     const [activeTab, setActiveTab] = useState('users');
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        const tab = queryParams.get('tab');
+        if (tab === 'logistics') {
+            setActiveTab('logistics');
+        } else {
+            setActiveTab('users');
+        }
+    }, [location.search]);
     const [logisticsProviders, setLogisticsProviders] = useState([]);
     const [demurrageDays, setDemurrageDays] = useState({});
     const [showProviderModal, setShowProviderModal] = useState(false);
+    const [showAddProviderModal, setShowAddProviderModal] = useState(false);
+    const [newProviderName, setNewProviderName] = useState('');
     const [editingProvider, setEditingProvider] = useState(null);
     const [providerFormData, setProviderFormData] = useState({ FreeDays: 0, ExcludingDaysList: [] });
 
@@ -103,13 +119,46 @@ function Setting({ currentUser }) {
 
     const startEditUser = (user) => {
         setEditingUserId(user.id);
-        setNewUser({ name: user.name, role: user.role });
+        setNewUser({ 
+            name: user.username, 
+            password: '', 
+            roles: user.roles?.map(r => {
+                // Find role ID from role name since user.roles is an array of strings like ["admin", "editor"]
+                const roleObj = roles.find(roleObj => roleObj.name === r);
+                return roleObj ? roleObj.id : null;
+            }).filter(Boolean) || [] 
+        });
+        setShowAddUserModal(true);
     };
 
-    const handleUpdateUser = () => {
-        setUsers(users.map(u => (u.id === editingUserId ? { ...u, ...newUser } : u)));
-        setEditingUserId(null);
-        setNewUser({ name: '', role: roles[0] });
+    async function handleUpdateUser() {
+        if (!newUser.name || !newUser.roles?.length) return;
+
+        try {
+            const response = await axios.put(
+                `${process.env.REACT_APP_NETWORK}/updateUser/${editingUserId}`,
+                {
+                    username: newUser.name,
+                    password: newUser.password || "",
+                    roles: newUser.roles
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true",
+                    },
+                }
+            );
+            
+            const updatedUser = response.data;
+            setUsers(users.map(u => (u.id === editingUserId ? updatedUser : u)));
+            setShowAddUserModal(false);
+            setEditingUserId(null);
+            setNewUser({ name: '', password: '', roles: [] });
+        } catch (error) {
+            console.error("Failed to update user:", error);
+            alert("Failed to update user");
+        }
     };
 
     async function handleDeleteUser(id){
@@ -212,6 +261,73 @@ function Setting({ currentUser }) {
         } catch (error) {
             console.error("Failed to delete role:", error);
             alert("An error occurred while deleting the role.");
+        }
+    }
+
+    const startEditRole = (role) => {
+        setEditingRoleId(role.id);
+        setNewRoleName(role.name);
+        setNewRolePermissions(role.permissions || []);
+        setShowRoleModal(true);
+    };
+
+    async function handleUpdateRole() {
+        const name = newRoleName.trim();
+        if (!name) return;
+
+        try {
+            const response = await axios.put(
+                `${process.env.REACT_APP_NETWORK}/updateRole/${editingRoleId}`,
+                {
+                    name: name,
+                    permissions: newRolePermissions
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
+                        "skip_zrok_interstitial": "true",
+                    },
+                }
+            );
+
+            const updatedRole = response.data;
+            // update the role in state, but wait, updatedRole might not have `permissions` mapped as an array of IDs if we didn't format it.
+            // Actually our backend updateRole returns permissions as [{"id": 1, "name": "foo"}...]. 
+            // We need to map it back to IDs for the frontend state.
+            const formattedRole = {
+                ...updatedRole,
+                permissions: updatedRole.permissions.map(p => p.id)
+            };
+            
+            setRoles(roles.map(r => (r.id === editingRoleId ? formattedRole : r)));
+            
+            setShowRoleModal(false);
+            setEditingRoleId(null);
+            setNewRoleName('');
+            setNewRolePermissions([]);
+        } catch (error) {
+            console.error("Failed to update role:", error);
+            alert("Failed to update role.");
+        }
+    }
+
+    async function handleAddProvider() {
+        if (!newProviderName.trim()) return;
+        try {
+            const response = await axios.post(
+                `${process.env.REACT_APP_NETWORK}/logistics-providers`,
+                { name: newProviderName.trim() },
+                {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, "skip_zrok_interstitial": "true" }
+                }
+            );
+            
+            setLogisticsProviders(prev => [...prev, response.data]);
+            setShowAddProviderModal(false);
+            setNewProviderName('');
+        } catch (error) {
+            console.error("Failed to add provider:", error);
+            alert("Failed to add provider.");
         }
     }
 
@@ -438,18 +554,19 @@ function Setting({ currentUser }) {
                     </button>
                     <button
                         onClick={() => {
-                            
-                            if (!newUser.name || !newUser.password || !newUser.roles?.length) return;
+                            if (!newUser.name || (!editingUserId && !newUser.password) || !newUser.roles?.length) return;
 
-                            handleAddUser(newUser.name, newUser.password, newUser.roles);
-
-                            setShowAddUserModal(false);
-                            // console.log("New user added:", newUser, "ID:", setUsers);
-                            newUser({ name: '', password: '', roles: [] });
+                            if (editingUserId) {
+                                handleUpdateUser();
+                            } else {
+                                handleAddUser(newUser.name, newUser.password, newUser.roles);
+                                setShowAddUserModal(false);
+                                setNewUser({ name: '', password: '', roles: [] });
+                            }
                         }}
                         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
-                      Save User
+                      {editingUserId ? "Update User" : "Save User"}
                     </button>
                 </div>
                 </div>
@@ -473,7 +590,7 @@ function Setting({ currentUser }) {
                         </td>
                         {canEdit && (
                         <td className="p-2 flex justify-center gap-2">
-                            <button onClick={() => startEditUser(user.id)} className="text-blue-600 hover:text-blue-800">
+                            <button onClick={() => startEditUser(user)} className="text-blue-600 hover:text-blue-800">
                             <Pencil size={16} />
                             </button>
                             <button onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:text-red-800">
@@ -514,7 +631,7 @@ function Setting({ currentUser }) {
                     <td className="p-2 capitalize">{role.name}</td>
                     {canEdit && (
                     <td className="p-2 flex justify-center gap-2">
-                        <button className="text-blue-600 hover:text-blue-800">
+                        <button onClick={() => startEditRole(role)} className="text-blue-600 hover:text-blue-800">
                             <Pencil size={16} />
                         </button>
                         <button
@@ -580,13 +697,49 @@ function Setting({ currentUser }) {
                     Cancel
                 </button>
                 <button
-                    onClick={handleAddRole}
+                    onClick={() => {
+                        if (editingRoleId) {
+                            handleUpdateRole();
+                        } else {
+                            handleAddRole();
+                        }
+                    }}
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
-                    Save Role
+                    {editingRoleId ? "Update Role" : "Save Role"}
                 </button>
                 </div>
             </div>
+            </div>
+        )}
+
+        {/* ================== ADD PROVIDER MODAL ================== */}
+        {showAddProviderModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div className={`rounded shadow-lg p-6 w-full max-w-md space-y-4 border ${theme.surface} ${theme.border} ${theme.text}`}>
+                    <h3 className={`text-xl font-semibold ${theme.text}`}>Add Logistics Provider</h3>
+                    <input
+                        type="text"
+                        placeholder="Provider Name"
+                        value={newProviderName}
+                        onChange={(e) => setNewProviderName(e.target.value)}
+                        className={`w-full border px-3 py-2 rounded ${theme.border} ${theme.background} ${theme.text}`}
+                    />
+                    <div className="flex justify-end gap-2 pt-4">
+                        <button
+                            onClick={() => setShowAddProviderModal(false)}
+                            className={`px-4 py-2 border rounded hover:bg-gray-100 ${theme.border}`}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleAddProvider}
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                            Save Provider
+                        </button>
+                    </div>
+                </div>
             </div>
         )}
 
@@ -595,6 +748,14 @@ function Setting({ currentUser }) {
             <section className="space-y-4">
                 <div className="flex justify-between items-center">
                     <h2 className={`text-lg font-semibold ${theme.text}`}>Logistics Providers</h2>
+                    {canEdit && (
+                        <button
+                            onClick={() => setShowAddProviderModal(true)}
+                            className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                        >
+                            <Plus size={16} /> Add Provider
+                        </button>
+                    )}
                 </div>
 
                 <table className={`w-full text-sm border ${theme.border}`}>
