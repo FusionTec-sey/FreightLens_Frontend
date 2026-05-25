@@ -146,9 +146,9 @@ function ReferenceData({ currentUser }) {
                     )}
                 </div>
 
-                <div className={`border rounded ${theme.border} overflow-hidden`}>
-                    <table className="w-full text-sm">
-                        <thead className={`${theme.mutedBg}`}>
+                <div className={`border rounded ${theme.border} overflow-hidden max-h-[60vh] overflow-y-auto`}>
+                    <table className="w-full text-sm relative">
+                        <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
                             <tr>
                                 <th className={`p-3 text-left font-semibold ${theme.text}`}>ID</th>
                                 <th className={`p-3 text-left font-semibold ${theme.text}`}>Name / Value</th>

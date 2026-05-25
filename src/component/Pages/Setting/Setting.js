@@ -371,7 +371,7 @@ function Setting({ currentUser }) {
         <div className={`max-w-5xl mx-auto p-6 space-y-6 rounded shadow justify-center ${theme.background}`}>
         <h1 className={`text-2xl font-bold ${theme.text}`}>Users & Roles</h1>
 
-        <div className="space-y-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* USERS */}
                 <section className="space-y-4">
             <h2 className={`text-lg font-semibold ${theme.text}`}>Users</h2>
@@ -469,15 +469,16 @@ function Setting({ currentUser }) {
             </div>
             )}
             
-            <table className={`w-full text-sm border ${theme.border}`}>
-                <thead className={`${theme.mutedBg}`}>
-                    <tr>
-                    <th className={`p-2 text-left ${theme.profileText}`}>Name</th>
-                    <th className={`p-2 text-left ${theme.profileText}`}>Role</th>
-                    {canEdit && <th className={`p-2 text-center ${theme.profileText}`}>Actions</th>}
-                    </tr>
-                </thead>
-                <tbody className={`${theme.text}`}>
+            <div className={`overflow-x-auto max-h-[60vh] overflow-y-auto border rounded ${theme.border}`}>
+                <table className={`w-full text-sm relative`}>
+                    <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
+                        <tr>
+                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Name</th>
+                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Role</th>
+                        {canEdit && <th className={`p-2 text-center font-semibold ${theme.text}`}>Actions</th>}
+                        </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme.border}`}>
                     {users.map(user => (
                     <tr key={user.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
                         <td className="p-2">{user.username}</td>
@@ -496,8 +497,9 @@ function Setting({ currentUser }) {
                         )}
                     </tr>
                     ))}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         {/* ROLES */}
@@ -514,14 +516,15 @@ function Setting({ currentUser }) {
             )}
             </div>
 
-            <table className={`w-full text-sm border ${theme.border}`}>
-            <thead className={`${theme.mutedBg}`}>
-                <tr>
-                <th className={`p-2 text-left ${theme.profileText}`}>Role Name</th>
-                {canEdit && <th className={`p-2 text-center ${theme.profileText}`}>Actions</th>}
-                </tr>
-            </thead>
-            <tbody className={`${theme.text}`}>
+            <div className={`overflow-x-auto max-h-[60vh] overflow-y-auto border rounded ${theme.border}`}>
+                <table className={`w-full text-sm relative`}>
+                    <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
+                        <tr>
+                        <th className={`p-2 text-left font-semibold ${theme.text}`}>Role Name</th>
+                        {canEdit && <th className={`p-2 text-center font-semibold ${theme.text}`}>Actions</th>}
+                        </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme.border}`}>
                 {roles.map(role => (
                 <tr key={role.id} className={`border-t ${theme.tableRow} ${theme.border}`}>
                     <td className="p-2 capitalize">{role.name}</td>
@@ -542,6 +545,7 @@ function Setting({ currentUser }) {
                 ))}
             </tbody>
             </table>
+            </div>
         </section>
         </div>
 

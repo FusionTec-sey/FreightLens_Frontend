@@ -89,17 +89,18 @@ function Logistics({ currentUser }) {
                     )}
                 </div>
 
-                <table className={`w-full text-sm border ${theme.border}`}>
-                    <thead className={`${theme.mutedBg}`}>
-                        <tr>
-                            <th className={`p-2 text-left ${theme.profileText}`}>Provider Name</th>
-                            <th className={`p-2 text-center ${theme.profileText}`}>Free Days</th>
-                            <th className={`p-2 text-left ${theme.profileText}`}>Excluded Days</th>
-                            {canEdit && <th className={`p-2 text-center ${theme.profileText}`}>Actions</th>}
-                        </tr>
-                    </thead>
-                    <tbody className={`${theme.text}`}>
-                        {logisticsProviders.map(provider => (
+                <div className={`overflow-x-auto max-h-[60vh] overflow-y-auto border rounded ${theme.border}`}>
+                    <table className={`w-full text-sm relative`}>
+                        <thead className={`${theme.mutedBg} sticky top-0 z-10 shadow-sm`}>
+                            <tr>
+                                <th className={`p-2 text-left font-semibold ${theme.text}`}>Provider Name</th>
+                                <th className={`p-2 text-center font-semibold ${theme.text}`}>Free Days</th>
+                                <th className={`p-2 text-left font-semibold ${theme.text}`}>Excluded Days</th>
+                                {canEdit && <th className={`p-2 text-center font-semibold ${theme.text}`}>Actions</th>}
+                            </tr>
+                        </thead>
+                        <tbody className={`divide-y ${theme.border}`}>
+                            {logisticsProviders.map(provider => (
                             <tr key={provider.Id} className={`border-t ${theme.tableRow} ${theme.border}`}>
                                 <td className="p-2 font-medium">{provider.Name}</td>
                                 <td className="p-2 text-center">{provider.FreeDays || 0}</td>
@@ -127,8 +128,9 @@ function Logistics({ currentUser }) {
                                 )}
                             </tr>
                         ))}
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             {/* ADD PROVIDER MODAL */}
