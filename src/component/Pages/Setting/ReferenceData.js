@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../../../context/ThemeContext';
 
@@ -21,6 +21,13 @@ function ReferenceData({ currentUser }) {
     const [dataList, setDataList] = useState([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newItemName, setNewItemName] = useState('');
+
+    const [editingItem, setEditingItem] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editItemName, setEditItemName] = useState('');
+
+    const [itemToDelete, setItemToDelete] = useState(null);
+    const [showDeleteWarning, setShowDeleteWarning] = useState(false);
 
     const currentTab = tabs.find(t => t.id === activeTab);
 
@@ -68,6 +75,43 @@ function ReferenceData({ currentUser }) {
         }
     }
 
+    async function handleEditItem() {
+        if (!editItemName.trim() || !editingItem || !currentTab) return;
+        try {
+            await axios.put(
+                `${process.env.REACT_APP_NETWORK}${currentTab.endpoint}/${editingItem.id}`,
+                { name: editItemName.trim() },
+                {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, "skip_zrok_interstitial": "true" }
+                }
+            );
+            await fetchData();
+            setShowEditModal(false);
+            setEditingItem(null);
+        } catch (error) {
+            console.error(`Failed to edit ${currentTab.label}:`, error);
+            alert(`Failed to save changes.`);
+        }
+    }
+
+    async function handleDeleteItem() {
+        if (!itemToDelete || !currentTab) return;
+        try {
+            await axios.delete(
+                `${process.env.REACT_APP_NETWORK}${currentTab.endpoint}/${itemToDelete.id}`,
+                {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, "skip_zrok_interstitial": "true" }
+                }
+            );
+            await fetchData();
+            setShowDeleteWarning(false);
+            setItemToDelete(null);
+        } catch (error) {
+            console.error(`Failed to delete ${currentTab.label}:`, error);
+            alert(`Failed to delete item.`);
+        }
+    }
+
     return (
         <div className={`max-w-5xl mx-auto p-6 space-y-6 rounded shadow justify-center ${theme.background}`}>
             <h1 className={`text-2xl font-bold ${theme.text}`}>Reference Data</h1>
@@ -108,6 +152,7 @@ function ReferenceData({ currentUser }) {
                             <tr>
                                 <th className={`p-3 text-left font-semibold ${theme.text}`}>ID</th>
                                 <th className={`p-3 text-left font-semibold ${theme.text}`}>Name / Value</th>
+                                {canEdit && <th className={`p-3 text-center font-semibold ${theme.text}`}>Actions</th>}
                             </tr>
                         </thead>
                         <tbody className={`divide-y ${theme.border}`}>
@@ -116,11 +161,36 @@ function ReferenceData({ currentUser }) {
                                     <tr key={item.id} className={`${theme.hover} transition-colors`}>
                                         <td className={`p-3 ${theme.profileText}`}>{item.id}</td>
                                         <td className={`p-3 font-medium ${theme.text}`}>{item.name}</td>
+                                        {canEdit && (
+                                            <td className="p-3 flex justify-center gap-4">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingItem(item);
+                                                        setEditItemName(item.name);
+                                                        setShowEditModal(true);
+                                                    }}
+                                                    className="text-blue-500 hover:text-blue-700 transition"
+                                                    title="Edit"
+                                                >
+                                                    <Pencil size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setItemToDelete(item);
+                                                        setShowDeleteWarning(true);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 transition"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="2" className={`p-6 text-center italic ${theme.profileText}`}>
+                                    <td colSpan={canEdit ? 3 : 2} className={`p-6 text-center italic ${theme.profileText}`}>
                                         No {currentTab?.label.toLowerCase()} found.
                                     </td>
                                 </tr>
@@ -158,6 +228,71 @@ function ReferenceData({ currentUser }) {
                                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                             >
                                 Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* EDIT ITEM MODAL */}
+            {showEditModal && editingItem && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                    <div className={`rounded shadow-lg p-6 w-full max-w-md space-y-4 border ${theme.surface} ${theme.border} ${theme.text}`}>
+                        <h3 className={`text-xl font-semibold ${theme.text}`}>Edit {currentTab?.label}</h3>
+                        <input
+                            type="text"
+                            placeholder="Enter Name or Value"
+                            value={editItemName}
+                            onChange={(e) => setEditItemName(e.target.value)}
+                            className={`w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme.border} ${theme.background} ${theme.text}`}
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2 pt-4">
+                            <button
+                                onClick={() => {
+                                    setShowEditModal(false);
+                                    setEditingItem(null);
+                                }}
+                                className={`px-4 py-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${theme.border}`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleEditItem}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE WARNING MODAL */}
+            {showDeleteWarning && itemToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                    <div className={`rounded shadow-lg p-6 w-full max-w-md space-y-4 border ${theme.surface} ${theme.border} ${theme.text}`}>
+                        <div className="flex items-center gap-3 text-red-500 mb-4">
+                            <AlertTriangle size={24} />
+                            <h3 className={`text-xl font-semibold ${theme.text}`}>Delete {currentTab?.label}?</h3>
+                        </div>
+                        <p className={`${theme.profileText}`}>
+                            Are you sure you want to delete <strong>{itemToDelete.name}</strong>? This action cannot be undone and may affect containers currently using this reference data.
+                        </p>
+                        <div className="flex justify-end gap-2 pt-4">
+                            <button
+                                onClick={() => {
+                                    setShowDeleteWarning(false);
+                                    setItemToDelete(null);
+                                }}
+                                className={`px-4 py-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${theme.border}`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteItem}
+                                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                            >
+                                Yes, Delete
                             </button>
                         </div>
                     </div>
