@@ -286,6 +286,7 @@ function ContainerEntryForm({
     safeAppend("status", formData.status || null);
     safeAppend("type", formData.type || null);
     safeAppend("emptied_at", formData.emptied_at || null);
+    safeAppend("FreeDays", formData.FreeDays !== "" ? formData.FreeDays : null);
     // console.log(formData.inBound, "ljh")
     // ✅ Bill of Lading
     safeAppend("bill_of_landing.BillOfLanding", formData.BillOfLanding || null);
@@ -390,6 +391,7 @@ function ContainerEntryForm({
     { label: "Out Bound", name: "out_bound", type: "datetime-local", permission: "OutBound" },
     { label: "Unloaded at Port", name: "unloaded_at_port", type: "date", permission: "UnloadedAtDock" },
     { label: "Empty At", name: "emptied_at", type: "addSelect", options: emptyLocations, permission: "EmptyAt", api:"setUnloadVenue", refreshVal:"emptyLocations" },
+    { label: "Free Days (Override)", name: "FreeDays", type: "number", permission: "Demurrage" },
     
   ];
   
