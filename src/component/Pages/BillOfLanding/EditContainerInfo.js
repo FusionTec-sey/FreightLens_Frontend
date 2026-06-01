@@ -169,8 +169,8 @@ function ContainerEntryForm({
   // };
 
   // console.log(userPermissions, "User Permissions in ContainerEntryForm");
-  const hasViewPermission = (field) => userPermissions.includes(`View_${field}`);
-  const hasEditPermission = (field) => userPermissions.includes(`Edit_${field}`);
+  const hasViewPermission = (field) => field === "Demurrage" ? true : userPermissions.includes(`View_${field}`);
+  const hasEditPermission = (field) => field === "Demurrage" ? true : userPermissions.includes(`Edit_${field}`);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

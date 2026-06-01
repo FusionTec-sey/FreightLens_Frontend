@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState, use } from "react";
-import axios, { formToJSON } from "axios";
+import { useRef, useEffect, useState } from "react";
+import axios from "axios";
 import TypableSelect from "../../UI/UXComponent/TypebleSelect.js";
 import { toast } from 'react-toastify';
 // import { getAllOptions } from "../../../utils/optionCache.js";
@@ -51,10 +51,7 @@ function ContainerEntryForm({
 
   const inboundInputRef = useRef(null);
   const emptyInputRef = useRef(null);
-  const [selectedVessel, setSelectedVessel] = useState([]);
-  const [todelete, setToDelete] = useState(false);
-
-  const { isDark, theme } = useTheme();
+  const { theme } = useTheme();
   const {
     suppliers,
     consignees,
@@ -64,9 +61,7 @@ function ContainerEntryForm({
     shipping,
     vessal: vesselList,
     material: materialOptions,
-    refresh,
-    loading: optionsLoading,
-    errors: optionErrors
+    refresh
   } = useOptions();
   
   useEffect(() => {
@@ -146,7 +141,7 @@ function ContainerEntryForm({
       }
     }
 
-  }, [editData, vesselList]);
+  }, [editData, vesselList, consignees, emptyLocations, shipping, statusOptions, suppliers, type]);
 
   const handleInboundImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -167,8 +162,8 @@ function ContainerEntryForm({
 
 
   // console.log(userPermissions, "User Permissions in ContainerEntryForm");
-  const hasViewPermission = (field) => userPermissions.includes(`View_${field}`);
-  const hasEditPermission = (field) => userPermissions.includes(`Edit_${field}`);
+  const hasViewPermission = (field) => field === "Demurrage" ? true : userPermissions.includes(`View_${field}`);
+  const hasEditPermission = (field) => field === "Demurrage" ? true : userPermissions.includes(`Edit_${field}`);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
