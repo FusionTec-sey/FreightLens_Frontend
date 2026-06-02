@@ -86,6 +86,7 @@ function ContainerEntryForm({
         ...prev,
         ...editData,
         container_id: editData.Container_ID,
+        container_no: editData.container_no || "",
         containerNo: editData.container_no || "",
         PONo: editData.PONo || "",
         note: editData.note || "",
@@ -95,14 +96,14 @@ function ContainerEntryForm({
         // shippingType: shipping.find((opt) => opt.name === bill?.Doc_name)?.id || "",
         // vessal: vesselList.find((opt) => opt.name === bill?.vessel_name)?.id || "",
         
-        type: type.find((opt) => opt.name === editData.containerType)?.id || "",
-        material: editData.materials?.map(item => item.Id) || [],
-        status: statusOptions.find((opt) => opt.name === editData.state)?.id || [],
+        type: editData.type || type.find((opt) => opt.name === editData.containerType)?.id || "",
+        material: editData.materials ? editData.materials.map(item => typeof item === 'object' ? item.Id : item) : [],
+        status: editData.status || statusOptions.find((opt) => opt.name === editData.state)?.id || [],
         in_bound: editData.in_bound?.slice(0, 16),
         empty_date: editData.empty_date,
         out_bound: editData.out_bound?.slice(0, 16),
         unloaded_at_port: editData.unloaded_at_port,
-        emptied_at: emptyLocations.find((opt) => opt.name === editData.location)?.id || []
+        emptied_at: editData.emptied_at || emptyLocations.find((opt) => opt.name === editData.location)?.id || []
       }));
       // console.log(formData.status, "sjkdfbh")
       // console.log(shipping.find((opt) => opt.name === bill?.Doc_name) , "jf")

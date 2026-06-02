@@ -282,8 +282,9 @@ export default function BillOfLandingInfo() {
     };
 
     const handleEditPending = (index) => {
-        const formData = containersToAdd[index];
-        const dataObj = Object.fromEntries(formData.entries());
+        const formDataObj = containersToAdd[index];
+        const dataObj = Object.fromEntries(formDataObj.entries());
+        dataObj.materials = formDataObj.getAll("materials");
         setEditingContainer(dataObj);
         setPendingEditIndex(index);
         setIsEditFormOpen(true);
@@ -729,15 +730,17 @@ export default function BillOfLandingInfo() {
                                 >
                                     <span className="font-medium">{container.get("container_no")}</span>
                                     <div className="flex gap-2">
-                                        {/* <button 
+                                        <button 
                                             onClick={() => handleEditPending(index)}
                                             className="text-blue-500 hover:text-blue-700"
+                                            type="button"
                                         >
                                             <Pencil size={16} />
-                                        </button> */}
+                                        </button>
                                         <button 
                                             onClick={() => handleRemoveContainer(index)}
                                             className="text-red-500 hover:text-red-700"
+                                            type="button"
                                         >
                                             <X size={16} />
                                         </button>
@@ -800,8 +803,7 @@ export default function BillOfLandingInfo() {
                             </button>
                         </div>
                         <ContainerEntryForm 
-                            editData={pendingEditIndex === -1 ? editingContainer : null}
-                            initialData={pendingEditIndex !== -1 ? editingContainer : null}
+                                editData={editingContainer}
                             onSubmitSuccess={(data) => {
                                 if (pendingEditIndex !== -1) {
                                     setContainersToAdd(prev => {

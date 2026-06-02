@@ -1,7 +1,8 @@
 
 export function formatDateTime12hr(isoString) {
+  if (!isoString) return null;
   const date = new Date(isoString);
-  if (isNaN(date)) return null;
+  if (isNaN(date.getTime())) return null;
 
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -24,6 +25,7 @@ export function convertToLocalDateTimeInput(isoTimestamp) {
      * @returns {string|null} - Formatted string like "2025-08-10T18:00", or null on error
      */
     try {
+        if (!isoTimestamp) return null;
         // Create a Date object from ISO timestamp
         const date = new Date(isoTimestamp);
 
