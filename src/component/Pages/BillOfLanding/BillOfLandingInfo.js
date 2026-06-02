@@ -259,10 +259,16 @@ export default function BillOfLandingInfo() {
     }, [editData]);
 
     function setFormDataOfBl(data){
-        setFormData(prev => ({
-            ...prev,
-            arrivalDate: convertToLocalDateTimeInput(data.eventDateTime)
-        }));
+        setFormData(prev => {
+            const matchedProvider = logistics.find(
+                (opt) => opt.name && data.provider && opt.name.toLowerCase() === data.provider.toLowerCase()
+            );
+            return {
+                ...prev,
+                arrivalDate: convertToLocalDateTimeInput(data.eventDateTime),
+                Provider: matchedProvider ? matchedProvider.id : prev.Provider
+            };
+        });
     }
 
     const handleAddContainer = useCallback((data) => {

@@ -83,6 +83,27 @@ function Logistics({ currentUser }) {
         }
     }
 
+    async function handleDeleteProvider(providerId) {
+        if (!window.confirm("Are you sure you want to delete this provider?")) return;
+        try {
+            await axios.delete(
+                `${process.env.REACT_APP_NETWORK}/logistics-providers/${providerId}`,
+                {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, "skip_zrok_interstitial": "true" }
+                }
+            );
+            setLogisticsProviders(prev => prev.filter(p => p.Id !== providerId));
+            toast.success("Provider deleted successfully!");
+        } catch (error) {
+            console.error("Failed to delete provider:", error);
+            if (error.response?.data?.detail) {
+                toast.error(error.response.data.detail);
+            } else {
+                toast.error("Failed to delete provider.");
+            }
+        }
+    }
+
     return (
         <div className={`max-w-5xl mx-auto p-6 space-y-6 rounded shadow justify-center ${theme.background}`}>
             <h1 className={`text-2xl font-bold ${theme.text}`}>Logistics & Demurrage</h1>
@@ -134,6 +155,12 @@ function Logistics({ currentUser }) {
                                             className="text-blue-600 hover:text-blue-800"
                                         >
                                             <Pencil size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteProvider(provider.Id)}
+                                            className="text-red-600 hover:text-red-800"
+                                        >
+                                            <Trash2 size={16} />
                                         </button>
                                     </td>
                                 )}
