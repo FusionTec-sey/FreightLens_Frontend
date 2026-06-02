@@ -54,14 +54,23 @@ export default function BillOfLandingInfo() {
     const [errorMessage, setErrorMessage] = useState(null);
     const [pendingEditIndex, setPendingEditIndex] = useState(-1);
     
-    // Check if any containers have custom values that differ from BoL defaults
-    const hasCustomContainers = useMemo(() => {
+    // Check if any containers have custom FreeDays that differ from BoL defaults
+    const hasCustomFreeDays = useMemo(() => {
         if (!editData || !editData.containers) return false;
         return editData.containers.some(c => 
-            (c.FreeDays !== null && c.FreeDays !== undefined && c.FreeDays !== editData.FreeDays) ||
-            (c.state !== null && c.state !== undefined && c.state !== editData.status_name)
+            c.FreeDays !== null && c.FreeDays !== undefined && c.FreeDays !== editData.FreeDays
         );
     }, [editData]);
+
+    // Check if any containers have custom status that differ from BoL defaults
+    const hasCustomStatus = useMemo(() => {
+        if (!editData || !editData.containers || !statusOptions.length) return false;
+        const blStatusName = statusOptions.find(opt => opt.id === editData.status)?.name;
+        if (!blStatusName) return false;
+        return editData.containers.some(c => 
+            c.state !== null && c.state !== undefined && c.state !== blStatusName
+        );
+    }, [editData, statusOptions]);
 
     const [formData, setFormData] = useState({
         billOfLadingNumber: "",
@@ -193,7 +202,7 @@ export default function BillOfLandingInfo() {
             type: 'number',
             placeholder: 'e.g. 14',
             colSpan: 1,
-            disabled: hasCustomContainers
+            disabled: hasCustomFreeDays
         },
         {
             id: 'status',
@@ -204,9 +213,9 @@ export default function BillOfLandingInfo() {
             refreshKey: 'status',
             addApi: '',
             colSpan: 1,
-            disabled: hasCustomContainers
+            disabled: hasCustomStatus
         },
-    ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping, theme, statusOptions]);
+    ], [logistics, consignees, vesselList, suppliers, formData, isLoading, shipping, theme, statusOptions, hasCustomFreeDays, hasCustomStatus]);
 
     // Columns configuration
     const columns = useMemo(() => [
