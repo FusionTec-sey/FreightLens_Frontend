@@ -263,6 +263,14 @@ function ContainerEntryForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validate required fields
+    const missingFields = fields.filter(f => f.required && hasViewPermission(f.permission) && (!formData[f.name] || String(formData[f.name]).trim() === ""));
+    if (missingFields.length > 0) {
+      const fieldLabels = missingFields.map(f => f.label).join(", ");
+      toast.error(`Missing input field: ${fieldLabels}`);
+      return;
+    }
+
     // Check if any update is needed
     const hasChangedFields = Object.entries(formData).some(
       ([key, value]) => originalData && value !== originalData[key]
@@ -392,8 +400,8 @@ function ContainerEntryForm({
 
   // console.log(suppliers, "Sup")
   const fields = [
-    { label: "Bill Of Landing", name: "BillOfLanding", type: "text", permission: "BL", options: [] },
-    { label: "Container No", name: "containerNo", type: "text", permission: "ContainerNo" },
+    { label: "Bill Of Landing", name: "BillOfLanding", type: "text", permission: "BL", required: true, options: [] },
+    { label: "Container No", name: "containerNo", type: "text", permission: "ContainerNo", required: true },
     { label: "Type", name: "type", type: "addSelect", options: type, permission: "ContainerType", api: "setContainerType", refreshVal:"type"},
     { label: "Arrival Date", name: "arrival_on_port", type: "datetime-local", permission: "ArrivalDate" },
     { label: "PO No", name: "PONo", type: "text", permission: "PoNo" },
@@ -419,9 +427,12 @@ function ContainerEntryForm({
     <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-3 gap-4 `}>
         {fields
           .filter(({ permission }) => hasViewPermission(permission))
-          .map(({ label, name, type, options, permission, api, refreshVal }) => (
+          .map(({ label, name, type, options, permission, api, refreshVal, required }) => (
             <div key={name} className={name === "material" ? "col-span-full md:col-span-3" : ""}>
-              <label htmlFor={name} className="block mb-1 font-medium">{label}</label>
+              <label htmlFor={name} className="block mb-1 font-medium">
+                {label}
+                {required && <span className="text-red-500 ml-1">*</span>}
+              </label>
               {type === "select" ? (
                 <TypableSelect
                   options={options}

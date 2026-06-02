@@ -91,6 +91,7 @@ export default function BillOfLandingInfo() {
                     <div className="flex-1">
                         <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
                         <input
                             type={field.type}
@@ -483,6 +484,14 @@ export default function BillOfLandingInfo() {
     };
 
     const handleSaveAll = async () => {
+        // Validate required fields
+        const missingFields = formFields.filter(f => f.required && (!formData[f.id] || String(formData[f.id]).trim() === ""));
+        if (missingFields.length > 0) {
+            const fieldLabels = missingFields.map(f => f.label).join(", ");
+            toast.error(`Missing input field: ${fieldLabels}`);
+            return;
+        }
+
         setIsSaving(true);
         setErrorMessage(null);
         try {
@@ -490,6 +499,7 @@ export default function BillOfLandingInfo() {
                 const blSaved = await handleSave();
                 if (!blSaved) {
                     setErrorMessage("Failed to save Bill of Lading. Please check required fields.");
+                    setIsSaving(false);
                     return;
                 }
             }
@@ -593,6 +603,7 @@ export default function BillOfLandingInfo() {
                     <div key={field.id}>
                         <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
                         <GenericSelector
                             value={formData[field.id] || null}
@@ -631,6 +642,7 @@ export default function BillOfLandingInfo() {
                     <div key={field.id}>
                         <label htmlFor={field.id} className={`block text-sm font-medium ${theme.text} mb-1`}>
                             {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
                         </label>
                         <input
                             type={field.type}
