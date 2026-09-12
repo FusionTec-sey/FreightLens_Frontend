@@ -30,6 +30,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useOptions } from "../../../hooks/useOptions";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
+import ProductCatalogSelector from "../../UI/UXComponent/ProductCatalogSelector";
 import TemplatePickerModal from "./TemplatePickerModal";
 
 function getUserInfo() {
@@ -164,17 +165,21 @@ export default function OrderEntryPage({
     currency: "USD"
   });
 
-  // Load Inventory lookup
+  // Load Inventory lookup products for catalog selector
   useEffect(() => {
-    if (hasInventory) {
-      axios
-        .get(`${process.env.REACT_APP_NETWORK}/inventory/lookup`, {
-          headers: { skip_zrok_interstitial: "true" },
-        })
-        .then((res) => setInventoryProducts(res.data || []))
-        .catch((err) => console.error("Could not load inventory lookup:", err));
-    }
-  }, [hasInventory]);
+    axios
+      .get(`${process.env.REACT_APP_NETWORK}/inventory/lookup`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          skip_zrok_interstitial: "true"
+        },
+      })
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : res.data?.items || [];
+        setInventoryProducts(data);
+      })
+      .catch((err) => console.error("Could not load inventory lookup:", err));
+  }, []);
 
   // Load existing order if editing
   useEffect(() => {
@@ -371,9 +376,12 @@ export default function OrderEntryPage({
     }
   };
 
-  const handleAddCatalogProduct = (prodId) => {
-    if (!prodId) return;
-    const prod = inventoryProducts.find((p) => String(p.id) === String(prodId));
+  const handleAddCatalogProduct = (prodOrId) => {
+    if (!prodOrId) return;
+    const prod =
+      typeof prodOrId === "object"
+        ? prodOrId
+        : inventoryProducts.find((p) => String(p.id) === String(prodOrId));
     if (!prod) return;
 
     const existingIndex = (formData.items || []).findIndex(
@@ -405,6 +413,7 @@ export default function OrderEntryPage({
         items: [...(prev.items || []), newItem],
         goods_description: prev.goods_description || prod.name,
         supplier: prev.supplier || prod.default_supplier_id || null,
+        company: prev.company || prod.supplier_name || prev.company,
       }));
     }
     setSelectedProductCode("");
@@ -856,30 +865,25 @@ export default function OrderEntryPage({
               </button>
             </div>
 
-            {/* Quick Catalog Search / Selector */}
-            {hasInventory && inventoryProducts.length > 0 && (
-              <div
-                className={`p-2.5 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 ${
-                  isDark ? "bg-indigo-950/20 border-indigo-900/40" : "bg-indigo-50/50 border-indigo-100"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex-none">
-                  <Boxes className="w-3.5 h-3.5" />
-                  <span>Product Catalog:</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <GenericSelector
-                    options={inventoryProducts.map((p) => ({
-                      id: p.id,
-                      name: `[${p.sku || p.code || "SKU"}] ${p.name} — Stock: ${p.current_stock || 0} ${p.unit || "PCS"}${p.unit_cost ? ` ($${p.unit_cost})` : ""}`,
-                    }))}
-                    value={selectedProductCode}
-                    onChange={(val) => handleAddCatalogProduct(val)}
-                    placeholder="Search product from inventory to add..."
-                  />
-                </div>
+            {/* Customized Product Catalog Selector with Code, Description, Category & Stock Info */}
+            <div
+              className={`p-2.5 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 ${
+                isDark ? "bg-indigo-950/20 border-indigo-900/40" : "bg-indigo-50/50 border-indigo-100"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex-none">
+                <Boxes className="w-3.5 h-3.5" />
+                <span>Product Catalog:</span>
               </div>
-            )}
+              <div className="flex-1 min-w-0">
+                <ProductCatalogSelector
+                  products={inventoryProducts}
+                  onSelectProduct={handleAddCatalogProduct}
+                  placeholder="Quick-search catalog by Code, Description, Category or Brand to add..."
+                  isAccountsOrAdmin={isAccountsOrAdmin}
+                />
+              </div>
+            </div>
 
             {/* Fluid Table of Line Items */}
             {formData.items.length === 0 ? (
