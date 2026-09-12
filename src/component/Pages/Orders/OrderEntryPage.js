@@ -718,22 +718,25 @@ export default function OrderEntryPage({
         {/* ════════════════════════════════════════════════════════════
             LEFT COLUMN (PRIMARY WORKSPACE - 8 COLS / 66%)
         ════════════════════════════════════════════════════════════ */}
-        <div className="lg:col-span-8 space-y-6 w-full min-w-0">
-          {/* CARD 1: ORDER BASICS & CONSIGNEE */}
+        <div className="lg:col-span-8 space-y-5 w-full min-w-0">
+          {/* CARD 1: ORDER IDENTIFICATION, CONSIGNEE & SUPPLIER / VENDOR */}
           <div
-            className={`w-full p-5 sm:p-6 rounded-2xl border transition-all ${
+            className={`w-full p-4 sm:p-5 rounded-2xl border transition-all ${
               isDark ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-xs"
             }`}
           >
-            <div className="flex items-center gap-2 pb-3 mb-4 border-b border-slate-200/50 dark:border-slate-800">
-              <Building2 className="w-4 h-4 text-blue-500" />
-              <h2 className="text-sm font-bold tracking-tight">Order Identification & Consignee</h2>
+            <div className="flex items-center justify-between pb-2.5 mb-3.5 border-b border-slate-200/50 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-500" />
+                <h2 className="text-xs sm:text-sm font-bold tracking-tight">Order Identification, Consignee & Supplier</h2>
+              </div>
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">Header & Procurement Parties</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {/* Consignee Organisation */}
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 sm:gap-3.5">
+              {/* Consignee Organisation (6 cols) */}
+              <div className="md:col-span-6 space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Consignee Organisation <span className="text-red-500">*</span>
                 </label>
                 <GenericSelector
@@ -751,9 +754,26 @@ export default function OrderEntryPage({
                 />
               </div>
 
-              {/* PO Number */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {/* Supplier / Vendor (6 cols) */}
+              <div className="md:col-span-6 space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Supplier / Vendor
+                </label>
+                <GenericSelector
+                  value={formData.supplier || null}
+                  onChange={handleSupplierChange}
+                  placeholder="Select or Add Supplier..."
+                  options={suppliers}
+                  labelKey="name"
+                  valueKey="id"
+                  onAddNew={() => refresh?.("suppliers")}
+                  addApi="setSupplier"
+                />
+              </div>
+
+              {/* PO Number (4 cols) */}
+              <div className="sm:col-span-1 md:col-span-4 space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   PO Number
                 </label>
                 <input
@@ -761,7 +781,7 @@ export default function OrderEntryPage({
                   placeholder="Auto (e.g. PO#26001)"
                   value={formData.po_number}
                   onChange={(e) => handleChange("po_number", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
                       : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
@@ -769,58 +789,56 @@ export default function OrderEntryPage({
                 />
               </div>
 
-              {/* Year */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {/* Order Year (3 cols) */}
+              <div className="sm:col-span-1 md:col-span-3 space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Order Year
                 </label>
                 <input
                   type="number"
                   value={formData.year}
                   onChange={(e) => handleChange("year", parseInt(e.target.value) || new Date().getFullYear())}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
                   }`}
                 />
               </div>
-            </div>
 
-            {/* Accounts PO Reference (NCE/SPO) */}
-            {isAccountsOrAdmin && (
-              <div className="mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              {/* Accounts PO Reference (5 cols) */}
+              {isAccountsOrAdmin && (
+                <div className="sm:col-span-2 md:col-span-5 space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                     <Lock className="w-3 h-3 text-amber-500" />
-                    Accounts PO Reference (PO NCE / SPO#)
+                    Accounts PO Ref (PO NCE / SPO#)
                   </label>
                   <input
                     type="text"
                     placeholder="e.g. NPO#26-0594 or SPO#26-0112"
                     value={formData.po_nce}
                     onChange={(e) => handleChange("po_nce", e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 transition ${
+                    className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 transition ${
                       isDark
                         ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
                         : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
                     }`}
                   />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* CARD 2: PRODUCTS & LINE ITEMS MASTER TABLE */}
           <div
-            className={`w-full p-5 sm:p-6 rounded-2xl border transition-all space-y-4 ${
+            className={`w-full p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 ${
               isDark ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-xs"
             }`}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/50 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-200/50 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-emerald-500" />
-                <h2 className="text-sm font-bold tracking-tight">
+                <h2 className="text-xs sm:text-sm font-bold tracking-tight">
                   Products & Line Items
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono">
@@ -831,7 +849,7 @@ export default function OrderEntryPage({
               <button
                 type="button"
                 onClick={handleAddCustomItem}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition self-start sm:self-auto"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs transition self-start sm:self-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Custom Item</span>
@@ -841,12 +859,12 @@ export default function OrderEntryPage({
             {/* Quick Catalog Search / Selector */}
             {hasInventory && inventoryProducts.length > 0 && (
               <div
-                className={`p-3 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-3 ${
+                className={`p-2.5 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 ${
                   isDark ? "bg-indigo-950/20 border-indigo-900/40" : "bg-indigo-50/50 border-indigo-100"
                 }`}
               >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 flex-none">
-                  <Boxes className="w-4 h-4" />
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex-none">
+                  <Boxes className="w-3.5 h-3.5" />
                   <span>Product Catalog:</span>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -866,44 +884,44 @@ export default function OrderEntryPage({
             {/* Fluid Table of Line Items */}
             {formData.items.length === 0 ? (
               <div
-                className={`py-12 px-4 rounded-xl border border-dashed text-center flex flex-col items-center justify-center ${
+                className={`py-10 px-4 rounded-xl border border-dashed text-center flex flex-col items-center justify-center ${
                   isDark ? "border-slate-800 text-slate-500" : "border-slate-200 text-slate-400"
                 }`}
               >
-                <Package className="w-10 h-10 opacity-30 mb-2" />
-                <p className="text-xs font-bold mb-1">No product items added yet</p>
-                <p className="text-[11px] text-slate-400 max-w-sm mb-3">
+                <Package className="w-9 h-9 opacity-30 mb-2" />
+                <p className="text-[11px] font-bold mb-1">No product items added yet</p>
+                <p className="text-[10px] text-slate-400 max-w-sm mb-3">
                   Search catalog products above or click "+ Add Custom Item" to add order lines
                 </p>
                 <button
                   type="button"
                   onClick={handleAddCustomItem}
-                  className="px-3.5 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs transition"
+                  className="px-3.5 py-1.5 bg-blue-600 text-white rounded-xl text-[11px] font-bold shadow-xs transition"
                 >
                   Add First Item
                 </button>
               </div>
             ) : (
               <div className="w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 scrollbar-thin">
-                <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                <table className="w-full text-left text-[11px] border-collapse min-w-[620px]">
                   <thead>
                     <tr
-                      className={`border-b text-[11px] font-bold uppercase tracking-wider ${
+                      className={`border-b text-[10px] font-bold uppercase tracking-wider ${
                         isDark ? "bg-slate-950/60 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500"
                       }`}
                     >
-                      <th className="py-2.5 px-3 w-10 text-center">#</th>
-                      <th className="py-2.5 px-3 w-32">SKU / Code</th>
-                      <th className="py-2.5 px-3">Product Description *</th>
-                      <th className="py-2.5 px-3 w-24 text-right">Qty</th>
-                      <th className="py-2.5 px-3 w-20">Unit</th>
+                      <th className="py-2 px-2.5 w-9 text-center">#</th>
+                      <th className="py-2 px-2.5 w-28">SKU / Code</th>
+                      <th className="py-2 px-2.5">Product Description *</th>
+                      <th className="py-2 px-2.5 w-20 text-right">Qty</th>
+                      <th className="py-2 px-2.5 w-16">Unit</th>
                       {isAccountsOrAdmin && (
                         <>
-                          <th className="py-2.5 px-3 w-28 text-right">Unit Price</th>
-                          <th className="py-2.5 px-3 w-28 text-right">Line Total</th>
+                          <th className="py-2 px-2.5 w-24 text-right">Unit Price</th>
+                          <th className="py-2 px-2.5 w-24 text-right">Line Total</th>
                         </>
                       )}
-                      <th className="py-2.5 px-3 w-10 text-center"></th>
+                      <th className="py-2 px-2 w-8 text-center"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/50 dark:divide-slate-800">
@@ -914,57 +932,57 @@ export default function OrderEntryPage({
                           isDark ? "hover:bg-slate-800/40" : "hover:bg-slate-50"
                         }`}
                       >
-                        <td className="py-2.5 px-3 text-center text-slate-400 font-mono font-bold">
+                        <td className="py-2 px-2.5 text-center text-slate-400 font-mono font-bold text-[10px]">
                           {idx + 1}
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-2 px-2.5">
                           <input
                             type="text"
                             placeholder="SKU-001"
                             value={it.item_code}
                             onChange={(e) => handleItemFieldChange(idx, "item_code", e.target.value)}
-                            className={`w-full px-2 py-1 border rounded-lg text-xs font-mono transition ${
+                            className={`w-full px-2 py-1 border rounded-lg text-[11px] font-mono transition ${
                               isDark
                                 ? "bg-slate-900 border-slate-700 text-slate-100"
                                 : "bg-white border-slate-200 text-slate-900"
                             }`}
                           />
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-2 px-2.5">
                           <input
                             type="text"
                             required
                             placeholder="Item name / specification *"
                             value={it.description}
                             onChange={(e) => handleItemFieldChange(idx, "description", e.target.value)}
-                            className={`w-full px-2 py-1 border rounded-lg text-xs font-semibold transition ${
+                            className={`w-full px-2 py-1 border rounded-lg text-[11px] font-semibold transition ${
                               isDark
                                 ? "bg-slate-900 border-slate-700 text-slate-100"
                                 : "bg-white border-slate-200 text-slate-900"
                             }`}
                           />
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-2 px-2.5">
                           <input
                             type="number"
                             min="0.01"
                             step="any"
                             value={it.quantity_ordered}
                             onChange={(e) => handleItemFieldChange(idx, "quantity_ordered", e.target.value)}
-                            className={`w-full px-2 py-1 border rounded-lg text-xs font-mono font-bold text-right transition ${
+                            className={`w-full px-2 py-1 border rounded-lg text-[11px] font-mono font-bold text-right transition ${
                               isDark
                                 ? "bg-slate-900 border-slate-700 text-white"
                                 : "bg-white border-slate-200 text-slate-900"
                             }`}
                           />
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-2 px-2.5">
                           <input
                             type="text"
                             placeholder="PCS"
                             value={it.unit}
                             onChange={(e) => handleItemFieldChange(idx, "unit", e.target.value)}
-                            className={`w-full px-2 py-1 border rounded-lg text-xs font-bold transition uppercase ${
+                            className={`w-full px-2 py-1 border rounded-lg text-[11px] font-bold transition uppercase ${
                               isDark
                                 ? "bg-slate-900 border-slate-700 text-slate-100"
                                 : "bg-white border-slate-200 text-slate-900"
@@ -973,26 +991,26 @@ export default function OrderEntryPage({
                         </td>
                         {isAccountsOrAdmin && (
                           <>
-                            <td className="py-2.5 px-3">
+                            <td className="py-2 px-2.5">
                               <input
                                 type="number"
                                 step="any"
                                 placeholder="0.00"
                                 value={it.unit_price}
                                 onChange={(e) => handleItemFieldChange(idx, "unit_price", e.target.value)}
-                                className={`w-full px-2 py-1 border rounded-lg text-xs font-mono font-bold text-right transition ${
+                                className={`w-full px-2 py-1 border rounded-lg text-[11px] font-mono font-bold text-right transition ${
                                   isDark
                                     ? "bg-slate-900 border-slate-700 text-white"
                                     : "bg-white border-slate-200 text-slate-900"
                                 }`}
                               />
                             </td>
-                            <td className="py-2.5 px-3 text-right font-mono font-bold text-blue-500">
+                            <td className="py-2 px-2.5 text-right font-mono font-bold text-blue-500 text-[11px]">
                               {it.total_price ? `$${it.total_price}` : "-"}
                             </td>
                           </>
                         )}
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-2 px-2 text-center">
                           <button
                             type="button"
                             onClick={() => handleRemoveItem(idx)}
@@ -1012,10 +1030,10 @@ export default function OrderEntryPage({
                           isDark ? "bg-slate-950/80 border-slate-800" : "bg-slate-50 border-slate-200"
                         }`}
                       >
-                        <td colSpan={5} className="py-2.5 px-3 text-right text-slate-400">
+                        <td colSpan={5} className="py-2 px-3 text-right text-slate-400 text-[11px]">
                           Items Calculated Subtotal:
                         </td>
-                        <td colSpan={2} className="py-2.5 px-3 text-right font-mono text-sm text-blue-600 dark:text-blue-400">
+                        <td colSpan={2} className="py-2 px-3 text-right font-mono text-xs text-blue-600 dark:text-blue-400">
                           ${itemsSubtotal.toFixed(2)} {formData.currency}
                         </td>
                         <td></td>
@@ -1027,9 +1045,9 @@ export default function OrderEntryPage({
             )}
 
             {/* Material Tag Selector & Summary */}
-            <div className="pt-3 border-t border-slate-200/50 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <div className="pt-2.5 border-t border-slate-200/50 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Material Categories / Tags
                 </label>
                 <MaterialTagSelector
@@ -1040,8 +1058,8 @@ export default function OrderEntryPage({
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   General Goods Summary
                 </label>
                 <input
@@ -1049,7 +1067,7 @@ export default function OrderEntryPage({
                   placeholder="e.g. Tiles, Sanitaryware, Cement, Steel..."
                   value={formData.goods_description}
                   onChange={(e) => handleChange("goods_description", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
                       : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
@@ -1061,28 +1079,28 @@ export default function OrderEntryPage({
 
           {/* CARD 3: PURCHASING TIMELINE & MILESTONE DATES */}
           <div
-            className={`w-full p-5 sm:p-6 rounded-2xl border transition-all space-y-4 ${
+            className={`w-full p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 ${
               isDark ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-xs"
             }`}
           >
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-200/50 dark:border-slate-800">
+            <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200/50 dark:border-slate-800">
               <Calendar className="w-4 h-4 text-purple-500" />
-              <h2 className="text-sm font-bold tracking-tight">
+              <h2 className="text-xs sm:text-sm font-bold tracking-tight">
                 Purchasing Timeline & Milestones
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {/* Order Request Date */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-500">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Request / Mail Date
                 </label>
                 <input
                   type="date"
                   value={formData.order_mail_date || ""}
                   onChange={(e) => handleChange("order_mail_date", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-mono transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1091,15 +1109,15 @@ export default function OrderEntryPage({
               </div>
 
               {/* Quote Sent Date */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-500">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Quote Sent Date
                 </label>
                 <input
                   type="date"
                   value={formData.quote_sent_date || ""}
                   onChange={(e) => handleChange("quote_sent_date", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-mono transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1108,15 +1126,15 @@ export default function OrderEntryPage({
               </div>
 
               {/* Quote Received Date */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-500">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Quote Received Date
                 </label>
                 <input
                   type="date"
                   value={formData.quote_received_date || ""}
                   onChange={(e) => handleChange("quote_received_date", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-mono transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1125,15 +1143,15 @@ export default function OrderEntryPage({
               </div>
 
               {/* PI Confirmed Date */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-500">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   PI Confirmed Date
                 </label>
                 <input
                   type="date"
                   value={formData.pi_confirmed_date || ""}
                   onChange={(e) => handleChange("pi_confirmed_date", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-mono transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1142,15 +1160,15 @@ export default function OrderEntryPage({
               </div>
 
               {/* Estimated Arrival (ETA) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-500">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Estimated Arrival (ETA)
                 </label>
                 <input
                   type="date"
                   value={formData.eta_date || ""}
                   onChange={(e) => handleChange("eta_date", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-mono transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1159,14 +1177,14 @@ export default function OrderEntryPage({
               </div>
 
               {/* Freight Type */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-500">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                   Freight Method
                 </label>
                 <select
                   value={formData.freight_type}
                   onChange={(e) => handleChange("freight_type", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-bold transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-bold transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1181,8 +1199,8 @@ export default function OrderEntryPage({
             </div>
 
             {/* Remarks / Handling Instructions */}
-            <div className="space-y-1.5 pt-2">
-              <label className="block text-xs font-semibold text-slate-500">
+            <div className="space-y-1 pt-1">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                 Logistics & Special Remarks
               </label>
               <textarea
@@ -1190,7 +1208,7 @@ export default function OrderEntryPage({
                 placeholder="Add internal procurement notes, shipping instructions, or carrier details..."
                 value={formData.remark}
                 onChange={(e) => handleChange("remark", e.target.value)}
-                className={`w-full px-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none transition ${
+                className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 transition ${
                   isDark
                     ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
                     : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
@@ -1201,54 +1219,13 @@ export default function OrderEntryPage({
         </div>
 
         {/* ════════════════════════════════════════════════════════════
-            RIGHT COLUMN (SIDEBAR & FINANCIALS - 4 COLS / 34%)
+            RIGHT COLUMN (FINANCIALS & LIFECYCLE - 4 COLS / 34%)
         ════════════════════════════════════════════════════════════ */}
-        <div className="lg:col-span-4 space-y-6 w-full min-w-0">
-          {/* CARD 4: SUPPLIER / VENDOR */}
-          <div
-            className={`w-full p-5 rounded-2xl border transition-all space-y-3 ${
-              isDark ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-xs"
-            }`}
-          >
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/50 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-500" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Supplier / Vendor
-                </h3>
-              </div>
-              <span className="text-[10px] text-slate-400">Procurement source</span>
-            </div>
-
-            <div className="space-y-2">
-              <GenericSelector
-                value={formData.supplier || null}
-                onChange={handleSupplierChange}
-                placeholder="Select or Add Supplier..."
-                options={suppliers}
-                labelKey="name"
-                valueKey="id"
-                onAddNew={() => refresh?.("suppliers")}
-                addApi="setSupplier"
-              />
-
-              {formData.company && (
-                <div
-                  className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
-                    isDark ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-200"
-                  }`}
-                >
-                  <Building2 className="w-4 h-4 text-blue-500 flex-none" />
-                  <span className="font-bold truncate">{formData.company}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* CARD 5: FINANCIAL SUMMARY & PAYMENT TERMS (ACCOUNTS GATED) */}
+        <div className="lg:col-span-4 space-y-5 w-full min-w-0">
+          {/* CARD 4: FINANCIAL SUMMARY & PAYMENT TERMS (ACCOUNTS GATED) */}
           {isAccountsOrAdmin && (
             <div
-              className={`w-full p-5 rounded-2xl border transition-all space-y-4 ${
+              className={`w-full p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 ${
                 isDark ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-xs"
               }`}
             >
@@ -1268,13 +1245,13 @@ export default function OrderEntryPage({
                 {/* Currency & Total Amount */}
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                       Currency
                     </label>
                     <select
                       value={formData.currency}
                       onChange={(e) => handleChange("currency", e.target.value)}
-                      className={`w-full px-2.5 py-2 border rounded-xl text-xs font-mono font-bold transition ${
+                      className={`w-full px-2 py-1.5 border rounded-lg text-[11px] font-mono font-bold transition ${
                         isDark
                           ? "bg-slate-800 border-slate-700 text-white"
                           : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1292,7 +1269,7 @@ export default function OrderEntryPage({
 
                   <div className="col-span-2">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-semibold text-slate-400">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         Total Order Amount
                       </label>
                       {itemsSubtotal > 0 && (
@@ -1311,7 +1288,7 @@ export default function OrderEntryPage({
                       placeholder="0.00"
                       value={formData.total_amount}
                       onChange={(e) => handleChange("total_amount", e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-black text-right transition ${
+                      className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-black text-right transition ${
                         isDark
                           ? "bg-slate-800 border-slate-700 text-white"
                           : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1321,8 +1298,8 @@ export default function OrderEntryPage({
                 </div>
 
                 {/* Advance Payment */}
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                  <div className="text-[11px] font-bold text-slate-400">Advance Payment</div>
+                <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Advance Payment</div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] text-slate-400">Amount</label>
@@ -1332,7 +1309,7 @@ export default function OrderEntryPage({
                         placeholder="0.00"
                         value={formData.advance_amount}
                         onChange={(e) => handleChange("advance_amount", e.target.value)}
-                        className={`w-full px-2 py-1.5 border rounded-lg text-xs font-mono font-bold text-right ${
+                        className={`w-full px-2 py-1 border rounded-lg text-[11px] font-mono font-bold text-right ${
                           isDark
                             ? "bg-slate-900 border-slate-700 text-white"
                             : "bg-white border-slate-200 text-slate-900"
@@ -1345,7 +1322,7 @@ export default function OrderEntryPage({
                         type="date"
                         value={formData.payment_date || ""}
                         onChange={(e) => handleChange("payment_date", e.target.value)}
-                        className={`w-full px-2 py-1.5 border rounded-lg text-xs font-mono ${
+                        className={`w-full px-2 py-1 border rounded-lg text-[11px] font-mono ${
                           isDark
                             ? "bg-slate-900 border-slate-700 text-white"
                             : "bg-white border-slate-200 text-slate-900"
@@ -1356,8 +1333,8 @@ export default function OrderEntryPage({
                 </div>
 
                 {/* Balance Payment */}
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                  <div className="text-[11px] font-bold text-slate-400">Balance Payment</div>
+                <div className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Balance Payment</div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] text-slate-400">Amount</label>
@@ -1367,7 +1344,7 @@ export default function OrderEntryPage({
                         placeholder="0.00"
                         value={formData.balance_amount}
                         onChange={(e) => handleChange("balance_amount", e.target.value)}
-                        className={`w-full px-2 py-1.5 border rounded-lg text-xs font-mono font-bold text-right ${
+                        className={`w-full px-2 py-1 border rounded-lg text-[11px] font-mono font-bold text-right ${
                           isDark
                             ? "bg-slate-900 border-slate-700 text-white"
                             : "bg-white border-slate-200 text-slate-900"
@@ -1380,7 +1357,7 @@ export default function OrderEntryPage({
                         type="date"
                         value={formData.balance_payment_date || ""}
                         onChange={(e) => handleChange("balance_payment_date", e.target.value)}
-                        className={`w-full px-2 py-1.5 border rounded-lg text-xs font-mono ${
+                        className={`w-full px-2 py-1 border rounded-lg text-[11px] font-mono ${
                           isDark
                             ? "bg-slate-900 border-slate-700 text-white"
                             : "bg-white border-slate-200 text-slate-900"
@@ -1393,9 +1370,9 @@ export default function OrderEntryPage({
             </div>
           )}
 
-          {/* CARD 6: WORKFLOW STAGE & PRIORITY */}
+          {/* CARD 5: WORKFLOW STAGE & PRIORITY */}
           <div
-            className={`w-full p-5 rounded-2xl border transition-all space-y-4 ${
+            className={`w-full p-4 sm:p-5 rounded-2xl border transition-all space-y-3.5 ${
               isDark ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-xs"
             }`}
           >
@@ -1410,7 +1387,7 @@ export default function OrderEntryPage({
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Workflow Stage
                 </label>
                 <select
@@ -1426,7 +1403,7 @@ export default function OrderEntryPage({
                       status_id: matchedStage ? matchedStage.id : null,
                     }));
                   }}
-                  className={`w-full px-3 py-2 border rounded-xl text-xs font-bold transition ${
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-bold transition ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
                       : "bg-slate-50 border-slate-200 text-slate-900"
@@ -1442,7 +1419,7 @@ export default function OrderEntryPage({
 
               {/* Urgent Priority Toggle */}
               <div
-                className={`p-3 rounded-xl border flex items-center justify-between transition cursor-pointer ${
+                className={`p-2.5 rounded-xl border flex items-center justify-between transition cursor-pointer ${
                   formData.urgent_action
                     ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
                     : isDark
@@ -1452,9 +1429,9 @@ export default function OrderEntryPage({
                 onClick={() => handleChange("urgent_action", !formData.urgent_action)}
               >
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
+                  <AlertTriangle className="w-3.5 h-3.5" />
                   <div>
-                    <div className="text-xs font-bold">Urgent Action Required</div>
+                    <div className="text-[11px] font-bold">Urgent Action Required</div>
                     <div className="text-[10px] opacity-75">Flag this order for expedited handling</div>
                   </div>
                 </div>
@@ -1462,7 +1439,7 @@ export default function OrderEntryPage({
                   type="checkbox"
                   checked={formData.urgent_action}
                   onChange={(e) => handleChange("urgent_action", e.target.checked)}
-                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                  className="w-3.5 h-3.5 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
                 />
               </div>
             </div>
