@@ -11,6 +11,8 @@ export default function GenericSelector({
   disabled = false,
   onAddNew = null,
   addApi = null,
+  className = "",
+  inputClassName = "",
 }) {
   const [input, setInput] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -88,12 +90,8 @@ export default function GenericSelector({
     }
   };
 
-  // const itemExists = filteredOptions.some(
-  //   (opt) => opt[labelKey].toLowerCase() === input.toLowerCase()
-  // );
-
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={`relative w-full ${className}`}>
       <input
         type="text"
         value={input}
@@ -101,18 +99,18 @@ export default function GenericSelector({
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={() => !disabled && setDropdownOpen(true)}
         placeholder={placeholder}
-        className={`w-full border px-3 py-1.5 rounded focus:outline-none focus:ring-2 ${theme.background} ${theme.text} ${
+        className={`w-full border px-2.5 py-1.5 rounded-lg text-[11px] font-medium focus:outline-none focus:ring-2 ${theme.background} ${theme.text} ${
           disabled ? "bg-gray-100 text-gray-500" : "focus:ring-blue-500"
-        }`}
+        } ${inputClassName}`}
       />
 
       {dropdownOpen && (
-        <ul className={`absolute z-30 mt-1 w-full border border-gray-200 rounded shadow-md max-h-60 overflow-y-auto bg-white `}>
+        <ul className="absolute z-30 mt-1 w-full border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto bg-white dark:bg-slate-900 text-[11px]">
           {filteredOptions.length > 0 ? (
             filteredOptions.map((item) => (
               <li
                 key={item[valueKey]}
-                className="px-4 py-2 hover:bg-blue-100 cursor-pointer"
+                className="px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer text-slate-800 dark:text-slate-100 transition-colors"
                 onClick={() => handleSelect(item)}
               >
                 {item[labelKey]}
@@ -120,11 +118,10 @@ export default function GenericSelector({
             ))
           ) : (
             <li
-              className="px-4 py-2 text-green-600 hover:bg-green-100 cursor-pointer font-medium"
+              className="px-3 py-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 cursor-pointer font-bold flex items-center gap-1.5"
               onClick={() => setShowPopup(true)}
             >
-              ➕ Create new entry
-
+              <span>+ Create new entry</span>
             </li>
           )}
         </ul>

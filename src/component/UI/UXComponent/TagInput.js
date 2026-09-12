@@ -64,7 +64,7 @@ const MaterialTagSelector = ({
         label: mat.name,
       }))}
       placeholder="Type or select material"
-      className="text-sm"
+      className="text-[11px]"
       classNamePrefix="material-select"
     />
   );
