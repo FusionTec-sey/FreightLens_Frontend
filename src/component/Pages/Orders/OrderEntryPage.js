@@ -844,7 +844,7 @@ export default function OrderEntryPage({
               isDark ? "bg-slate-900/80 border-slate-800" : "bg-white border-slate-200 shadow-xs"
             }`}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-200/50 dark:border-slate-800">
+            <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-slate-200/50 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-emerald-500" />
                 <h2 className="text-xs sm:text-sm font-bold tracking-tight">
@@ -854,15 +854,6 @@ export default function OrderEntryPage({
                   {formData.items.length} {formData.items.length === 1 ? "Item" : "Items"}
                 </span>
               </div>
-
-              <button
-                type="button"
-                onClick={handleAddCustomItem}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs transition self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Custom Item</span>
-              </button>
             </div>
 
             {/* Customized Product Catalog Selector with Code, Description, Category & Stock Info */}
@@ -879,6 +870,8 @@ export default function OrderEntryPage({
                 <ProductCatalogSelector
                   products={inventoryProducts}
                   onSelectProduct={handleAddCatalogProduct}
+                  onNewProductCreated={(p) => setInventoryProducts((prev) => [p, ...prev])}
+                  suppliers={suppliers}
                   placeholder="Quick-search catalog by Code, Description, Category or Brand to add..."
                   isAccountsOrAdmin={isAccountsOrAdmin}
                 />
@@ -888,22 +881,15 @@ export default function OrderEntryPage({
             {/* Fluid Table of Line Items */}
             {formData.items.length === 0 ? (
               <div
-                className={`py-10 px-4 rounded-xl border border-dashed text-center flex flex-col items-center justify-center ${
+                className={`py-8 px-4 rounded-xl border border-dashed text-center flex flex-col items-center justify-center ${
                   isDark ? "border-slate-800 text-slate-500" : "border-slate-200 text-slate-400"
                 }`}
               >
-                <Package className="w-9 h-9 opacity-30 mb-2" />
-                <p className="text-[11px] font-bold mb-1">No product items added yet</p>
-                <p className="text-[10px] text-slate-400 max-w-sm mb-3">
-                  Search catalog products above or click "+ Add Custom Item" to add order lines
+                <Package className="w-8 h-8 opacity-30 mb-2" />
+                <p className="text-[11px] font-bold mb-1">No products added to this order</p>
+                <p className="text-[10px] text-slate-400 max-w-sm">
+                  Search catalog above or click "+ Add New Item" to create standardized products
                 </p>
-                <button
-                  type="button"
-                  onClick={handleAddCustomItem}
-                  className="px-3.5 py-1.5 bg-blue-600 text-white rounded-xl text-[11px] font-bold shadow-xs transition"
-                >
-                  Add First Item
-                </button>
               </div>
             ) : (
               <div className="w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 scrollbar-thin">

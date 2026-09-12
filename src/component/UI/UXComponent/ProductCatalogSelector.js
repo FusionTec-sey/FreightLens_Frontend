@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import axios from "axios";
 import {
   Search,
   Package,
@@ -9,34 +10,57 @@ import {
   Check,
   ChevronDown,
   X,
+  Plus,
   AlertTriangle,
   TrendingUp,
   MapPin,
-  Clock
+  Clock,
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 
 export default function ProductCatalogSelector({
   products = [],
   onSelectProduct,
+  onNewProductCreated,
   placeholder = "Search and select product from catalog...",
   className = "",
   isAccountsOrAdmin = false,
+  suppliers = [],
 }) {
   const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedStockProduct, setSelectedStockProduct] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const containerRef = useRef(null);
 
+  // Quick Create Form State
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [newProductData, setNewProductData] = useState({
+    name: "",
+    sku: "",
+    category_id: null,
+    category_name: "",
+    unit: "PCS",
+    unit_cost: "",
+    default_supplier_id: null,
+    current_stock: 0,
+    min_stock_quantity: 0,
+  });
+
   // Extract unique categories from products
   const categories = useMemo(() => {
-    const cats = new Set();
+    const cats = new Map();
     products.forEach((p) => {
-      if (p.category_name) cats.add(p.category_name);
+      if (p.category_name) {
+        cats.set(p.category_name, p.category_id || null);
+      }
     });
-    return Array.from(cats);
+    return Array.from(cats.entries()).map(([name, id]) => ({ name, id }));
   }, [products]);
 
   // Filtered products list
@@ -80,48 +104,145 @@ export default function ProductCatalogSelector({
     setSelectedStockProduct(prod);
   };
 
+  const handleOpenQuickCreate = (initialName = "") => {
+    setNewProductData({
+      name: initialName || searchTerm || "",
+      sku: "",
+      category_id: null,
+      category_name: "",
+      unit: "PCS",
+      unit_cost: "",
+      default_supplier_id: null,
+      current_stock: 0,
+      min_stock_quantity: 0,
+    });
+    setCreateError("");
+    setShowCreateModal(true);
+    setIsOpen(false);
+  };
+
+  const handleQuickCreateSubmit = async (e) => {
+    e.preventDefault();
+    if (!newProductData.name.trim()) {
+      setCreateError("Product description / name is required.");
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError("");
+
+    try {
+      const payload = {
+        name: newProductData.name.trim(),
+        sku: newProductData.sku.trim() || undefined,
+        category_id: newProductData.category_id || undefined,
+        unit: (newProductData.unit || "PCS").toUpperCase(),
+        unit_cost: newProductData.unit_cost ? parseFloat(newProductData.unit_cost) : undefined,
+        default_supplier_id: newProductData.default_supplier_id || undefined,
+        current_stock: parseFloat(newProductData.current_stock) || 0,
+        min_stock_quantity: parseFloat(newProductData.min_stock_quantity) || 0,
+        status: "active",
+      };
+
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/products`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            skip_zrok_interstitial: "true",
+          },
+        }
+      );
+
+      const created = res.data;
+      const formattedProd = {
+        id: created.id,
+        code: created.code || created.sku,
+        sku: created.sku,
+        name: created.name,
+        description: created.description || created.name,
+        unit: created.unit || "PCS",
+        unit_cost: created.unit_cost,
+        category_id: created.category_id,
+        category_name: created.category_name,
+        default_supplier_id: created.default_supplier_id,
+        supplier_name: created.supplier_name,
+        current_stock: created.current_stock || 0,
+        min_stock_quantity: created.min_stock_quantity || 0,
+      };
+
+      // Notify parent & immediately select into order items
+      onNewProductCreated?.(formattedProd);
+      onSelectProduct?.(formattedProd);
+
+      setShowCreateModal(false);
+      setSearchTerm("");
+    } catch (err) {
+      console.error("Failed to quick-create product:", err);
+      setCreateError(
+        err.response?.data?.detail || "Failed to create product. Please verify fields."
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
-      {/* ── SEARCH INPUT / TRIGGER ─────────────────────────────────── */}
-      <div className="relative flex items-center">
-        <Search
-          size={14}
-          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-        />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
-          placeholder={placeholder}
-          className={`w-full pl-8 pr-20 py-1.5 border rounded-lg text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
-            isDark
-              ? "bg-slate-800 border-slate-700 text-white placeholder-slate-400"
-              : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
-          }`}
-        />
+      {/* ── SEARCH INPUT / BAR + ADD NEW BUTTON ─────────────────────── */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 min-w-0 flex items-center">
+          <Search
+            size={14}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            placeholder={placeholder}
+            className={`w-full pl-8 pr-20 py-1.5 border rounded-lg text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+              isDark
+                ? "bg-slate-800 border-slate-700 text-white placeholder-slate-400"
+                : "bg-white border-slate-200 text-slate-900 placeholder-slate-400"
+            }`}
+          />
 
-        <div className="absolute right-1.5 flex items-center gap-1">
-          {searchTerm && (
+          <div className="absolute right-1.5 flex items-center gap-1">
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X size={12} />
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setSearchTerm("")}
+              onClick={() => setIsOpen(!isOpen)}
               className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             >
-              <X size={12} />
+              <ChevronDown size={13} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-          >
-            <ChevronDown size={13} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-          </button>
+          </div>
         </div>
+
+        {/* "+ Add New Item" Trigger Button */}
+        <button
+          type="button"
+          onClick={() => handleOpenQuickCreate()}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-[11px] font-bold shadow-xs transition flex-none"
+          title="Add a new standardized product to catalog"
+        >
+          <Plus size={13} />
+          <span>Add New Item</span>
+        </button>
       </div>
 
       {/* ── RICH CUSTOMIZED DROPDOWN ────────────────────────────────── */}
@@ -159,32 +280,40 @@ export default function ProductCatalogSelector({
               </button>
               {categories.map((cat) => (
                 <button
-                  key={cat}
+                  key={cat.name}
                   type="button"
-                  onClick={() => setCategoryFilter(cat)}
+                  onClick={() => setCategoryFilter(cat.name)}
                   className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition whitespace-nowrap ${
-                    categoryFilter === cat
+                    categoryFilter === cat.name
                       ? "bg-blue-600 text-white font-bold"
                       : isDark
                       ? "text-slate-400 hover:bg-slate-800"
                       : "text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  {cat}
+                  {cat.name}
                 </button>
               ))}
             </div>
           )}
 
           {/* Results List */}
-          <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 scrollbar-thin">
+          <div className="max-h-[290px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 scrollbar-thin">
             {filteredProducts.length === 0 ? (
-              <div className="p-8 text-center">
-                <Package size={28} className="mx-auto text-slate-400 opacity-40 mb-2" />
-                <p className="text-xs font-bold text-slate-400">No matching products in catalog</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Try adjusting your search keywords or category filter
+              <div className="p-6 text-center">
+                <Package size={26} className="mx-auto text-slate-400 opacity-40 mb-2" />
+                <p className="text-xs font-bold text-slate-400">No matching product found</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 mb-3">
+                  Register this item to preserve catalog standards and track stock
                 </p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenQuickCreate(searchTerm)}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold shadow-xs transition inline-flex items-center gap-1"
+                >
+                  <Plus size={13} />
+                  <span>Create "{searchTerm || "New Product"}"</span>
+                </button>
               </div>
             ) : (
               filteredProducts.map((prod) => {
@@ -282,6 +411,208 @@ export default function ProductCatalogSelector({
                 );
               })
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── QUICK CREATE PRODUCT MODAL (MINIMAL INFO) ───────────────── */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className={`w-full max-w-lg p-5 sm:p-6 rounded-2xl border shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 ${
+              isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+            }`}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-600 text-white shadow-xs">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight">Add New Item to Catalog</h3>
+                  <p className="text-[10px] text-slate-400">
+                    Register product with minimal info to preserve standards and inventory tracking
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {createError && (
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[11px] flex items-center gap-2">
+                <AlertTriangle size={14} className="flex-none" />
+                <span>{createError}</span>
+              </div>
+            )}
+
+            {/* Quick Form */}
+            <form onSubmit={handleQuickCreateSubmit} className="space-y-3.5">
+              {/* Product Name / Description (Required) */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Product Description / Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Porcelain Floor Tile 60x60 Grey Matt"
+                  value={newProductData.name}
+                  onChange={(e) =>
+                    setNewProductData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                    isDark
+                      ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
+                      : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
+                  }`}
+                />
+              </div>
+
+              {/* SKU & Category Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* SKU / Code (Optional) */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    SKU / Code <span className="text-slate-400 font-normal">(Auto if blank)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. TILE-6060-GRY"
+                    value={newProductData.sku}
+                    onChange={(e) =>
+                      setNewProductData((prev) => ({ ...prev, sku: e.target.value }))
+                    }
+                    className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                      isDark
+                        ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
+                        : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
+                    }`}
+                  />
+                </div>
+
+                {/* Category (Optional) */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Category <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <select
+                    value={newProductData.category_id || ""}
+                    onChange={(e) =>
+                      setNewProductData((prev) => ({
+                        ...prev,
+                        category_id: e.target.value ? parseInt(e.target.value) : null,
+                      }))
+                    }
+                    className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-bold transition ${
+                      isDark
+                        ? "bg-slate-800 border-slate-700 text-white"
+                        : "bg-slate-50 border-slate-200 text-slate-900"
+                    }`}
+                  >
+                    <option value="">General / Uncategorized</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id || cat.name} value={cat.id || ""}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Unit & Unit Cost Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Unit of Measurement */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Unit
+                  </label>
+                  <select
+                    value={newProductData.unit}
+                    onChange={(e) =>
+                      setNewProductData((prev) => ({ ...prev, unit: e.target.value }))
+                    }
+                    className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-bold transition ${
+                      isDark
+                        ? "bg-slate-800 border-slate-700 text-white"
+                        : "bg-slate-50 border-slate-200 text-slate-900"
+                    }`}
+                  >
+                    <option value="PCS">PCS (Pieces)</option>
+                    <option value="SQM">SQM (Square Meters)</option>
+                    <option value="MTR">MTR (Meters)</option>
+                    <option value="KG">KG (Kilograms)</option>
+                    <option value="BOX">BOX (Boxes)</option>
+                    <option value="SET">SET (Sets)</option>
+                    <option value="ROLL">ROLL (Rolls)</option>
+                    <option value="BAG">BAG (Bags)</option>
+                    <option value="LTR">LTR (Liters)</option>
+                    <option value="PKT">PKT (Packets)</option>
+                  </select>
+                </div>
+
+                {/* Default Unit Cost (Accounts Optional) */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Default Unit Cost ($) <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="0.00"
+                    value={newProductData.unit_cost}
+                    onChange={(e) =>
+                      setNewProductData((prev) => ({ ...prev, unit_cost: e.target.value }))
+                    }
+                    className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                      isDark
+                        ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
+                        : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={isCreating}
+                  className={`px-3.5 py-1.5 text-[11px] font-bold rounded-xl border transition ${
+                    isDark
+                      ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+                      : "border-slate-300 hover:bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating}
+                  className="px-4 py-1.5 text-[11px] font-bold rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Saving to Catalog...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={13} />
+                      <span>Save & Add to Order</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
