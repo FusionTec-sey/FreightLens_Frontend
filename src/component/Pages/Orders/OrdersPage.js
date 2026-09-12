@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ShoppingBag,
   Plus,
@@ -42,6 +43,7 @@ function getUserInfo() {
 }
 
 export default function OrdersPage() {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
   const { isRoot } = useAuth();
   const { orderStatuses = [] } = useOptions();
@@ -76,9 +78,7 @@ export default function OrdersPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleUseTemplate = (template) => {
-    setEditingOrder(null);
-    setTemplateForOrder(template);
-    setShowDrawer(true);
+    navigate("/orders/new", { state: { fromTemplate: template } });
   };
 
   const fetchOrders = async () => {
@@ -337,11 +337,7 @@ export default function OrdersPage() {
 
             <button
               type="button"
-              onClick={() => {
-                setEditingOrder(null);
-                setTemplateForOrder(null);
-                setShowDrawer(true);
-              }}
+              onClick={() => navigate("/orders/new")}
               className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-sm"
             >
               <Plus size={15} />
@@ -520,9 +516,7 @@ export default function OrdersPage() {
             orderStatuses={visibleStages}
             onStatusChange={handleStatusChange}
             onEditOrder={(order) => {
-              setEditingOrder(order);
-              setTemplateForOrder(null);
-              setShowDrawer(true);
+              navigate(`/orders/${order.id}/edit`, { state: { order } });
             }}
             onDeleteOrder={(order) => setOrderToDelete(order)}
           />
@@ -531,9 +525,7 @@ export default function OrdersPage() {
             orders={filteredOrders}
             orderStatuses={visibleStages}
             onEditOrder={(order) => {
-              setEditingOrder(order);
-              setTemplateForOrder(null);
-              setShowDrawer(true);
+              navigate(`/orders/${order.id}/edit`, { state: { order } });
             }}
             onDeleteOrder={(order) => setOrderToDelete(order)}
           />

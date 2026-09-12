@@ -21,6 +21,7 @@ import AdminOverview from "./Pages/Admin/AdminOverview.js";
 
 // Orders and Procurement Modules
 import OrdersPage from "./Pages/Orders/OrdersPage.js";
+import OrderEntryPage from "./Pages/Orders/OrderEntryPage.js";
 import StoreRequestsPage from "./Pages/Orders/StoreRequestsPage.js";
 import PackingListsPage from "./Pages/Orders/PackingListsPage.js";
 import GoodsReceivingPage from "./Pages/Orders/GoodsReceivingPage.js";
@@ -40,6 +41,10 @@ export default function MainPage() {
     document.body.classList.toggle("overflow-hidden", sidebarVisible);
   }, [sidebarVisible]);
   const { theme } = useTheme();
+  const isFullBleedPage =
+    isLoginPage ||
+    location.pathname === "/orders/new" ||
+    (location.pathname.startsWith("/orders/") && location.pathname.endsWith("/edit"));
 
   return (
     <div className={`flex min-h-screen relative ${theme.background}`}>
@@ -78,7 +83,7 @@ export default function MainPage() {
           </header>
         )}
 
-        <div className={`flex-1 overflow-y-auto min-h-0 flex flex-col ${theme.background} ${theme.text} ${theme.scrollbar} ${isLoginPage ? '' : 'p-3 sm:p-4 md:p-6'}`}>
+        <div className={`flex-1 overflow-y-auto min-h-0 flex flex-col ${theme.background} ${theme.text} ${theme.scrollbar} ${isFullBleedPage ? '' : 'p-3 sm:p-4 md:p-6'}`}>
           <Routes>
             <Route path="/" element={<LoginPage />} />
             
@@ -109,6 +114,8 @@ export default function MainPage() {
             {/* Tenant Admin & Procurement / Orders Routes */}
             <Route path="/admin" element={<PrivateRoute><AdminOverview /></PrivateRoute>} />
             <Route path="/orders" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_Order", "Order"]}><OrdersPage /></PrivateRoute>} />
+            <Route path="/orders/new" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["Add_Order", "View_Order", "Order"]}><OrderEntryPage /></PrivateRoute>} />
+            <Route path="/orders/:id/edit" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["Edit_Order", "View_Order", "Order"]}><OrderEntryPage /></PrivateRoute>} />
             <Route path="/store-requests" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_StoreRequest", "View_Order", "Order"]}><StoreRequestsPage /></PrivateRoute>} />
             <Route path="/packing-lists" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_PackingList", "View_Order", "Order"]}><PackingListsPage /></PrivateRoute>} />
             <Route path="/goods-receiving" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_GoodsReceipt", "View_Order", "Order", "Verify_Receipt"]}><GoodsReceivingPage /></PrivateRoute>} />
