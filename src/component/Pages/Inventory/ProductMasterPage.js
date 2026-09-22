@@ -29,10 +29,16 @@ import {
   FolderPlus,
   TrendingUp,
   ShoppingCart,
+  Film,
+  Video,
+  Play,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
+import { COUNTRIES, getCountryFlag, formatCountryDisplay } from "../../../utils/countries";
 
 const UOM_OPTIONS = [
   "PCS",
@@ -123,6 +129,13 @@ export default function ProductMasterPage() {
   });
   const [isLinking, setIsLinking] = useState(false);
 
+  // Product Media (Images & Videos) State
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [newVideoUrl, setNewVideoUrl] = useState("");
+  const [newVideoTitle, setNewVideoTitle] = useState("");
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [activeVideoPlaying, setActiveVideoPlaying] = useState(null);
+
   const initialFormData = {
     code: "",
     sku: "",
@@ -135,6 +148,9 @@ export default function ProductMasterPage() {
     model_number: "",
     series: "",
     country_of_origin: "",
+    images: [],
+    videos: [],
+    attachment: [],
     barcode: "",
     hs_code: "",
     duty_rate: "",
@@ -526,6 +542,9 @@ export default function ProductMasterPage() {
         expiry_days: p.expiry_days !== null && p.expiry_days !== undefined ? p.expiry_days : "",
         is_returnable: p.is_returnable !== undefined ? Boolean(p.is_returnable) : true,
         warranty_days: p.warranty_days !== null && p.warranty_days !== undefined ? p.warranty_days : "",
+        images: p.images || [],
+        videos: p.videos || [],
+        attachment: p.attachment || [],
       });
     } catch (err) {
       console.error("Failed to load product:", err);
@@ -559,6 +578,132 @@ export default function ProductMasterPage() {
     }
   };
 
+  // ── Media Action Handlers (Images & Videos) ──────────────────────────────
+  const handleAddImageUrl = () => {
+    if (!newImageUrl.trim()) return;
+    const imgObj = {
+      id: `img-${Date.now()}`,
+      file_name: newImageUrl.split("/").pop() || "product_image.jpg",
+      file_url: newImageUrl.trim(),
+      media_type: "image",
+      title: "Product Image",
+      uploaded_at: new Date().toISOString()
+    };
+    setFormData((prev) => ({
+      ...prev,
+      images: [...(prev?.images || []), imgObj]
+    }));
+    setNewImageUrl("");
+    toast.success("Image URL added to product.");
+  };
+
+  const handleUploadMediaFile = async (e, mediaType = "image") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (activeProduct?.id) {
+      setUploadingMedia(true);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await axios.post(
+          `${process.env.REACT_APP_NETWORK}/inventory/products/${activeProduct.id}/media?media_type=${mediaType}`,
+          form,
+          { headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" } }
+        );
+        const savedMedia = res.data.media;
+        if (mediaType === "video") {
+          setFormData((prev) => ({
+            ...prev,
+            videos: [...(prev?.videos || []), savedMedia]
+          }));
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            images: [...(prev?.images || []), savedMedia]
+          }));
+        }
+        toast.success(`${mediaType.toUpperCase()} uploaded successfully!`);
+      } catch (err) {
+        console.error("Media upload failed:", err);
+        toast.error("Failed to upload media file.");
+      } finally {
+        setUploadingMedia(false);
+      }
+    } else {
+      setUploadingMedia(true);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const folder = mediaType === "video" ? "products/videos" : "products/images";
+        const res = await axios.post(
+          `${process.env.REACT_APP_NETWORK}/blobs/upload?folder=${folder}`,
+          form,
+          { headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" } }
+        );
+        const mediaObj = {
+          id: `media-${Date.now()}`,
+          file_name: file.name,
+          file_url: res.data.object_key,
+          media_type: mediaType,
+          title: file.name,
+          file_size: file.size,
+          uploaded_at: new Date().toISOString()
+        };
+        if (mediaType === "video") {
+          setFormData((prev) => ({
+            ...prev,
+            videos: [...(prev?.videos || []), mediaObj]
+          }));
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            images: [...(prev?.images || []), mediaObj]
+          }));
+        }
+        toast.success(`${mediaType.toUpperCase()} stored in RustFS!`);
+      } catch (err) {
+        console.error("Media upload to RustFS failed:", err);
+        toast.error("Failed to upload media to RustFS.");
+      } finally {
+        setUploadingMedia(false);
+      }
+    }
+  };
+
+  const handleAddVideoUrl = () => {
+    if (!newVideoUrl.trim()) return;
+    const vidObj = {
+      id: `vid-${Date.now()}`,
+      file_name: newVideoTitle.trim() || newVideoUrl.split("/").pop() || "product_video.mp4",
+      file_url: newVideoUrl.trim(),
+      media_type: "video",
+      title: newVideoTitle.trim() || "Product Demonstration Video",
+      uploaded_at: new Date().toISOString()
+    };
+    setFormData((prev) => ({
+      ...prev,
+      videos: [...(prev?.videos || []), vidObj]
+    }));
+    setNewVideoUrl("");
+    setNewVideoTitle("");
+    toast.success("Video URL attached to product.");
+  };
+
+  const handleRemoveMedia = (mediaId, mediaType = "image") => {
+    if (mediaType === "video") {
+      setFormData((prev) => ({
+        ...prev,
+        videos: (prev?.videos || []).filter((v) => v.id !== mediaId)
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        images: (prev?.images || []).filter((img) => img.id !== mediaId)
+      }));
+    }
+  };
+
   // ── Save Product Action ────────────────────────────────────────────────────
   const handleSaveProduct = async (e) => {
     if (e) e.preventDefault();
@@ -582,7 +727,7 @@ export default function ProductMasterPage() {
         brand: formData.brand.trim() || null,
         model_number: formData.model_number.trim() || null,
         series: formData.series.trim() || null,
-        country_of_origin: formData.country_of_origin.trim() ? formData.country_of_origin.trim().toUpperCase() : null,
+        country_of_origin: formData.country_of_origin ? formData.country_of_origin.trim() : null,
         barcode: formData.barcode.trim() || null,
         hs_code: formData.hs_code.trim() || null,
         duty_rate: formData.duty_rate !== "" ? parseFloat(formData.duty_rate) : null,
@@ -605,6 +750,9 @@ export default function ProductMasterPage() {
         min_quantity_order: formData.min_quantity_order !== "" ? parseFloat(formData.min_quantity_order) : null,
         lead_time_days: formData.lead_time_days !== "" ? parseInt(formData.lead_time_days, 10) : null,
         default_supplier_id: formData.default_supplier_id ? parseInt(formData.default_supplier_id, 10) : null,
+        images: formData.images || [],
+        videos: formData.videos || [],
+        attachment: formData.attachment || [],
         is_consumable: Boolean(formData.is_consumable),
         is_hazardous: Boolean(formData.is_hazardous),
         is_perishable: Boolean(formData.is_perishable),
@@ -883,6 +1031,22 @@ export default function ProductMasterPage() {
                 >
                   {formData?.status || "ACTIVE"}
                 </span>
+                {formData?.country_of_origin && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                    <span>{getCountryFlag(formData.country_of_origin)}</span>
+                    <span>{formatCountryDisplay(formData.country_of_origin)}</span>
+                  </span>
+                )}
+                {formData?.videos && formData.videos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveProductTab("media")}
+                    className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 font-bold border border-rose-500/20 flex items-center gap-1 hover:bg-rose-500/20 transition cursor-pointer"
+                  >
+                    <Play size={10} fill="currentColor" />
+                    <span>{formData.videos.length} {formData.videos.length === 1 ? "Video" : "Videos"}</span>
+                  </button>
+                )}
               </div>
               <h2 className="text-xl font-extrabold tracking-tight mt-0.5">
                 {formData?.name || "Register Product Master Item"}
@@ -922,6 +1086,11 @@ export default function ProductMasterPage() {
           {[
             { id: "overview", label: "Overview & Orders Pipeline", icon: TrendingUp },
             { id: "basic", label: "Identity & Classification", icon: Boxes },
+            {
+              id: "media",
+              label: `Media & Videos (${(formData?.images?.length || 0) + (formData?.videos?.length || 0)})`,
+              icon: Film,
+            },
             { id: "trade", label: "Customs & HS Code", icon: Truck },
             { id: "dimensions", label: "Dimensions & Packaging", icon: Ruler },
             { id: "inventory", label: "Inventory & Stock Rules", icon: Layers },
@@ -1287,17 +1456,22 @@ export default function ProductMasterPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold mb-1">Country of Origin (ISO-2)</label>
-                    <input
-                      type="text"
-                      maxLength={2}
+                    <label className="block text-xs font-bold mb-1">Country of Origin</label>
+                    <select
                       value={formData?.country_of_origin || ""}
-                      onChange={(e) => setFormData({ ...formData, country_of_origin: e.target.value.toUpperCase() })}
-                      placeholder="e.g. CN, IN, IT, ES"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      onChange={(e) => setFormData({ ...formData, country_of_origin: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                         isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
                       }`}
-                    />
+                    >
+                      <option value="">— Select Manufacturing Country of Origin —</option>
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.name}>
+                          {c.flag} {c.name} ({c.code})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-slate-400 mt-1">Country of origin used for customs clearing and landed valuation</p>
                   </div>
 
                   <div>
@@ -1923,6 +2097,282 @@ export default function ProductMasterPage() {
                   </div>
                 </div>
               )}
+
+              {/* TAB 8: MEDIA & VIDEOS */}
+              {activeProductTab === "media" && (
+                <div className="space-y-8">
+                  {/* Active Video Player Section */}
+                  {activeVideoPlaying && (
+                    <div className="p-4 rounded-2xl border border-indigo-500/30 bg-slate-950 text-white shadow-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Play size={16} className="text-rose-500 fill-rose-500" />
+                          <h4 className="text-sm font-bold truncate">{activeVideoPlaying.title || activeVideoPlaying.file_name}</h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveVideoPlaying(null)}
+                          className="p-1 text-slate-400 hover:text-white transition cursor-pointer"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      <div className="relative rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                        {activeVideoPlaying.file_url.includes("youtube.com") || activeVideoPlaying.file_url.includes("youtu.be") ? (
+                          <iframe
+                            src={
+                              activeVideoPlaying.file_url.includes("youtu.be/")
+                                ? `https://www.youtube.com/embed/${activeVideoPlaying.file_url.split("youtu.be/")[1].split("?")[0]}`
+                                : `https://www.youtube.com/embed/${new URLSearchParams(activeVideoPlaying.file_url.split("?")[1] || "").get("v")}`
+                            }
+                            title="Product Video"
+                            className="w-full h-80 border-0"
+                            allowFullScreen
+                          />
+                        ) : activeVideoPlaying.file_url.includes("vimeo.com") ? (
+                          <iframe
+                            src={`https://player.vimeo.com/video/${activeVideoPlaying.file_url.split("/").pop()}`}
+                            title="Product Video"
+                            className="w-full h-80 border-0"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video
+                            controls
+                            autoPlay
+                            src={
+                              activeVideoPlaying.file_url.startsWith("http") || activeVideoPlaying.file_url.startsWith("blob:")
+                                ? activeVideoPlaying.file_url
+                                : `${process.env.REACT_APP_NETWORK}/blobs/${activeVideoPlaying.file_url}`
+                            }
+                            className="w-full max-h-96 rounded-xl"
+                          >
+                            Your browser does not support HTML5 video playback.
+                          </video>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 1: Product Images Gallery */}
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                      <div>
+                        <h4 className="text-sm font-bold flex items-center gap-2">
+                          <ImageIcon size={16} className="text-indigo-500" />
+                          <span>Product Images Gallery ({formData?.images?.length || 0})</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          High-resolution visual assets for catalog, packing lists, and verification
+                        </p>
+                      </div>
+
+                      {/* Image Upload & Link Controls */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className="cursor-pointer px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+                          <Upload size={13} />
+                          <span>Upload Image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleUploadMediaFile(e, "image")}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Quick Add Image by URL */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Or paste external Image URL (https://...)"
+                        value={newImageUrl}
+                        onChange={(e) => setNewImageUrl(e.target.value)}
+                        className={`flex-1 px-3.5 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddImageUrl}
+                        className="px-3.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-bold transition cursor-pointer"
+                      >
+                        Add URL
+                      </button>
+                    </div>
+
+                    {/* Image Cards Grid */}
+                    {(!formData?.images || formData.images.length === 0) ? (
+                      <div
+                        className={`p-8 text-center rounded-xl border border-dashed text-xs text-slate-400 ${
+                          isDark ? "border-slate-800 bg-slate-800/20" : "border-slate-300 bg-slate-50"
+                        }`}
+                      >
+                        <ImageIcon size={32} className="mx-auto mb-2 opacity-30 text-indigo-500" />
+                        <p className="font-semibold">No product images attached</p>
+                        <p className="text-[11px] mt-0.5">Upload product photos or paste image URLs to populate the gallery.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                        {formData.images.map((img, idx) => (
+                          <div
+                            key={img.id || idx}
+                            className={`group relative rounded-xl border overflow-hidden p-2 flex flex-col justify-between ${
+                              isDark ? "bg-slate-800/60 border-slate-700" : "bg-white border-slate-200 shadow-xs"
+                            }`}
+                          >
+                            <div className="relative w-full h-32 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                              <img
+                                src={
+                                  img.file_url.startsWith("http") || img.file_url.startsWith("blob:")
+                                    ? img.file_url
+                                    : `${process.env.REACT_APP_NETWORK}/blobs/${img.file_url}`
+                                }
+                                alt={img.title || "Product"}
+                                className="w-full h-full object-contain"
+                                onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=Image"; }}
+                              />
+                              {idx === 0 && (
+                                <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-600 text-white shadow-xs">
+                                  PRIMARY
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedia(img.id, "image")}
+                                className="absolute top-1.5 right-1.5 p-1 rounded-full bg-rose-600 text-white opacity-0 group-hover:opacity-100 transition shadow-md cursor-pointer"
+                                title="Remove Image"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                            <div className="mt-2">
+                              <div className="text-[11px] font-semibold truncate text-slate-800 dark:text-slate-200">
+                                {img.title || img.file_name || `Image #${idx + 1}`}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section 2: Product Demonstration Videos */}
+                  <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+                      <div>
+                        <h4 className="text-sm font-bold flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                          <Video size={16} />
+                          <span>Demonstration & Product Videos ({formData?.videos?.length || 0})</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Attach product videos, operational guides, or factory unboxing clips (MP4, WebM, YouTube, Vimeo)
+                        </p>
+                      </div>
+
+                      {/* Video Upload Button */}
+                      <label className="cursor-pointer px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+                        <Upload size={13} />
+                        <span>Upload Video (MP4/WebM)</span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm,video/*"
+                          className="hidden"
+                          onChange={(e) => handleUploadMediaFile(e, "video")}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Attach Video by URL */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <input
+                        type="text"
+                        placeholder="Video Title (e.g. Factory Inspection Clip)"
+                        value={newVideoTitle}
+                        onChange={(e) => setNewVideoTitle(e.target.value)}
+                        className={`px-3.5 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 ${
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                        }`}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Video URL (e.g. https://... or YouTube link)"
+                        value={newVideoUrl}
+                        onChange={(e) => setNewVideoUrl(e.target.value)}
+                        className={`px-3.5 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 ${
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddVideoUrl}
+                        className="px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 hover:bg-rose-100 border border-rose-200 dark:border-rose-900 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus size={14} />
+                        <span>Attach Video URL</span>
+                      </button>
+                    </div>
+
+                    {/* Video Cards Grid */}
+                    {(!formData?.videos || formData.videos.length === 0) ? (
+                      <div
+                        className={`p-8 text-center rounded-xl border border-dashed text-xs text-slate-400 ${
+                          isDark ? "border-slate-800 bg-slate-800/20" : "border-slate-300 bg-slate-50"
+                        }`}
+                      >
+                        <Film size={32} className="mx-auto mb-2 opacity-30 text-rose-500" />
+                        <p className="font-semibold">No product videos attached</p>
+                        <p className="text-[11px] mt-0.5">Upload a video clip or attach a video link to preview product mechanics and demos.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {formData.videos.map((vid, vIdx) => (
+                          <div
+                            key={vid.id || vIdx}
+                            className={`p-3.5 rounded-xl border flex flex-col justify-between space-y-3 ${
+                              isDark ? "bg-slate-800/60 border-slate-700" : "bg-white border-slate-200 shadow-xs"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500">
+                                  <Video size={16} />
+                                </div>
+                                <div>
+                                  <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[180px]">
+                                    {vid.title || vid.file_name || `Video #${vIdx + 1}`}
+                                  </h5>
+                                  <span className="text-[10px] text-slate-400 font-mono block truncate max-w-[180px]">
+                                    {vid.file_name}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedia(vid.id, "video")}
+                                className="p-1 text-slate-400 hover:text-rose-500 transition cursor-pointer"
+                                title="Delete Video"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setActiveVideoPlaying(vid)}
+                              className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                            >
+                              <Play size={13} fill="currentColor" />
+                              <span>Play Video</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -2539,25 +2989,70 @@ export default function ProductMasterPage() {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <div className="font-bold text-slate-900 dark:text-white">{p.name}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        {p.brand && (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                            {p.brand}
-                          </span>
-                        )}
-                        {p.model_number && (
-                          <span className="text-[10px] font-mono text-slate-400">Mod: {p.model_number}</span>
-                        )}
-                        {p.hs_code && (
-                          <span className="text-[10px] font-mono text-slate-400">HS: {p.hs_code}</span>
-                        )}
-                      </div>
-                      {p.description_quick && (
-                        <div className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
-                          {p.description_quick}
+                      <div className="flex items-center gap-3">
+                        {/* Primary Image Thumbnail with Play Badge for Video */}
+                        <div className="relative w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                          {p.images && p.images.length > 0 ? (
+                            <img
+                              src={
+                                p.images[0].file_url?.startsWith("http") || p.images[0].file_url?.startsWith("blob:")
+                                  ? p.images[0].file_url
+                                  : `${process.env.REACT_APP_NETWORK}/blobs/${p.images[0].file_url}`
+                              }
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <Boxes size={18} className="text-slate-400 opacity-60" />
+                          )}
+                          {p.videos && p.videos.length > 0 && (
+                            <span
+                              className="absolute bottom-0.5 right-0.5 p-0.5 rounded-full bg-rose-600 text-white shadow-xs"
+                              title={`${p.videos.length} video(s) available`}
+                            >
+                              <Play size={8} className="fill-white" />
+                            </span>
+                          )}
                         </div>
-                      )}
+
+                        {/* Name & Metadata */}
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-900 dark:text-white truncate max-w-sm">{p.name}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {p.country_of_origin && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                <span>{getCountryFlag(p.country_of_origin)}</span>
+                                <span>{p.country_of_origin}</span>
+                              </span>
+                            )}
+                            {p.brand && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                {p.brand}
+                              </span>
+                            )}
+                            {p.model_number && (
+                              <span className="text-[10px] font-mono text-slate-400">Mod: {p.model_number}</span>
+                            )}
+                            {p.hs_code && (
+                              <span className="text-[10px] font-mono text-slate-400">HS: {p.hs_code}</span>
+                            )}
+                            {p.videos && p.videos.length > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center gap-1">
+                                <Film size={10} />
+                                <span>{p.videos.length}</span>
+                              </span>
+                            )}
+                          </div>
+                          {p.description_quick && (
+                            <div className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
+                              {p.description_quick}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
 
                     {/* Clean Category Column */}

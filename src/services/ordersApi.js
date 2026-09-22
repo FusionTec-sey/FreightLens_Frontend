@@ -70,19 +70,23 @@ export const ordersApi = {
         .catch(() => ({ data: [] }));
       const orgs = orgRes.data || [];
       return {
-        groups: [{ id: 1, name: "Freightliner Group" }],
+        groups: [{ id: 1, name: "Sahaj Group of Companies" }],
         companies: orgs.length
-          ? orgs.map((o) => ({
-              id: o.id || o.org_id,
-              code: o.code || `ORG${o.id || 1}`,
-              name: o.name || o.org_name || "Company",
-              request_prefix: "REQ",
-              po_prefix: "PO",
-              active: true,
-            }))
+          ? orgs.map((o) => {
+              const code = o.code || (o.id === 1 ? "SAHAJ" : o.id === 2 ? "NOBLE" : o.id === 3 ? "SAHAJANAND" : `ORG${o.id || 1}`);
+              return {
+                id: o.id || o.org_id,
+                code: code,
+                name: o.display_name || o.name || o.org_name || "Company",
+                request_prefix: `REQ-${code}`,
+                po_prefix: `PO-${code}`,
+                active: true,
+              };
+            })
           : [
-              { id: 1, code: "FL", name: "Freightliner Ltd", request_prefix: "REQ", po_prefix: "PO", active: true },
-              { id: 2, code: "ST", name: "Sahaj Trading", request_prefix: "REQ", po_prefix: "PO", active: true },
+              { id: 1, code: "SAHAJ", name: "SAHAJ CONSTRUCTION", request_prefix: "REQ-SAHAJ", po_prefix: "PO-SAHAJ", active: true },
+              { id: 2, code: "NOBLE", name: "NOBLECON ENTERPRISE", request_prefix: "REQ-NOBLE", po_prefix: "PO-NOBLE", active: true },
+              { id: 3, code: "SAHAJANAND", name: "SAHAJANAND", request_prefix: "REQ-SAHAJANAND", po_prefix: "PO-SAHAJANAND", active: true },
             ],
       };
     }

@@ -60,7 +60,7 @@ export default function GenericSelector({
     if (!addApi || !newName.trim()) return;
 
     try {
-      await axios.post(
+      const res = await axios.post(
         `${process.env.REACT_APP_NETWORK}/${addApi}`,
         { [labelKey]: newName.trim() },
         {
@@ -68,15 +68,20 @@ export default function GenericSelector({
             Authorization: `Bearer ${localStorage.getItem("token")}`,
             "skip_zrok_interstitial": "true",
           },
-          
         }
       );
+      const created = res.data;
+      const createdId = created?.[valueKey] || created?.id;
+      if (createdId != null) {
+        onChange?.(createdId);
+        setInput(created[labelKey] || newName.trim());
+      }
       onAddNew?.(); // Notify parent to refresh
     } catch (err) {
       console.error("Add new failed:", err);
       alert("Failed to add new item.");
-    } finally {
       setInput("");
+    } finally {
       setShowPopup(false);
       setDropdownOpen(false);
     }

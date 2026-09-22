@@ -5,20 +5,17 @@ import {
   Package,
   Layers,
   Boxes,
-  Info,
-  Building2,
   Check,
   ChevronDown,
   X,
   Plus,
   AlertTriangle,
-  TrendingUp,
   MapPin,
-  Clock,
   Loader2,
   Sparkles
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
+import CurrencyInput from "./CurrencyInput";
 
 export default function ProductCatalogSelector({
   products = [],
@@ -27,9 +24,15 @@ export default function ProductCatalogSelector({
   placeholder = "Search and select product from catalog...",
   className = "",
   isAccountsOrAdmin = false,
+  showFinancials = false,
+  isRFQ = false,
   suppliers = [],
+  currency = "USD",
+  currencySymbol = "$",
 }) {
   const { isDark } = useTheme();
+  const canShowPrices = !isRFQ && (showFinancials || isAccountsOrAdmin);
+  const canShowVendor = !isRFQ;
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedStockProduct, setSelectedStockProduct] = useState(null);
@@ -52,21 +55,67 @@ export default function ProductCatalogSelector({
     min_stock_quantity: 0,
   });
 
-  // Extract unique categories from products
+  // Remote Meilisearch lookup state
+  const [remoteResults, setRemoteResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Debounced search against backend Meilisearch lookup endpoint
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (!trimmed) {
+      setRemoteResults(null);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(
+          `${process.env.REACT_APP_NETWORK}/inventory/lookup`,
+          {
+            params: {
+              q: trimmed,
+              is_rfq: isRFQ || false,
+              limit: 50,
+            },
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              skip_zrok_interstitial: "true",
+            },
+          }
+        );
+        setRemoteResults(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.warn("Meilisearch remote lookup failed, falling back to local list:", err);
+        setRemoteResults(null);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, isRFQ]);
+
+  // Extract unique categories from products (or remote results)
+  const sourceProducts = remoteResults !== null ? remoteResults : products;
+
   const categories = useMemo(() => {
     const cats = new Map();
-    products.forEach((p) => {
+    sourceProducts.forEach((p) => {
       if (p.category_name) {
         cats.set(p.category_name, p.category_id || null);
       }
     });
     return Array.from(cats.entries()).map(([name, id]) => ({ name, id }));
-  }, [products]);
+  }, [sourceProducts]);
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return sourceProducts.filter((p) => {
       const matchSearch =
+        remoteResults !== null ||
         !searchTerm.trim() ||
         p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -80,7 +129,7 @@ export default function ProductCatalogSelector({
 
       return matchSearch && matchCategory;
     });
-  }, [products, searchTerm, categoryFilter]);
+  }, [sourceProducts, remoteResults, searchTerm, categoryFilter]);
 
   // Click outside listener
   useEffect(() => {
@@ -214,6 +263,9 @@ export default function ProductCatalogSelector({
           />
 
           <div className="absolute right-1.5 flex items-center gap-1">
+            {isSearching && (
+              <Loader2 size={12} className="animate-spin text-blue-500 mr-0.5" />
+            )}
             {searchTerm && (
               <button
                 type="button"
@@ -276,7 +328,7 @@ export default function ProductCatalogSelector({
                     : "text-slate-600 hover:bg-slate-200"
                 }`}
               >
-                All ({products.length})
+                All ({sourceProducts.length})
               </button>
               {categories.map((cat) => (
                 <button
@@ -294,6 +346,33 @@ export default function ProductCatalogSelector({
                   {cat.name}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Active Search Status / Meilisearch Badge Bar */}
+          {searchTerm.trim() && (
+            <div
+              className={`px-3 py-1 text-[10px] font-medium border-b flex items-center justify-between ${
+                isDark ? "bg-slate-950/40 border-slate-800/80 text-slate-400" : "bg-slate-50/80 border-slate-100 text-slate-500"
+              }`}
+            >
+              <span className="flex items-center gap-1.5 truncate">
+                {isSearching ? (
+                  <>
+                    <Loader2 size={10} className="animate-spin text-blue-500 flex-none" />
+                    <span>Searching catalog...</span>
+                  </>
+                ) : (
+                  <span>
+                    {filteredProducts.length} result{filteredProducts.length === 1 ? "" : "s"} for "{searchTerm}"
+                  </span>
+                )}
+              </span>
+              {remoteResults !== null && !isSearching && (
+                <span className="flex items-center gap-1 text-[10px] text-blue-500 dark:text-blue-400 font-semibold flex-none pl-2">
+                  <Sparkles size={10} /> Fast Search
+                </span>
+              )}
             </div>
           )}
 
@@ -351,7 +430,7 @@ export default function ProductCatalogSelector({
                         )}
 
                         {/* Brand (Optional) */}
-                        {prod.brand && (
+                        {prod.brand && canShowVendor && (
                           <span className="text-[10px] text-slate-400 font-medium">
                             • {prod.brand}
                           </span>
@@ -385,9 +464,9 @@ export default function ProductCatalogSelector({
                         <div>
                           {stock} {prod.unit || "PCS"}
                         </div>
-                        {isAccountsOrAdmin && prod.unit_cost && (
+                        {canShowPrices && prod.unit_cost && (
                           <div className="text-[9px] text-slate-400">
-                            ${prod.unit_cost}
+                            {currencySymbol} {parseFloat(prod.unit_cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         )}
                       </div>
@@ -559,25 +638,27 @@ export default function ProductCatalogSelector({
                 </div>
 
                 {/* Default Unit Cost (Accounts Optional) */}
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    Default Unit Cost ($) <span className="text-slate-400 font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="0.00"
-                    value={newProductData.unit_cost}
-                    onChange={(e) =>
-                      setNewProductData((prev) => ({ ...prev, unit_cost: e.target.value }))
-                    }
-                    className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
-                      isDark
-                        ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
-                        : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
-                    }`}
-                  />
-                </div>
+                {canShowPrices && (
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Default Unit Cost ({currencySymbol}) <span className="text-slate-400 font-normal">(Optional)</span>
+                    </label>
+                    <CurrencyInput
+                      currency={currency}
+                      symbol={currencySymbol}
+                      placeholder="0.00"
+                      value={newProductData.unit_cost}
+                      onChange={(e) =>
+                        setNewProductData((prev) => ({ ...prev, unit_cost: e.target.value }))
+                      }
+                      className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${
+                        isDark
+                          ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
+                          : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
+                      }`}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -671,7 +752,7 @@ export default function ProductCatalogSelector({
                   </span>
                 </div>
               )}
-              {selectedStockProduct.supplier_name && (
+              {canShowVendor && selectedStockProduct.supplier_name && (
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Default Supplier:</span>
                   <span className="font-medium">{selectedStockProduct.supplier_name}</span>

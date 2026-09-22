@@ -1,45 +1,50 @@
 // ThemeContext.js
-import { button, s, text } from "framer-motion/m";
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 const ThemeContext = createContext();
 
+/**
+ * Ergonomic, Low-Eye-Strain Theme Tokens (DES / Computer Vision Syndrome Research Compliant)
+ * - Light: Off-white slate background (replaces blinding pure #ffffff) with charcoal slate text (replaces harsh #000000).
+ * - Dark: Deep balanced slate #0F172A (replaces pitch-black #000000) to eliminate halation and accommodative stress.
+ * - Accents: Calmer indigo/slate tones rather than piercing high-frequency neon blue.
+ */
 const themes = {
   light: {
-    background: "bg-white text-gray-900",
+    background: "bg-slate-50 text-slate-800",
     surface: "bg-white",
-    mutedBg: "bg-gray-100",
-    border: "border-gray-200",
-    hover: "hover:bg-gray-50",
-    profileText: "text-gray-600",
-    mutedText: "text-gray-600",
-    accentText: "text-blue-600",
-    tableHeader: "bg-gray-100 text-gray-700",
-    tableRow: "hover:bg-gray-50",
-    tableText: "text-gray-900",
-    tableMutedText: "text-gray-600",
-    scrollbar: "scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100",
-    shadow: "shadow-lg shadow-gray-200",
-    button: "bg-blue-600 text-white hover:bg-blue-700",
-    text: "text-gray-900",
+    mutedBg: "bg-slate-100/90",
+    border: "border-slate-200",
+    hover: "hover:bg-slate-100/80",
+    profileText: "text-slate-600",
+    mutedText: "text-slate-500",
+    accentText: "text-indigo-600",
+    tableHeader: "bg-slate-100/90 text-slate-700",
+    tableRow: "hover:bg-slate-100/60",
+    tableText: "text-slate-800",
+    tableMutedText: "text-slate-500",
+    scrollbar: "scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100",
+    shadow: "shadow-md shadow-slate-200/60",
+    button: "bg-indigo-600 text-white hover:bg-indigo-700",
+    text: "text-slate-800",
   },
   dark: {
-    background: "bg-slate-950 text-white",
-    surface: "bg-slate-900",
-    mutedBg: "bg-slate-800",
-    border: "border-slate-700",
-    hover: "hover:bg-slate-800",
-    profileText: "text-slate-300",
-    mutedText: "text-slate-300",
-    accentText: "text-blue-400",
-    tableHeader: "bg-slate-800 text-slate-200",
-    tableRow: "hover:bg-slate-800",
-    tableText: "text-white",
-    tableMutedText: "text-slate-300",
+    background: "bg-[#0F172A] text-slate-200",
+    surface: "bg-[#1E293B]",
+    mutedBg: "bg-slate-800/90",
+    border: "border-slate-700/80",
+    hover: "hover:bg-slate-800/80",
+    profileText: "text-slate-400",
+    mutedText: "text-slate-400",
+    accentText: "text-indigo-400",
+    tableHeader: "bg-slate-800 text-slate-300",
+    tableRow: "hover:bg-slate-800/60",
+    tableText: "text-slate-200",
+    tableMutedText: "text-slate-400",
     scrollbar: "scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800",
-    shadow: "shadow-lg shadow-slate-900",
-    button: "bg-blue-600 text-white hover:bg-blue-700",
-    text: "text-white",
+    shadow: "shadow-md shadow-slate-950/40",
+    button: "bg-indigo-600 text-slate-100 hover:bg-indigo-500",
+    text: "text-slate-200",
   },
 };
 

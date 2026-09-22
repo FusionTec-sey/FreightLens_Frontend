@@ -16,7 +16,9 @@ import {
   PackageCheck,
   ShieldAlert,
   FileSpreadsheet,
-  Boxes
+  Boxes,
+  Database,
+  GitCompare
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
@@ -24,15 +26,31 @@ import { useTheme } from "../../context/ThemeContext";
 import logo from "../../assets/Images/Freightliner.png";
 
 function Sidebar({ onLinkClick }) {
+  const [isSourcingOpen, setIsSourcingOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isContainerOpen, setIsContainerOpen] = useState(false);
+  const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { permissions, user, logout, isRoot, hasModule } = useAuth();
   const { isDark, theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const hasPermission = (field) => permissions.includes(`${field}`);
+  const hasPermission = (field) => {
+    if (permissions.includes(field)) return true;
+    if (field.startsWith("View_")) {
+      const suffix = field.slice(5);
+      if (
+        permissions.includes(`Edit_${suffix}`) ||
+        permissions.includes(`Add_${suffix}`) ||
+        permissions.includes(`Delete_${suffix}`) ||
+        permissions.includes(suffix)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
   const initial = user ? user.charAt(0).toUpperCase() : "U";
 
   const handleLogout = () => {
@@ -46,9 +64,14 @@ function Sidebar({ onLinkClick }) {
 
   const isActive = (path) => location.pathname === path;
 
+  const isSourcingActive = isActive("/sourcing") || isActive("/store-requests");
+
   const isOrdersActive =
     isActive("/orders") ||
-    isActive("/store-requests") ||
+    isActive("/orders/quotes") ||
+    isActive("/quotes") ||
+    isActive("/templates") ||
+    isActive("/orders/templates") ||
     isActive("/packing-lists") ||
     isActive("/goods-receiving") ||
     isActive("/damage-defects") ||
@@ -59,12 +82,19 @@ function Sidebar({ onLinkClick }) {
     isActive("/BillOfLanding") ||
     isActive("/Complete");
 
+  const isMasterDataActive =
+    isActive("/master-data/suppliers") ||
+    isActive("/master-data/currencies") ||
+    isActive("/master-data/payment-terms");
+
   return (
     <div
       className={`flex flex-col h-full ${theme.background} group md:w-16 md:hover:w-64 w-64 transition-all duration-300 overflow-hidden border-r-2 ${theme.border}`}
       onMouseLeave={() => {
+        setIsSourcingOpen(false);
         setIsOrdersOpen(false);
         setIsContainerOpen(false);
+        setIsMasterDataOpen(false);
         setIsSettingsOpen(false);
       }}
       role="navigation"
@@ -103,74 +133,175 @@ function Sidebar({ onLinkClick }) {
             <span className={textClass}>Dashboard</span>
           </Link>
 
-          {/* ── ORDERS MODULE (Primary Daily Workflow) ── */}
-          {hasModule("ORDERS") && (hasPermission("View_Order") || isRoot || permissions.includes("Administrator")) && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setIsOrdersOpen(!isOrdersOpen)}
-                className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
-                  isOrdersActive ? "bg-blue-600/10 text-blue-600 font-semibold" : ""
-                }`}
-              >
-                <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                  <ShoppingBag size={18} className="text-blue-500" />
-                </div>
-                <span className={textClass}>Orders</span>
-                <ChevronDown
-                  size={16}
-                  className={`ml-auto transition-transform ${
-                    isOrdersOpen ? "rotate-180" : ""
-                  } md:opacity-0 md:group-hover:opacity-100`}
-                />
-              </button>
+          {/* ── 1. SOURCING MODULE (Requisitions & RFQs) ── */}
+          {(() => {
+            const canViewRFQ = hasPermission("View_RFQ") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
+            const canViewStoreReq = hasPermission("View_StoreRequest") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
+            const canViewTemplates = hasPermission("View_OrderTemplate") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
+            const canViewPO = hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
 
-              <div className={`${isOrdersOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
-                <Link
-                  to="/orders"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/orders") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
+            const canViewSourcingMenu = hasModule("ORDERS") && (canViewRFQ || canViewStoreReq || (!canViewPO && canViewTemplates));
+            if (!canViewSourcingMenu) return null;
+
+            return (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsSourcingOpen(!isSourcingOpen)}
+                  className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
+                    isSourcingActive ? "bg-amber-600/10 text-amber-600 font-semibold" : ""
+                  }`}
                 >
-                  Purchase Orders
-                </Link>
-                <Link
-                  to="/store-requests"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/store-requests") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Store Requests
-                </Link>
-                <Link
-                  to="/packing-lists"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/packing-lists") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Packing Lists
-                </Link>
-                <Link
-                  to="/goods-receiving"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/goods-receiving") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Goods Receiving
-                </Link>
-                <Link
-                  to="/damage-defects"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/damage-defects") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Damage & Defects
-                </Link>
-                <Link
-                  to="/daily-operations"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/daily-operations") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Daily Work & EOD
-                </Link>
+                  <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
+                    <GitCompare size={18} className="text-amber-500" />
+                  </div>
+                  <span className={textClass}>Sourcing</span>
+                  <ChevronDown
+                    size={16}
+                    className={`ml-auto transition-transform ${
+                      isSourcingOpen ? "rotate-180" : ""
+                    } md:opacity-0 md:group-hover:opacity-100`}
+                  />
+                </button>
+
+                <div className={`${isSourcingOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
+                  {canViewRFQ && (
+                    <Link
+                      to="/sourcing"
+                      className={`block text-xs py-1 hover:text-amber-500 ${isActive("/sourcing") ? "text-amber-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Sourcing Requisitions
+                    </Link>
+                  )}
+                  {canViewStoreReq && (
+                    <Link
+                      to="/store-requests"
+                      className={`block text-xs py-1 hover:text-amber-500 ${isActive("/store-requests") ? "text-amber-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Store Requests
+                    </Link>
+                  )}
+                  {!canViewPO && canViewTemplates && (
+                    <Link
+                      to="/templates"
+                      className={`block text-xs py-1 hover:text-amber-500 ${isActive("/templates") ? "text-amber-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Order Templates
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
+
+          {/* ── 2. PURCHASE ORDERS MODULE (Orders, Quotes, Receiving & Defects) ── */}
+          {(() => {
+            const canViewPO = hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
+            const canViewQuotes = hasPermission("Compare_Quote") || hasPermission("View_VendorQuote") || hasPermission("Send_RFQ") || canViewPO;
+            const canViewTemplates = hasPermission("View_OrderTemplate") || canViewPO;
+            const canViewPackingList = hasPermission("View_PackingList") || canViewPO;
+            const canViewReceiving = hasPermission("View_Receiving") || canViewPO;
+            const canViewDefects = hasPermission("View_Defect") || hasPermission("Add_Defect") || canViewPO;
+            const canViewDailyWork = hasPermission("View_DailyWork") || canViewPO;
+
+            const canViewOrdersMenu = hasModule("ORDERS") && (
+              canViewPO || canViewQuotes || canViewTemplates || canViewPackingList || canViewReceiving || canViewDefects || canViewDailyWork
+            );
+
+            if (!canViewOrdersMenu) return null;
+
+            return (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsOrdersOpen(!isOrdersOpen)}
+                  className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
+                    isOrdersActive ? "bg-blue-600/10 text-blue-600 font-semibold" : ""
+                  }`}
+                >
+                  <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
+                    <ShoppingBag size={18} className="text-blue-500" />
+                  </div>
+                  <span className={textClass}>Purchase Orders</span>
+                  <ChevronDown
+                    size={16}
+                    className={`ml-auto transition-transform ${
+                      isOrdersOpen ? "rotate-180" : ""
+                    } md:opacity-0 md:group-hover:opacity-100`}
+                  />
+                </button>
+
+                <div className={`${isOrdersOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
+                  {canViewPO && (
+                    <Link
+                      to="/orders"
+                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/orders") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Purchase Orders
+                    </Link>
+                  )}
+                  {canViewQuotes && (
+                    <Link
+                      to="/orders/quotes"
+                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/orders/quotes") || isActive("/quotes") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Vendor Quotes & Bidding
+                    </Link>
+                  )}
+                  {canViewTemplates && (
+                    <Link
+                      to="/templates"
+                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/templates") || isActive("/orders/templates") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Manage Templates
+                    </Link>
+                  )}
+                  {canViewPackingList && (
+                    <Link
+                      to="/packing-lists"
+                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/packing-lists") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Packing Lists
+                    </Link>
+                  )}
+                  {canViewReceiving && (
+                    <Link
+                      to="/goods-receiving"
+                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/goods-receiving") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Goods Receiving
+                    </Link>
+                  )}
+                  {canViewDefects && (
+                    <Link
+                      to="/damage-defects"
+                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/damage-defects") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Damage & Defects
+                    </Link>
+                  )}
+                  {canViewDailyWork && (
+                    <Link
+                      to="/daily-operations"
+                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/daily-operations") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                      onClick={onLinkClick}
+                    >
+                      Daily Work & EOD
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── CONTAINERS MODULE ── */}
           {hasModule("LOGISTICS") && hasPermission("View_Container") && (
@@ -238,6 +369,54 @@ function Sidebar({ onLinkClick }) {
               </div>
               <span className={textClass}>Product Master</span>
             </Link>
+          )}
+
+          {/* ── MASTER DATA & MULTI-CURRENCY ADMIN ── */}
+          {(hasPermission("View_Setting") || isRoot || permissions.includes("Administrator")) && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setIsMasterDataOpen(!isMasterDataOpen)}
+                className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
+                  isMasterDataActive ? "bg-emerald-600/10 text-emerald-600 font-semibold" : ""
+                }`}
+              >
+                <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
+                  <Database size={18} className="text-emerald-500" />
+                </div>
+                <span className={textClass}>Master Data</span>
+                <ChevronDown
+                  size={16}
+                  className={`ml-auto transition-transform ${
+                    isMasterDataOpen ? "rotate-180" : ""
+                  } md:opacity-0 md:group-hover:opacity-100`}
+                />
+              </button>
+
+              <div className={`${isMasterDataOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
+                <Link
+                  to="/master-data/suppliers"
+                  className={`block text-xs py-1 hover:text-emerald-500 ${isActive("/master-data/suppliers") ? "text-emerald-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                  onClick={onLinkClick}
+                >
+                  Suppliers & Vendors
+                </Link>
+                <Link
+                  to="/master-data/currencies"
+                  className={`block text-xs py-1 hover:text-emerald-500 ${isActive("/master-data/currencies") ? "text-emerald-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                  onClick={onLinkClick}
+                >
+                  Currencies & FX Rates
+                </Link>
+                <Link
+                  to="/master-data/payment-terms"
+                  className={`block text-xs py-1 hover:text-emerald-500 ${isActive("/master-data/payment-terms") ? "text-emerald-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
+                  onClick={onLinkClick}
+                >
+                  Payment Terms
+                </Link>
+              </div>
+            </div>
           )}
 
           {/* Damage & Defects (formerly Report) — standalone rose-accented link */}

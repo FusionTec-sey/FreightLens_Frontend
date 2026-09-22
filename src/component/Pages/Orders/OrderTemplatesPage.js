@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   Layers,
@@ -18,10 +19,41 @@ import {
   ShoppingBag
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 import TemplateForm from "./TemplateForm";
 
 export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
+  const { isRoot, permissions = [], orgId } = useAuth();
+  const hasPermission = (field) => {
+    if (permissions.includes(field)) return true;
+    if (field.startsWith("View_")) {
+      const suffix = field.slice(5);
+      if (
+        permissions.includes(`Edit_${suffix}`) ||
+        permissions.includes(`Add_${suffix}`) ||
+        permissions.includes(`Delete_${suffix}`) ||
+        permissions.includes(suffix)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const canAddTemplate = hasPermission("Add_OrderTemplate") || hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
+  const canEditTemplate = hasPermission("Edit_OrderTemplate") || hasPermission("Edit_Order") || isRoot || permissions.includes("Administrator");
+  const canDeleteTemplate = hasPermission("Delete_OrderTemplate") || hasPermission("Delete_Order") || isRoot || permissions.includes("Administrator");
+  const canViewSupplier = hasPermission("View_Supplier") || hasPermission("Supplier") || isRoot || permissions.includes("Administrator");
+  const canViewPO = hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
+
+  const handleUseTemplate = onUseTemplateForOrder || ((template) => {
+    if (canViewPO) {
+      navigate("/orders/new", { state: { fromTemplate: template } });
+    } else {
+      navigate("/sourcing/new", { state: { fromTemplate: template } });
+    }
+  });
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,7 +108,7 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = t.name?.toLowerCase().includes(q);
-        const matchesCompany = t.company?.toLowerCase().includes(q);
+        const matchesCompany = canViewSupplier && t.company ? t.company.toLowerCase().includes(q) : false;
         const matchesDesc = t.description?.toLowerCase().includes(q);
         const matchesItems = (t.items || []).some((it) =>
           it.description?.toLowerCase().includes(q) || it.item_code?.toLowerCase().includes(q)
@@ -141,15 +173,17 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            New Template
-          </button>
-        </div>
+        {canAddTemplate && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              New Template
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Search & Tags Filter Bar */}
@@ -163,7 +197,7 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search templates by title, tag, vendor, or product..."
+              placeholder={canViewSupplier ? "Search templates by title, tag, vendor, or product..." : "Search templates by title, tag, or product..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-9 pr-4 py-1.5 text-xs rounded-xl border outline-hidden transition ${
@@ -261,12 +295,14 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
               ? "No templates match your search criteria. Try clearing filters."
               : "Create reusable blueprints with pre-filled products, vendors, and tags to place orders quickly."}
           </p>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition"
-          >
-            Create First Template
-          </button>
+          {canAddTemplate && (
+            <button
+              onClick={handleCreate}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition"
+            >
+              Create First Template
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -288,26 +324,30 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
                       {template.name}
                     </h3>
                     <div className="flex items-center gap-1 flex-none">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(template)}
-                        className={`p-1.5 rounded-lg transition ${
-                          isDark ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-500"
-                        }`}
-                        title="Edit Template"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTemplateToDelete(template)}
-                        className={`p-1.5 rounded-lg transition ${
-                          isDark ? "hover:bg-red-500/10 text-red-400" : "hover:bg-red-50 text-red-500"
-                        }`}
-                        title="Delete Template"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {canEditTemplate && (
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(template)}
+                          className={`p-1.5 rounded-lg transition ${
+                            isDark ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-500"
+                          }`}
+                          title="Edit Template"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {canDeleteTemplate && (
+                        <button
+                          type="button"
+                          onClick={() => setTemplateToDelete(template)}
+                          className={`p-1.5 rounded-lg transition ${
+                            isDark ? "hover:bg-red-500/10 text-red-400" : "hover:bg-red-50 text-red-500"
+                          }`}
+                          title="Delete Template"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -320,9 +360,17 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
 
                   {/* Badges: Tags & Visibility */}
                   <div className="flex flex-wrap items-center gap-1 mb-3">
-                    {template.visibility === "private" ? (
+                    {template.org_id === 1 && (orgId !== 1 && !isRoot) ? (
+                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-0.5">
+                        <Sparkles className="w-2.5 h-2.5" /> Master Blueprint
+                      </span>
+                    ) : template.visibility === "private" ? (
                       <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-0.5">
                         <Lock className="w-2.5 h-2.5" /> Private
+                      </span>
+                    ) : template.visibility === "global" ? (
+                      <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 border border-purple-500/20 flex items-center gap-0.5">
+                        <Globe className="w-2.5 h-2.5" /> Global
                       </span>
                     ) : (
                       <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center gap-0.5">
@@ -346,8 +394,8 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
                       ))}
                   </div>
 
-                  {/* Vendor / Supplier */}
-                  {template.company && (
+                  {/* Vendor / Supplier (Hidden if user lacks supplier viewing permission) */}
+                  {canViewSupplier && template.company && (
                     <div className={`flex items-center gap-1.5 text-xs mb-3 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
                       <Building2 className="w-3.5 h-3.5 text-blue-500 flex-none" />
                       <span className="font-semibold truncate">{template.company}</span>
@@ -395,16 +443,14 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
                   <span className={`text-[11px] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                     {template.freight_type || "Sea Freight"}
                   </span>
-                  {onUseTemplateForOrder && (
-                    <button
-                      type="button"
-                      onClick={() => onUseTemplateForOrder(template)}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1"
-                    >
-                      <ShoppingBag className="w-3.5 h-3.5" />
-                      Place Order
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleUseTemplate(template)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition flex items-center gap-1"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    {canViewPO ? "Place Order" : "Create RFQ"}
+                  </button>
                 </div>
               </div>
             );

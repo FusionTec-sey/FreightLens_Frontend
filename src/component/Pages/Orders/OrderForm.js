@@ -1,12 +1,32 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import { X, Save, ShoppingBag, AlertTriangle, Lock, Building, Package, Boxes, Trash2, Sparkles } from "lucide-react";
+import {
+  X,
+  Save,
+  ShoppingBag,
+  AlertTriangle,
+  Lock,
+  Building,
+  Package,
+  Boxes,
+  Trash2,
+  Sparkles,
+  Calendar,
+  Clock,
+  Send,
+  CreditCard,
+  ChevronDown,
+  Check,
+  Ship,
+  Truck
+} from "lucide-react";
 import { STATUS_PIPELINE } from "./mockOrders";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput.js";
 import GenericSelector from "../../UI/UXComponent/GenericSelector.js";
 import { useOptions } from "../../../hooks/useOptions";
+import POMilestoneModal from "./POMilestoneModal";
 
 function getUserInfo() {
   try {
@@ -54,11 +74,19 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
     }
   }, [hasInventory]);
 
-  const isAccountsOrAdmin =
-    (isRoot || userInfo?.is_root) &&
-    userInfo?.roles?.some((r) =>
-      ["Administrator", "Admin", "Account", "Accounts", "Finance"].includes(r)
-    );
+  const isAccountsOrAdmin = Boolean(
+    userInfo?.roles?.some((r) => {
+      const lower = (r || "").toLowerCase();
+      return (
+        lower.includes("admin") ||
+        lower.includes("account") ||
+        lower.includes("finance") ||
+        lower.includes("procurement") ||
+        lower.includes("buyer") ||
+        lower.includes("manager")
+      );
+    })
+  );
 
   const activeStages = useMemo(() => {
     if (orderStatuses && orderStatuses.length > 0) return orderStatuses;
@@ -118,6 +146,31 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
     freight_type: "Sea Freight",
     remark: "",
   });
+
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+
+  const activeMilestoneConfig = useMemo(() => {
+    const stage = (formData.status || "DRAFT").toUpperCase();
+    if (["DRAFT", "CONFIRMED", "PENDING"].includes(stage)) {
+      return { field: "order_mail_date", label: "Request Date", icon: Send };
+    }
+    if (["RFQ_SENT", "SOURCING"].includes(stage)) {
+      return { field: "quote_sent_date", label: "Quote Sent Date", icon: Clock };
+    }
+    if (["QUOTE_RECEIVED"].includes(stage)) {
+      return { field: "quote_received_date", label: "Quote Received Date", icon: Calendar };
+    }
+    if (["QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(stage)) {
+      return { field: "pi_confirmed_date", label: "Confirm-Quote / PI Date", icon: Check };
+    }
+    if (["PART_PAID", "PAID"].includes(stage)) {
+      return { field: "payment_date", label: "Payment Date", icon: CreditCard };
+    }
+    if (["IN_PRODUCTION", "READY", "SHIPPED", "ARRIVED"].includes(stage)) {
+      return { field: "eta_date", label: "Estimated Arrival (ETA)", icon: Truck };
+    }
+    return { field: "order_mail_date", label: "Request Date", icon: Calendar };
+  }, [formData.status]);
 
   useEffect(() => {
     if (editData) {
@@ -335,7 +388,35 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
       alert("Please select or type at least one material or catalog item for this purchase order.");
       return;
     }
-    onSave(formData);
+
+    const targetStage = (formData.status || "DRAFT").toUpperCase();
+    const todayStr = new Date().toISOString().split("T")[0];
+    const stageDates = {};
+    if (["CONFIRMED", "RFQ_SENT", "SOURCING", "QUOTE_RECEIVED", "QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(targetStage) && !formData.order_mail_date) {
+      stageDates.order_mail_date = todayStr;
+    }
+    if (["RFQ_SENT", "SOURCING", "QUOTE_RECEIVED", "QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(targetStage) && !formData.quote_sent_date) {
+      stageDates.quote_sent_date = todayStr;
+    }
+    if (["QUOTE_RECEIVED", "QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(targetStage) && !formData.quote_received_date) {
+      stageDates.quote_received_date = todayStr;
+    }
+    if (["QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(targetStage) && !formData.pi_confirmed_date) {
+      stageDates.pi_confirmed_date = todayStr;
+    }
+    if (["PART_PAID", "PAID"].includes(targetStage) && !formData.payment_date) {
+      stageDates.payment_date = todayStr;
+    }
+    if (targetStage === "PAID" && !formData.balance_payment_date) {
+      stageDates.balance_payment_date = todayStr;
+    }
+    if (targetStage === "SHIPPED" && !formData.eta_date) {
+      const etaDate = new Date();
+      etaDate.setDate(etaDate.getDate() + 21);
+      stageDates.eta_date = etaDate.toISOString().split("T")[0];
+    }
+
+    onSave({ ...formData, ...stageDates });
   };
 
   return (
@@ -672,7 +753,40 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => handleChange("status", e.target.value)}
+                  onChange={(e) => {
+                    const nextStatus = e.target.value;
+                    const today = new Date().toISOString().split("T")[0];
+                    const stageUpper = (nextStatus || "").toUpperCase();
+                    const updatedDates = {};
+                    if (["CONFIRMED", "RFQ_SENT", "SOURCING", "QUOTE_RECEIVED", "QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(stageUpper) && !formData.order_mail_date) {
+                      updatedDates.order_mail_date = today;
+                    }
+                    if (["RFQ_SENT", "SOURCING", "QUOTE_RECEIVED", "QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(stageUpper) && !formData.quote_sent_date) {
+                      updatedDates.quote_sent_date = today;
+                    }
+                    if (["QUOTE_RECEIVED", "QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(stageUpper) && !formData.quote_received_date) {
+                      updatedDates.quote_received_date = today;
+                    }
+                    if (["QUOTE_APPROVED", "PO_ISSUED", "ORDERED"].includes(stageUpper) && !formData.pi_confirmed_date) {
+                      updatedDates.pi_confirmed_date = today;
+                    }
+                    if (["PART_PAID", "PAID"].includes(stageUpper) && !formData.payment_date) {
+                      updatedDates.payment_date = today;
+                    }
+                    if (["PAID"].includes(stageUpper) && !formData.balance_payment_date) {
+                      updatedDates.balance_payment_date = today;
+                    }
+                    if (stageUpper === "SHIPPED" && !formData.eta_date) {
+                      const etaD = new Date();
+                      etaD.setDate(etaD.getDate() + 21);
+                      updatedDates.eta_date = etaD.toISOString().split("T")[0];
+                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      status: nextStatus,
+                      ...updatedDates,
+                    }));
+                  }}
                   className={`w-full px-3.5 py-2.5 border rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     isDark
                       ? "bg-slate-800 border-slate-700 text-white"
@@ -713,7 +827,7 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
               </div>
             </div>
 
-            {/* Purchasing Milestone Dates Section */}
+            {/* Condensed Purchasing Milestone & Freight Section */}
             <div
               className={`p-4 rounded-xl border space-y-3 ${
                 isDark
@@ -722,26 +836,39 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-[11px] uppercase tracking-wider text-blue-600 dark:text-blue-400 block">
-                  Purchasing Milestone Dates
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-[11px] uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Active Stage Date
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold">
+                    {formData.status || "PENDING"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMilestoneModal(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition shadow-xs"
+                >
+                  <Calendar size={13} />
+                  <span>All Milestones (6)</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 1. Request Date */}
+                {/* Active Contextual Date Input */}
                 <div>
                   <label
                     className={`block text-[11px] font-bold mb-1 ${
-                      isDark ? "text-slate-400" : "text-slate-600"
+                      isDark ? "text-slate-300" : "text-slate-700"
                     }`}
                   >
-                    Request Date
+                    {activeMilestoneConfig.label}
                   </label>
                   <input
                     type="date"
-                    value={formData.order_mail_date || ""}
+                    value={formData[activeMilestoneConfig.field] || ""}
                     onChange={(e) =>
-                      handleChange("order_mail_date", e.target.value)
+                      handleChange(activeMilestoneConfig.field, e.target.value)
                     }
                     className={`w-full px-3 py-2 border rounded-lg font-medium focus:outline-none ${
                       isDark
@@ -750,133 +877,12 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
                     }`}
                   />
                 </div>
-
-                {/* 2. Asked for Quote */}
-                <div>
-                  <label
-                    className={`block text-[11px] font-bold mb-1 ${
-                      isDark ? "text-slate-400" : "text-slate-600"
-                    }`}
-                  >
-                    Asked for Quote
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.quote_sent_date || ""}
-                    onChange={(e) =>
-                      handleChange("quote_sent_date", e.target.value)
-                    }
-                    className={`w-full px-3 py-2 border rounded-lg font-medium focus:outline-none ${
-                      isDark
-                        ? "bg-slate-900 border-slate-700 text-white"
-                        : "bg-white border-slate-300 text-slate-900"
-                    }`}
-                  />
-                </div>
-
-                {/* 3. Received Quote */}
-                <div>
-                  <label
-                    className={`block text-[11px] font-bold mb-1 ${
-                      isDark ? "text-slate-400" : "text-slate-600"
-                    }`}
-                  >
-                    Received Quote
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.quote_received_date || ""}
-                    onChange={(e) =>
-                      handleChange("quote_received_date", e.target.value)
-                    }
-                    className={`w-full px-3 py-2 border rounded-lg font-medium focus:outline-none ${
-                      isDark
-                        ? "bg-slate-900 border-slate-700 text-white"
-                        : "bg-white border-slate-300 text-slate-900"
-                    }`}
-                  />
-                </div>
-
-                {/* 4. Confirm-Quote / PI */}
-                <div>
-                  <label
-                    className={`block text-[11px] font-bold mb-1 ${
-                      isDark ? "text-slate-400" : "text-slate-600"
-                    }`}
-                  >
-                    Confirm-Quote / PI
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.pi_confirmed_date || ""}
-                    onChange={(e) =>
-                      handleChange("pi_confirmed_date", e.target.value)
-                    }
-                    className={`w-full px-3 py-2 border rounded-lg font-medium focus:outline-none ${
-                      isDark
-                        ? "bg-slate-900 border-slate-700 text-white"
-                        : "bg-white border-slate-300 text-slate-900"
-                    }`}
-                  />
-                </div>
-
-                {/* 5. Payment (Advance) - Accounts / Admin Only */}
-                {isAccountsOrAdmin && (
-                  <div>
-                    <label
-                      className={`flex items-center gap-1 text-[11px] font-bold mb-1 ${
-                        isDark ? "text-slate-400" : "text-slate-600"
-                      }`}
-                    >
-                      <Lock size={10} className="text-amber-500" />
-                      <span>Payment</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.payment_date || ""}
-                      onChange={(e) =>
-                        handleChange("payment_date", e.target.value)
-                      }
-                      className={`w-full px-3 py-2 border rounded-lg font-medium focus:outline-none ${
-                        isDark
-                          ? "bg-slate-900 border-slate-700 text-white"
-                          : "bg-white border-slate-300 text-slate-900"
-                      }`}
-                    />
-                  </div>
-                )}
-
-                {/* 6. Balance Payment - Accounts / Admin Only */}
-                {isAccountsOrAdmin && (
-                  <div>
-                    <label
-                      className={`flex items-center gap-1 text-[11px] font-bold mb-1 ${
-                        isDark ? "text-slate-400" : "text-slate-600"
-                      }`}
-                    >
-                      <Lock size={10} className="text-amber-500" />
-                      <span>Balance Payment</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.balance_payment_date || ""}
-                      onChange={(e) =>
-                        handleChange("balance_payment_date", e.target.value)
-                      }
-                      className={`w-full px-3 py-2 border rounded-lg font-medium focus:outline-none ${
-                        isDark
-                          ? "bg-slate-900 border-slate-700 text-white"
-                          : "bg-white border-slate-300 text-slate-900"
-                      }`}
-                    />
-                  </div>
-                )}
 
                 {/* Freight Mode */}
-                <div className={isAccountsOrAdmin ? "sm:col-span-2" : ""}>
+                <div>
                   <label
                     className={`block text-[11px] font-bold mb-1 ${
-                      isDark ? "text-slate-400" : "text-slate-600"
+                      isDark ? "text-slate-300" : "text-slate-700"
                     }`}
                   >
                     Freight Mode
@@ -990,6 +996,16 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
             </button>
           </div>
         </form>
+
+        {/* Full Milestone Modal */}
+        <POMilestoneModal
+          isOpen={showMilestoneModal}
+          onClose={() => setShowMilestoneModal(false)}
+          formData={formData}
+          onChange={handleChange}
+          activeStageKey={formData.status}
+          isAccountsOrAdmin={isAccountsOrAdmin}
+        />
       </div>
     </div>
   );

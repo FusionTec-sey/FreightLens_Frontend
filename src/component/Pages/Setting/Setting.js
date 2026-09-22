@@ -25,6 +25,7 @@ import {
     ChevronRight,
     Lock,
     Sliders,
+    Award,
 } from 'lucide-react';
 import axios from 'axios';
 import { useTheme } from '../../../context/ThemeContext';
@@ -93,6 +94,22 @@ const PERMISSION_SECTIONS = [
         icon: ShoppingBag,
         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800',
         match: (n) => /StoreRequest/i.test(n)
+    },
+    {
+        id: 'sourcing_quotes',
+        title: 'Sourcing, RFQs & Vendor Quotations',
+        description: 'Control vendor RFQ dispatch, price bidding, quotation recording, quote comparisons, and purchase order awards to maintain confidentiality from requestors',
+        icon: Award,
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
+        match: (n) => /^(Send_RFQ|View_VendorQuote|Add_VendorQuote|Compare_Quote|Approve_Quote|Issue_PO)$/i.test(n) || /_RFQ$/i.test(n)
+    },
+    {
+        id: 'order_templates',
+        title: 'Order & Sourcing Templates',
+        description: 'Create, modify, and utilize reusable order blueprints and product line templates across Sourcing and Purchase Orders',
+        icon: Layers,
+        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800',
+        match: (n) => /OrderTemplate/i.test(n)
     },
     {
         id: 'orders_procurement',

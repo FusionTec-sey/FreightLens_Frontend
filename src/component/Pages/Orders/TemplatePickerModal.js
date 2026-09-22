@@ -12,9 +12,23 @@ import {
   Loader2
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 
-export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate, onManageTemplates }) {
+export default function TemplatePickerModal({
+  isOpen,
+  onClose,
+  onSelectTemplate,
+  onManageTemplates,
+  isSourcing = false,
+}) {
   const { isDark } = useTheme();
+  const { isRoot, permissions = [], orgId } = useAuth();
+  const canViewSupplier = isRoot || permissions.includes("View_Supplier") || permissions.includes("Supplier") || permissions.includes("Administrator");
+  const canManageTemplates = isRoot || permissions.includes("View_OrderTemplate") || permissions.includes("Add_OrderTemplate") || permissions.includes("Edit_OrderTemplate") || permissions.includes("Administrator");
+
+  // Commercial confidentiality: hide vendor details in Sourcing mode or if user lacks supplier permission
+  const shouldShowVendor = (!isSourcing) && canViewSupplier;
+
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,7 +42,8 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/orders/templates`, {
+      const url = `${process.env.REACT_APP_NETWORK}/orders/templates${isSourcing ? "?for_sourcing=true" : ""}`;
+      const res = await axios.get(url, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           skip_zrok_interstitial: "true",
@@ -70,7 +85,7 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = t.name?.toLowerCase().includes(q);
-        const matchesCompany = t.company?.toLowerCase().includes(q);
+        const matchesCompany = shouldShowVendor ? t.company?.toLowerCase().includes(q) : false;
         const matchesDesc = t.description?.toLowerCase().includes(q);
         const matchesItems = (t.items || []).some((it) =>
           it.description?.toLowerCase().includes(q) || it.item_code?.toLowerCase().includes(q)
@@ -82,7 +97,7 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
       }
       return true;
     });
-  }, [templates, selectedTag, searchQuery]);
+  }, [templates, selectedTag, searchQuery, shouldShowVendor]);
 
   if (!isOpen) return null;
 
@@ -106,14 +121,18 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold tracking-tight">Select Order Template</h2>
+              <h2 className="text-lg font-bold tracking-tight">
+                {isSourcing ? "Select Sourcing Blueprint" : "Select Order Template"}
+              </h2>
               <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                Quickly start an order pre-filled with items, vendor, and specs
+                {isSourcing
+                  ? "Pre-fill requested items, specifications, and line quantities for quotation"
+                  : "Quickly start an order pre-filled with items, vendor, and specs"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {onManageTemplates && (
+            {onManageTemplates && canManageTemplates && (
               <button
                 type="button"
                 onClick={() => {
@@ -150,7 +169,7 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search templates by name, vendor, product, or tag..."
+              placeholder={shouldShowVendor ? "Search templates by name, vendor, product, or tag..." : "Search blueprints by name, item, or tag..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-9 pr-4 py-2 text-sm rounded-xl border outline-hidden transition ${
@@ -221,7 +240,7 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
                   ? "Try clearing your search or tag filters"
                   : "Create your first order template to speed up repeated purchases"}
               </p>
-              {onManageTemplates && (
+              {onManageTemplates && canManageTemplates && (
                 <button
                   onClick={() => {
                     onClose();
@@ -256,11 +275,23 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
                         <h4 className="font-bold text-sm tracking-tight group-hover:text-blue-500 transition line-clamp-1">
                           {template.name}
                         </h4>
-                        {template.visibility === "private" && (
-                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 flex-none">
-                            Private
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 flex-none">
+                          {template.org_id === 1 && (orgId !== 1 && !isRoot) && (
+                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-0.5">
+                              <Sparkles className="w-2.5 h-2.5" /> Blueprint
+                            </span>
+                          )}
+                          {template.visibility === "private" && (
+                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              Private
+                            </span>
+                          )}
+                          {template.visibility === "global" && (
+                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500 border border-purple-500/20">
+                              Global
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Description */}
@@ -289,8 +320,8 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
                         </div>
                       )}
 
-                      {/* Vendor Info */}
-                      {template.company && (
+                      {/* Vendor Info (Hidden in sourcing or if user lacks supplier permission) */}
+                      {shouldShowVendor && template.company && (
                         <div className={`flex items-center gap-1.5 text-xs mb-2 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
                           <Building2 className="w-3.5 h-3.5 text-blue-500 flex-none" />
                           <span className="font-medium truncate">{template.company}</span>
@@ -339,7 +370,7 @@ export default function TemplatePickerModal({ isOpen, onClose, onSelectTemplate,
                         type="button"
                         className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform"
                       >
-                        Use Template
+                        {isSourcing ? "Use Blueprint" : "Use Template"}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>

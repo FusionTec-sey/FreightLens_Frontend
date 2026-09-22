@@ -53,6 +53,24 @@ export const OptionsProvider = ({ children }) => {
             color: row[5] || "bg-blue-500",
           };
         }
+        if (pathKey === "consignees") {
+          return {
+            id: row[0],
+            name: row[1],
+            org_id: row[2] !== undefined ? row[2] : null,
+            code: row[3] || null,
+          };
+        }
+        if (pathKey === "suppliers") {
+          return {
+            id: row[0],
+            name: row[1],
+            variance_threshold_pct: row[2] !== undefined && row[2] !== null ? Number(row[2]) : 2.0,
+            default_currency: row[3] || "USD",
+            payment_terms: row[4] || "",
+            payment_term: row[4] ? { name: row[4] } : null
+          };
+        }
         if (row.length >= 3) {
             return { id: row[0], name: row[1], freeDays: row[2] };
         }

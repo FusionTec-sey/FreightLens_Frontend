@@ -26,10 +26,24 @@ const PrivateRoute = ({
     }
   }
 
-  // Check required permissions
+  // Check required permissions (including Edit/Add/Delete granting View access)
   const hasPermission =
     requiredPermissions.length === 0 ||
-    requiredPermissions.some((perm) => permissions.includes(perm));
+    requiredPermissions.some((perm) => {
+      if (permissions.includes(perm)) return true;
+      if (perm.startsWith("View_")) {
+        const suffix = perm.slice(5);
+        if (
+          permissions.includes(`Edit_${suffix}`) ||
+          permissions.includes(`Add_${suffix}`) ||
+          permissions.includes(`Delete_${suffix}`) ||
+          permissions.includes(suffix)
+        ) {
+          return true;
+        }
+      }
+      return false;
+    });
 
   if (!hasPermission) {
     return <Navigate to="/unauthorized" replace />;
@@ -39,3 +53,4 @@ const PrivateRoute = ({
 };
 
 export default PrivateRoute;
+

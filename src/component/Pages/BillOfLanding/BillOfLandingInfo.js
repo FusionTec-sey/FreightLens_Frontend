@@ -1049,6 +1049,7 @@ export default function BillOfLandingInfo() {
             setIsBlModified(false);
             
             toast.success("All changes saved successfully!");
+            window.history.back();
         } catch (error) {
             console.error("Save failed:", error);
             // HTTP 409 — FreeDays or status conflict between BoL and individual containers
@@ -1062,7 +1063,6 @@ export default function BillOfLandingInfo() {
             }
         } finally {
             setIsSaving(false);
-            window.history.back();
         }
     };
 

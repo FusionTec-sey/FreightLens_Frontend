@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
   X,
@@ -6,8 +6,6 @@ import {
   Plus,
   Trash2,
   Package,
-  Building2,
-  Tag,
   Layers,
   Lock,
   Globe,
@@ -21,16 +19,12 @@ import GenericSelector from "../../UI/UXComponent/GenericSelector";
 
 export default function TemplateForm({ templateData, onClose, onSave }) {
   const { isDark } = useTheme();
-  const { user, isRoot, hasModule } = useAuth();
+  const { isRoot, hasModule, permissions = [] } = useAuth();
   const { suppliers = [] } = useOptions();
   const hasInventory = Boolean(hasModule?.("INVENTORY"));
 
-  const isAccountsOrAdmin =
-    isRoot ||
-    user?.is_root ||
-    user?.roles?.some((r) =>
-      ["Administrator", "Admin", "Account", "Accounts", "Finance"].includes(r)
-    );
+  const canViewSupplier = isRoot || permissions.includes("View_Supplier") || permissions.includes("Administrator");
+  const canViewFinancials = isRoot || permissions.includes("View_Financials") || permissions.includes("Manage_Financials") || permissions.includes("Administrator");
 
   const [inventoryProducts, setInventoryProducts] = useState([]);
   const [selectedProductCode, setSelectedProductCode] = useState("");
@@ -357,18 +351,20 @@ export default function TemplateForm({ templateData, onClose, onSave }) {
           </div>
 
           {/* Section: Vendor & Logistics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-slate-200/50 dark:border-slate-800">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1 text-slate-500">
-                Default Supplier / Vendor
-              </label>
-              <GenericSelector
-                options={suppliers.map((s) => ({ id: s.id, name: s.name }))}
-                value={formData.supplier_id}
-                onChange={handleSupplierChange}
-                placeholder="Select Default Supplier..."
-              />
-            </div>
+          <div className={`grid grid-cols-1 ${canViewSupplier ? "md:grid-cols-2" : "md:grid-cols-1"} gap-3 pt-3 border-t border-slate-200/50 dark:border-slate-800`}>
+            {canViewSupplier && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-1 text-slate-500">
+                  Default Supplier / Vendor
+                </label>
+                <GenericSelector
+                  options={suppliers.map((s) => ({ id: s.id, name: s.name }))}
+                  value={formData.supplier_id}
+                  onChange={handleSupplierChange}
+                  placeholder="Select Default Supplier..."
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider mb-1 text-slate-500">
@@ -555,7 +551,7 @@ export default function TemplateForm({ templateData, onClose, onSave }) {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className={`grid ${canViewFinancials ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
                           <div>
                             <label className="text-[10px] text-slate-400 uppercase font-semibold">
                               Default Qty
@@ -593,25 +589,28 @@ export default function TemplateForm({ templateData, onClose, onSave }) {
                               }`}
                             />
                           </div>
-                          <div>
-                            <label className="text-[10px] text-slate-400 uppercase font-semibold">
-                              Unit Price (Est)
-                            </label>
-                            <input
-                              type="number"
-                              step="any"
-                              placeholder="0.00"
-                              value={item.unit_price}
-                              onChange={(e) =>
-                                handleItemFieldChange(idx, "unit_price", e.target.value)
-                              }
-                              className={`w-full px-2 py-1 text-xs rounded-lg border outline-hidden transition font-mono ${
-                                isDark
-                                  ? "bg-slate-900 border-slate-700 text-slate-100"
-                                  : "bg-slate-50 border-slate-200 text-slate-900"
-                              }`}
-                            />
-                          </div>
+                          {canViewFinancials && (
+                            <div>
+                              <label className="text-[10px] text-slate-400 uppercase font-semibold">
+                                Unit Price (Est)
+                              </label>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                placeholder="0.00"
+                                value={item.unit_price}
+                                onChange={(e) =>
+                                  handleItemFieldChange(idx, "unit_price", e.target.value)
+                                }
+                                className={`w-full px-2 py-1 text-xs rounded-lg border outline-hidden transition font-mono ${
+                                  isDark
+                                    ? "bg-slate-900 border-slate-700 text-slate-100"
+                                    : "bg-slate-50 border-slate-200 text-slate-900"
+                                }`}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
 
