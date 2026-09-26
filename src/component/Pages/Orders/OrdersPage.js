@@ -22,6 +22,7 @@ import OrderForm from "./OrderForm";
 import OrderTemplatesPage from "./OrderTemplatesPage";
 import TemplatePickerModal from "./TemplatePickerModal";
 import POVersionHistoryDrawer from "./POVersionHistoryDrawer";
+import ReportRenderModal from "../ReportTemplates/ReportRenderModal";
 import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -106,6 +107,7 @@ export default function OrdersPage() {
   const [selectedPaymentFilter, setSelectedPaymentFilter] = useState("ALL");
   const [onlyUrgentFilter, setOnlyUrgentFilter] = useState(false);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState(null);
+  const [printOrder, setPrintOrder] = useState(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -587,6 +589,7 @@ export default function OrdersPage() {
             }}
             onDeleteOrder={(order) => setOrderToDelete(order)}
             onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+            onPrintOrder={(order) => setPrintOrder(order)}
           />
         )}
 
@@ -705,6 +708,16 @@ export default function OrdersPage() {
         poId={selectedHistoryOrder?.id}
         poNumber={selectedHistoryOrder?.po_number}
       />
+
+      {/* REPORT & PRINT MODAL */}
+      {printOrder && (
+        <ReportRenderModal
+          isOpen={Boolean(printOrder)}
+          onClose={() => setPrintOrder(null)}
+          resolverKey="purchase_order"
+          entityId={printOrder.id}
+        />
+      )}
     </div>
   );
 }

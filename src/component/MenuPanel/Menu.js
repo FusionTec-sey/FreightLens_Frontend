@@ -15,6 +15,7 @@ import {
   GitCompare,
   Lock,
   Unlock,
+  Printer,
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
@@ -135,6 +136,10 @@ function Sidebar({ onLinkClick }) {
     isActive("/reference-data");
 
   const isAdminActive = isActive("/admin");
+  const isReportsActive =
+    isActive("/reports") ||
+    isActive("/reports/templates") ||
+    location.pathname.startsWith("/reports");
 
   // Single active accordion: opening one submenu automatically closes all previous ones
   const [openAccordion, setOpenAccordion] = useState(() => {
@@ -385,6 +390,13 @@ function Sidebar({ onLinkClick }) {
     isRoot ||
     (Array.isArray(permissions) && permissions.includes("Administrator"));
   const canViewSettings = hasPermission("View_Setting");
+  const canViewReports =
+    hasPermission("View_Report") ||
+    hasPermission("Report") ||
+    hasPermission("Manage_Report_Template") ||
+    canViewPO ||
+    canViewContainers ||
+    isRoot;
 
   return (
     <div
@@ -559,6 +571,10 @@ function Sidebar({ onLinkClick }) {
           {/* Inventory / Product Master */}
           {canViewInventory &&
             renderNavLink("/inventory", <Boxes />, "Product Master", isInventoryActive)}
+
+          {/* ── Print & Reports Module ────────────────────────────────────── */}
+          {canViewReports &&
+            renderNavLink("/reports", <Printer />, "Print & Reports", isReportsActive)}
 
           {/* ── SECTION: ADMINISTRATION & SETTINGS ─────────────────────────── */}
           {(canViewMasterData || canViewTenantConsole || canViewSettings) &&
