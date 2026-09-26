@@ -17,9 +17,14 @@ import {
   FileCode,
   ShieldCheck,
   Download,
+  FileSpreadsheet,
+  Sliders,
+  Filter,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import ReportRenderModal from "./ReportRenderModal";
+import DatasetReportModal from "./DatasetReportModal";
+import DatasetReportView from "./DatasetReportView";
 
 export default function ReportTemplatesPage() {
   const navigate = useNavigate();
@@ -38,6 +43,10 @@ export default function ReportTemplatesPage() {
     user?.role === "Administrator" ||
     true;
 
+  // Dual-mode Hub: "DOCUMENTS" vs "DATASETS"
+  const [mainHubTab, setMainHubTab] = useState("DOCUMENTS");
+
+  // Document Templates State
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -45,11 +54,11 @@ export default function ReportTemplatesPage() {
   const [limit] = useState(15);
   const [pages, setPages] = useState(1);
 
-  // Filters
+  // Filters for templates
   const [activeTab, setActiveTab] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Modal states
+  // Modal states for Document Templates
   const [renderModalOpen, setRenderModalOpen] = useState(false);
   const [activeTemplateForRender, setActiveTemplateForRender] = useState(null);
 
@@ -58,6 +67,15 @@ export default function ReportTemplatesPage() {
   const [cloneName, setCloneName] = useState("");
   const [cloneSlug, setCloneSlug] = useState("");
   const [cloning, setCloning] = useState(false);
+
+  // Operational Datasets State
+  const [datasetCatalog, setDatasetCatalog] = useState([]);
+  const [datasetLoading, setDatasetLoading] = useState(false);
+  const [activeDatasetForModal, setActiveDatasetForModal] = useState(null);
+  const [datasetModalOpen, setDatasetModalOpen] = useState(false);
+  const [activeDatasetResult, setActiveDatasetResult] = useState(null);
+  const [activeQuerySpec, setActiveQuerySpec] = useState(null);
+  const [datasetViewOpen, setDatasetViewOpen] = useState(false);
 
   // Module clearance tabs
   const hasOrders = hasModule ? hasModule("ORDERS") : true;
@@ -103,15 +121,40 @@ export default function ReportTemplatesPage() {
   }, [page, limit, activeTab, searchQuery]);
 
   useEffect(() => {
-    fetchTemplates();
-  }, [fetchTemplates]);
+    if (mainHubTab === "DOCUMENTS") {
+      fetchTemplates();
+    }
+  }, [mainHubTab, fetchTemplates]);
+
+  // Fetch Dataset Catalog
+  const fetchDatasetCatalog = useCallback(async () => {
+    setDatasetLoading(true);
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/reports/datasets`,
+        { headers: getHeaders() }
+      );
+      setDatasetCatalog(res.data || []);
+    } catch (err) {
+      console.error("Failed to load dataset reports catalog:", err);
+      toast.error("Failed to load operational registers catalog.");
+    } finally {
+      setDatasetLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mainHubTab === "DATASETS") {
+      fetchDatasetCatalog();
+    }
+  }, [mainHubTab, fetchDatasetCatalog]);
 
   const handleOpenRender = (template) => {
     setActiveTemplateForRender(template);
     setRenderModalOpen(true);
   };
 
-  const handleOpenClone = (template) => {
+  const handleOpenCloneModal = (template) => {
     setTemplateToClone(template);
     setCloneName(`${template.name} (Custom)`);
     setCloneSlug(`${template.slug}_custom`);
@@ -180,21 +223,64 @@ export default function ReportTemplatesPage() {
     }
   };
 
+  const handleOpenDatasetModal = (datasetItem) => {
+    setActiveDatasetForModal(datasetItem);
+    setDatasetModalOpen(true);
+  };
+
+  const handleRunDatasetReport = (result, spec) => {
+    setActiveDatasetResult(result);
+    setActiveQuerySpec(spec);
+    setDatasetViewOpen(true);
+  };
+
   return (
     <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-      {/* ── Top Header Bar ──────────────────────────────────────────────── */}
+      
+      {/* ── Top Header Bar with Dual Hub Switcher ────────────────────────── */}
       <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-            <FileCode className="text-indigo-600 dark:text-indigo-400" size={22} />
-            Report & Print Templates
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Self-hosted customer-configurable print layouts powered by WeasyPrint & Jinja2
-          </p>
+        <div className="flex items-center gap-6 flex-wrap">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
+              <FileCode className="text-indigo-600 dark:text-indigo-400" size={22} />
+              Reporting & Document Hub
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Customer-configurable print layouts, transactional documents & parametric operational registers
+            </p>
+          </div>
+
+          {/* Segmented Dual Mode Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setMainHubTab("DOCUMENTS")}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer ${
+                mainHubTab === "DOCUMENTS"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <FileText size={14} />
+              Document Templates
+            </button>
+            <button
+              onClick={() => setMainHubTab("DATASETS")}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer ${
+                mainHubTab === "DATASETS"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <FileSpreadsheet size={14} />
+              Operational Registers
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold">
+                {datasetCatalog.length || 3}
+              </span>
+            </button>
+          </div>
         </div>
 
-        {canManage && (
+        {canManage && mainHubTab === "DOCUMENTS" && (
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => navigate("/reports/editor/new")}
@@ -207,260 +293,374 @@ export default function ReportTemplatesPage() {
         )}
       </div>
 
-      {/* ── Filter Bar & Category Tabs ──────────────────────────────────── */}
-      <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3">
-        {/* Module Category Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                activeTab === tab.id
-                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Search Field */}
-        <div className="relative min-w-[240px]">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            type="text"
-            placeholder="Search templates or slug..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setPage(1);
-            }}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
-          />
-        </div>
-      </div>
-
-      {/* ── Contained Main Table Area ────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {loading ? (
-          <div className="h-64 flex flex-col items-center justify-center gap-3 text-slate-500">
-            <Loader2 size={28} className="animate-spin text-indigo-600" />
-            <p className="text-xs">Loading report templates...</p>
-          </div>
-        ) : templates.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <FileText size={36} className="text-slate-400 mb-2" />
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-              No Report Templates Found
-            </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm">
-              No templates match your selected filters. Create a new custom template or clear search terms.
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    <th className="px-5 py-3.5">Template Name</th>
-                    <th className="px-4 py-3.5">Category</th>
-                    <th className="px-4 py-3.5">Resolver & Entity</th>
-                    <th className="px-4 py-3.5">Page Setup</th>
-                    <th className="px-4 py-3.5">Type & Version</th>
-                    <th className="px-5 py-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {templates.map((tmpl) => (
-                    <tr
-                      key={tmpl.id}
-                      className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition"
-                    >
-                      {/* Name & Slug */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                            <FileText size={16} />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-900 dark:text-white">
-                              {tmpl.name}
-                            </div>
-                            <div className="text-[11px] font-mono text-slate-400">
-                              {tmpl.slug}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Category Badge */}
-                      <td className="px-4 py-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                          {tmpl.category}
-                        </span>
-                      </td>
-
-                      {/* Resolver & Entity */}
-                      <td className="px-4 py-4">
-                        <div className="font-medium text-slate-700 dark:text-slate-300">
-                          {tmpl.resolver_key}
-                        </div>
-                        <div className="text-[10px] text-slate-400">
-                          {tmpl.entity_type || "Generic"}
-                        </div>
-                      </td>
-
-                      {/* Page Setup */}
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-400">
-                        {tmpl.page_size} • {tmpl.orientation}
-                      </td>
-
-                      {/* Type & Version */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-1.5">
-                          {tmpl.is_system ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                              <Lock size={10} /> System Default
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                              <ShieldCheck size={10} /> Custom Org
-                            </span>
-                          )}
-                          <span className="text-[11px] text-slate-400">
-                            v{tmpl.active_version || 1}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Action Buttons */}
-                      <td className="px-5 py-4 text-right">
-                        <div className="inline-flex items-center gap-1">
-                          {/* Print / Render */}
-                          <button
-                            onClick={() => handleOpenRender(tmpl)}
-                            title="Render & Print"
-                            className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                          >
-                            <Printer size={15} />
-                          </button>
-
-                          {/* AI Context Download */}
-                          {canManage && (
-                            <button
-                              onClick={() => handleDownloadAiContext(tmpl.resolver_key)}
-                              title="Download AI Developer Context (.md)"
-                              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                            >
-                              <Download size={15} />
-                            </button>
-                          )}
-
-                          {/* Edit / Customize */}
-                          {canManage && (
-                            tmpl.is_system ? (
-                              <button
-                                onClick={() => handleOpenClone(tmpl)}
-                                title="Clone and Customize"
-                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                              >
-                                <Copy size={15} />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => navigate(`/reports/editor/${tmpl.id}`)}
-                                title="Edit Template Code"
-                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                              >
-                                <Edit3 size={15} />
-                              </button>
-                            )
-                          )}
-
-                          {/* Delete (custom only) */}
-                          {canManage && !tmpl.is_system && (
-                            <button
-                              onClick={() => handleDelete(tmpl)}
-                              title="Delete Custom Template"
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination footer */}
-            <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+      {/* ── View 1: Operational Registers Catalog ────────────────────────── */}
+      {mainHubTab === "DATASETS" ? (
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-6xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
               <div>
-                Showing {templates.length} of {total} templates
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition cursor-pointer"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <span>
-                  Page {page} of {pages}
-                </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                  disabled={page >= pages}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition cursor-pointer"
-                >
-                  <ChevronRight size={14} />
-                </button>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-indigo-600" />
+                  Parametric Operational Registers
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Multi-record registers with dynamic multi-entity filters, multi-level grouping, subtotal calculations, formatted Excel (.xlsx), and Landscape PDF print output.
+                </p>
               </div>
             </div>
-          </div>
-        )}
-      </div>
 
-      {/* ── Render & Print Modal ────────────────────────────────────────── */}
+            {datasetLoading ? (
+              <div className="h-64 flex flex-col items-center justify-center gap-3 text-slate-500">
+                <Loader2 size={28} className="animate-spin text-indigo-600" />
+                <p className="text-xs">Loading operational registers catalog...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {datasetCatalog.map((item) => (
+                  <div
+                    key={item.key}
+                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          {item.category}
+                        </span>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          {item.columns?.length || 0} cols • {item.default_orientation}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {item.name}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed line-clamp-3">
+                          {item.description}
+                        </p>
+                      </div>
+
+                      {/* Available Groupings */}
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Available Groupings
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {(item.supported_group_fields || []).slice(0, 3).map((gf) => (
+                            <span
+                              key={gf.key}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium"
+                            >
+                              {gf.label}
+                            </span>
+                          ))}
+                          {(item.supported_group_fields?.length || 0) > 3 && (
+                            <span className="text-[10px] px-1.5 py-0.5 text-slate-400 font-medium">
+                              +{item.supported_group_fields.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenDatasetModal(item)}
+                        className="flex-1 py-2 px-3 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                      >
+                        <Filter size={13} />
+                        Configure & Run Register
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ── View 2: Document Templates Table ──────────────────────────── */
+        <>
+          {/* Filter Bar & Category Tabs */}
+          <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3">
+            {/* Module Category Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                    activeTab === tab.id
+                      ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Field */}
+            <div className="relative min-w-[240px]">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="text"
+                placeholder="Search templates or slug..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
+              />
+            </div>
+          </div>
+
+          {/* Contained Main Table Area */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {loading ? (
+              <div className="h-64 flex flex-col items-center justify-center gap-3 text-slate-500">
+                <Loader2 size={28} className="animate-spin text-indigo-600" />
+                <p className="text-xs">Loading report templates...</p>
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <FileText size={36} className="text-slate-400 mb-2" />
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  No Report Templates Found
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                  No templates match your selected filters. Create a new custom template or clear search terms.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="px-5 py-3.5">Template Name</th>
+                        <th className="px-4 py-3.5">Category</th>
+                        <th className="px-4 py-3.5">Resolver & Entity</th>
+                        <th className="px-4 py-3.5">Page Setup</th>
+                        <th className="px-4 py-3.5">Type & Version</th>
+                        <th className="px-5 py-3.5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {templates.map((tmpl) => (
+                        <tr
+                          key={tmpl.id}
+                          className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition"
+                        >
+                          {/* Name & Slug */}
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                                <FileText size={16} />
+                              </div>
+                              <div>
+                                <div className="font-semibold text-slate-900 dark:text-white">
+                                  {tmpl.name}
+                                </div>
+                                <div className="text-[11px] font-mono text-slate-400">
+                                  {tmpl.slug}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Category Badge */}
+                          <td className="px-4 py-4">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              {tmpl.category}
+                            </span>
+                          </td>
+
+                          {/* Resolver & Entity */}
+                          <td className="px-4 py-4">
+                            <div className="font-medium text-slate-700 dark:text-slate-300">
+                              {tmpl.resolver_key}
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              {tmpl.entity_type || "Generic"}
+                            </div>
+                          </td>
+
+                          {/* Page Setup */}
+                          <td className="px-4 py-4 text-slate-600 dark:text-slate-400">
+                            {tmpl.page_size} • {tmpl.orientation}
+                          </td>
+
+                          {/* Type & Version */}
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-1.5">
+                              {tmpl.is_system ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                  <Lock size={10} /> System Default
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                  <ShieldCheck size={10} /> Custom Org
+                                </span>
+                              )}
+                              <span className="text-[11px] text-slate-400">
+                                v{tmpl.active_version || 1}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Action Buttons */}
+                          <td className="px-5 py-4 text-right">
+                            <div className="inline-flex items-center gap-1">
+                              {/* Print / Render */}
+                              <button
+                                onClick={() => handleOpenRender(tmpl)}
+                                title="Render & Print"
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                              >
+                                <Printer size={15} />
+                              </button>
+
+                              {/* AI Context Download */}
+                              {canManage && (
+                                <button
+                                  onClick={() => handleDownloadAiContext(tmpl.resolver_key)}
+                                  title="Download AI Developer Context"
+                                  className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                                >
+                                  <Download size={15} />
+                                </button>
+                              )}
+
+                              {/* Clone / Branch */}
+                              {canManage && (
+                                <button
+                                  onClick={() => handleOpenCloneModal(tmpl)}
+                                  title="Clone as Custom Template"
+                                  className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                                >
+                                  <Copy size={15} />
+                                </button>
+                              )}
+
+                              {/* Edit */}
+                              {canManage && !tmpl.is_system && (
+                                <button
+                                  onClick={() => navigate(`/reports/editor/${tmpl.id}`)}
+                                  title="Edit Template"
+                                  className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                                >
+                                  <Edit3 size={15} />
+                                </button>
+                              )}
+
+                              {/* Delete */}
+                              {canManage && !tmpl.is_system && (
+                                <button
+                                  onClick={() => handleDelete(tmpl)}
+                                  title="Delete Custom Template"
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition cursor-pointer"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between text-xs text-slate-500">
+                  <div>
+                    Showing <strong>{(page - 1) * limit + 1}</strong> to{" "}
+                    <strong>{Math.min(page * limit, total)}</strong> of{" "}
+                    <strong>{total}</strong> templates
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronLeft size={15} />
+                    </button>
+                    <span className="px-2 font-mono text-[11px]">
+                      {page} / {pages}
+                    </span>
+                    <button
+                      disabled={page >= pages}
+                      onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                      className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Render Modal (Document Templates) ────────────────────────────── */}
       {renderModalOpen && activeTemplateForRender && (
         <ReportRenderModal
+          template={activeTemplateForRender}
           isOpen={renderModalOpen}
-          onClose={() => {
-            setRenderModalOpen(false);
-            setActiveTemplateForRender(null);
-          }}
-          templateId={activeTemplateForRender.id}
-          resolverKey={activeTemplateForRender.resolver_key}
+          onClose={() => setRenderModalOpen(false)}
         />
       )}
 
-      {/* ── Clone System Template Modal ─────────────────────────────────── */}
-      {cloneModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6">
+      {/* ── Operational Dataset Query Modal ──────────────────────────────── */}
+      {datasetModalOpen && activeDatasetForModal && (
+        <DatasetReportModal
+          catalogItem={activeDatasetForModal}
+          isOpen={datasetModalOpen}
+          onClose={() => setDatasetModalOpen(false)}
+          onRunReport={handleRunDatasetReport}
+        />
+      )}
+
+      {/* ── Interactive Dataset Report Viewer (Grid & Exports) ──────────── */}
+      {datasetViewOpen && activeDatasetResult && (
+        <DatasetReportView
+          reportKey={activeDatasetResult.report_key}
+          datasetResult={activeDatasetResult}
+          querySpec={activeQuerySpec}
+          onModifyFilters={() => {
+            setDatasetViewOpen(false);
+            setDatasetModalOpen(true);
+          }}
+          onClose={() => setDatasetViewOpen(false)}
+        />
+      )}
+
+      {/* ── Clone Modal (Document Templates) ─────────────────────────────── */}
+      {cloneModalOpen && templateToClone && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-2xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800">
             <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-              Clone & Customize Template
+              Clone Template
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              System templates are locked for consistency. Cloned copies become tenant-owned and fully editable.
+              Create an organization-specific editable copy of &quot;{templateToClone.name}&quot;.
             </p>
 
             <form onSubmit={handleCloneSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Custom Template Name
+                  Template Name
                 </label>
                 <input
                   type="text"
@@ -507,6 +707,7 @@ export default function ReportTemplatesPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
