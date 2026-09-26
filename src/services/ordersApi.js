@@ -112,9 +112,10 @@ export const ordersApi = {
   generatePurchaseOrder: (id) => api.post(`/purchase-orders/${id}/generate`).then((res) => res.data),
 
   // ── Documents ───────────────────────────────────────────────────────────────
-  documentConfig: async () => {
+  documentConfig: async (space = null) => {
     try {
-      return await api.get("/documents/config").then((res) => res.data);
+      const params = space ? { space } : {};
+      return await api.get("/documents/config", { params }).then((res) => res.data);
     } catch {
       return {
         document_types: [
@@ -175,7 +176,9 @@ export const ordersApi = {
         axios.get(`${process.env.REACT_APP_NETWORK}/status`, { headers }).catch(() => ({ data: { data: [] } })),
       ]);
 
-      const orders = Array.isArray(ordRes.data) ? ordRes.data : [];
+      const orders = Array.isArray(ordRes.data)
+        ? ordRes.data
+        : (Array.isArray(ordRes.data?.items) ? ordRes.data.items : (ordRes.data?.data || []));
       let rawContainers = [];
       if (Array.isArray(contRes.data?.data)) {
         rawContainers = contRes.data.data;

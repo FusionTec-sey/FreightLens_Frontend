@@ -32,7 +32,8 @@ import {
   ChevronUp,
   Check,
   ArrowRight,
-  Award
+  Award,
+  Paperclip
 } from "lucide-react";
 import { STATUS_PIPELINE } from "./mockOrders";
 import { useTheme } from "../../../context/ThemeContext";
@@ -48,6 +49,7 @@ import StageWarningModal from "./StageWarningModal";
 import PriceVarianceModal from "./PriceVarianceModal";
 import POMilestoneModal from "./POMilestoneModal";
 import POPaymentModal from "./POPaymentModal";
+import DocumentPanel from "./DocumentPanel";
 import { toast } from "react-toastify";
 
 function getUserInfo() {
@@ -203,6 +205,14 @@ export default function OrderEntryPage({
     })
   );
 
+  const canViewOrders = Boolean(
+    isRoot ||
+    permissions.includes("View_Order") ||
+    permissions.includes("Order") ||
+    permissions.includes("Administrator") ||
+    isAccountsOrAdmin
+  );
+
   const activeStages = useMemo(() => {
     if (contextOrderStatuses && contextOrderStatuses.length > 0) {
       return contextOrderStatuses;
@@ -260,6 +270,7 @@ export default function OrderEntryPage({
   const [varianceData, setVarianceData] = useState(null);
   const [showMilestoneModal, setShowMilestoneModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(!orderId);
 
   // Master Data Currencies state
@@ -590,6 +601,7 @@ export default function OrderEntryPage({
   };
 
   const populateFormData = (order) => {
+    const isRFQDoc = (order.doc_type || queryDocType || "PO") === "RFQ";
     let prefilledMaterialIds = order.material_ids || [];
     if (
       prefilledMaterialIds.length === 0 &&
@@ -602,12 +614,15 @@ export default function OrderEntryPage({
         .map((m) => m.id);
     }
 
-    let matchedSupplierId = order.supplier || null;
-    if (!matchedSupplierId && order.company && suppliers.length > 0) {
-      const matched = suppliers.find(
-        (s) => s.name?.toLowerCase() === order.company?.toLowerCase()
-      );
-      if (matched) matchedSupplierId = matched.id;
+    let matchedSupplierId = null;
+    if (!isRFQDoc && canViewSupplier) {
+      matchedSupplierId = order.supplier || null;
+      if (!matchedSupplierId && order.company && suppliers.length > 0) {
+        const matched = suppliers.find(
+          (s) => s.name?.toLowerCase() === order.company?.toLowerCase()
+        );
+        if (matched) matchedSupplierId = matched.id;
+      }
     }
 
     let matchedConsigneeId = order.consignee_id || null;
@@ -687,7 +702,6 @@ export default function OrderEntryPage({
       effBalance = Math.max(0, effTotal - advNum).toFixed(2);
     }
 
-    const isRFQDoc = (order.doc_type || queryDocType || "PO") === "RFQ";
     const authoritativeStage = (isRFQDoc
       ? (order.lifecycle_stage || order.status || "DRAFT")
       : (order.status || order.lifecycle_stage || "DRAFT")).toUpperCase();
@@ -707,7 +721,8 @@ export default function OrderEntryPage({
       stage_version: order.stage_version || 1,
       lifecycle_locked: Boolean(order.lifecycle_locked),
       selected_quote_id: order.selected_quote_id || null,
-      supplier: matchedSupplierId,
+      supplier: isRFQDoc || !canViewSupplier ? null : matchedSupplierId,
+      company: isRFQDoc || !canViewSupplier ? "" : (order.company || ""),
       consignee_id: matchedConsigneeId,
       org_id: order.org_id || null,
       material_ids: prefilledMaterialIds,
@@ -875,11 +890,7 @@ export default function OrderEntryPage({
       if (stageUpper === "PAID" && !prev.balance_payment_date) {
         updatedDates.balance_payment_date = today;
       }
-      if ((stageUpper === "SHIPPED" || stageUpper === "SEA_WAY") && !prev.eta_date) {
-        const etaDate = new Date();
-        etaDate.setDate(etaDate.getDate() + 21);
-        updatedDates.eta_date = etaDate.toISOString().split("T")[0];
-      }
+      // Note: eta_date is not auto-updated here; shipping schedule is determined manually or via BL/vessel tracking
       return {
         ...prev,
         status: nextStatus,
@@ -1078,12 +1089,14 @@ export default function OrderEntryPage({
       const newItem = {
         product_id: prod.id,
         item_code: prod.sku || prod.code || "",
+        factory_code: prod.factory_code || "",
+        image_url: prod.image_url || null,
         description: prod.name,
         quantity_ordered: 1,
         unit: prod.unit || "PCS",
         unit_price: isRFQ ? "" : unitPrice,
         total_price: isRFQ ? "" : (unitPrice ? parseFloat(unitPrice).toFixed(2) : ""),
-        notes: "",
+        notes: prod.factory_code ? `Factory Code: ${prod.factory_code}` : "",
       };
       setFormData((prev) => ({
         ...prev,
@@ -1463,11 +1476,7 @@ export default function OrderEntryPage({
       if (targetStage === "PAID" && !formData.balance_payment_date) {
         stageDates.balance_payment_date = todayStr;
       }
-      if (targetStage === "SHIPPED" && !formData.eta_date) {
-        const etaDate = new Date();
-        etaDate.setDate(etaDate.getDate() + 21);
-        stageDates.eta_date = etaDate.toISOString().split("T")[0];
-      }
+      // Note: eta_date is not auto-updated here; shipping schedule is determined manually or via BL/vessel tracking
 
       const matchedStageObj = filteredStages.find(
         (s) => s.key === targetStage || s.code === targetStage
@@ -1657,6 +1666,21 @@ export default function OrderEntryPage({
               >
                 <Sparkles className="w-4 h-4 text-blue-500" />
                 <span>Apply Template</span>
+              </button>
+            )}
+
+            {isEdit && (
+              <button
+                type="button"
+                onClick={() => setShowDocumentsModal(true)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition ${isDark
+                    ? "border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20"
+                    : "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100"
+                  }`}
+                title="View and upload order documents, contracts, proformas, and proofs"
+              >
+                <Paperclip className="w-4 h-4 text-teal-500" />
+                <span>Documents</span>
               </button>
             )}
 
@@ -1878,7 +1902,7 @@ export default function OrderEntryPage({
           <div className="flex items-center gap-2">
             <CheckCircle2 size={16} className="text-emerald-600 flex-none" />
             <span className="font-bold text-emerald-950 dark:text-emerald-200">
-              Awarded & Split into {formData.child_pos.length} official Purchase Orders:
+              {isRFQ ? `Awarded & Split into ${formData.child_pos.length} official Purchase Order(s):` : `Associated Purchase Order(s):`}
             </span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -1886,12 +1910,34 @@ export default function OrderEntryPage({
               <button
                 key={c.id}
                 type="button"
-                onClick={() => navigate(`/orders/${c.id}/edit`)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 font-bold hover:bg-emerald-50 dark:hover:bg-slate-800 transition shadow-2xs"
-                title={`Open Purchase Order ${c.po_number}`}
+                onClick={() => {
+                  if (canViewOrders) {
+                    navigate(`/orders/${c.id}/edit`);
+                  }
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-slate-200 transition shadow-2xs group ${
+                  canViewOrders ? "hover:bg-emerald-50 dark:hover:bg-slate-800 cursor-pointer" : "cursor-default"
+                }`}
+                title={canViewOrders ? `Open Purchase Order ${c.po_number}` : `Purchase Order ${c.po_number}`}
               >
-                <span>{c.po_number}</span>
-                <ArrowRight size={11} />
+                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{c.po_number}</span>
+                {/* STRICT VENDOR SECURITY: Never display vendor in Sourcing/RFQ mode, only in PO mode for users with supplier clearance */}
+                {!isRFQ && canViewSupplier && c.company && (
+                  <span className="text-slate-500 text-[11px] truncate max-w-[140px]">
+                    ({c.company})
+                  </span>
+                )}
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${c.badge_color || 'bg-blue-50 text-blue-800 border-blue-200'}`}>
+                  {c.status_label || c.status}
+                </span>
+                {c.eta_date && (
+                  <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
+                    ETA: {c.eta_date}
+                  </span>
+                )}
+                {canViewOrders && (
+                  <ArrowRight size={11} className="text-slate-400 group-hover:text-emerald-600 transition" />
+                )}
               </button>
             ))}
           </div>
@@ -1935,9 +1981,9 @@ export default function OrderEntryPage({
                     {formData.consignee}
                   </span>
                 )}
-                {formData.company && (
+                {formData.company && !isRFQ && canViewSupplier && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-700">
-                    {isRFQ ? `Candidate: ${formData.company}` : `Vendor: ${formData.company}`}
+                    Vendor: {formData.company}
                   </span>
                 )}
                 {formData.po_number && (
@@ -2062,7 +2108,7 @@ export default function OrderEntryPage({
                 </div>
 
                 {/* Supplier / Vendor (6 cols) */}
-                {!isRFQ ? (
+                {!isRFQ && canViewSupplier ? (
                   <div className="md:col-span-6 space-y-1">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                       Supplier / Vendor
@@ -2078,7 +2124,7 @@ export default function OrderEntryPage({
                       addApi="setSupplier"
                     />
                   </div>
-                ) : (
+                ) : isRFQ ? (
                   <div className="md:col-span-6 space-y-1">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                       Sourcing & Vendor Scope
@@ -2094,7 +2140,7 @@ export default function OrderEntryPage({
                       </span>
                     </div>
                   </div>
-                )}
+                ) : null}
 
                 {/* PO Number / RFQ Number */}
                 <div className={`sm:col-span-1 ${showFinancials ? "md:col-span-3" : "md:col-span-4"} space-y-1`}>
@@ -2364,17 +2410,31 @@ export default function OrderEntryPage({
                           {idx + 1}
                         </td>
                         <td className="py-[2.5px] px-1.5">
-                          <input
-                            type="text"
-                            placeholder="SKU-001"
-                            value={it.item_code}
-                            disabled={!canEdit}
-                            onChange={(e) => handleItemFieldChange(idx, "item_code", e.target.value)}
-                            className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal font-mono transition disabled:opacity-60 disabled:cursor-not-allowed ${isDark
-                                ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                : "bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                              }`}
-                          />
+                          <div className="flex items-center gap-1">
+                            {it.image_url && (
+                              <img
+                                src={
+                                  it.image_url.startsWith("http") || it.image_url.startsWith("blob:")
+                                    ? it.image_url
+                                    : `${process.env.REACT_APP_NETWORK}/blobs/${it.image_url}`
+                                }
+                                alt=""
+                                className="w-5 h-5 rounded object-cover flex-none border border-slate-200 dark:border-slate-700 shadow-2xs"
+                                title="Catalog Product Image"
+                              />
+                            )}
+                            <input
+                              type="text"
+                              placeholder="SKU-001"
+                              value={it.item_code}
+                              disabled={!canEdit}
+                              onChange={(e) => handleItemFieldChange(idx, "item_code", e.target.value)}
+                              className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal font-mono transition disabled:opacity-60 disabled:cursor-not-allowed ${isDark
+                                  ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                  : "bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                }`}
+                            />
+                          </div>
                         </td>
                         <td className="py-[2.5px] px-1.5">
                           <input
@@ -2717,6 +2777,31 @@ export default function OrderEntryPage({
         isAccountsOrAdmin={isAccountsOrAdmin}
         onPaymentSaved={handlePaymentModalSaved}
       />
+
+      {/* ── ORDER SUPPORTING DOCUMENTS MODAL ───────────────────────── */}
+      {showDocumentsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 shadow-2xl border ${
+            isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+          }`}>
+            <button
+              type="button"
+              onClick={() => setShowDocumentsModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <DocumentPanel
+              purchaseOrderId={orderId}
+              space={isRFQ ? "SOURCING" : "ORDER"}
+              title={`${isRFQ ? "RFQ" : "PO"} ${formData.po_number || "Record"} Documents`}
+              description={isRFQ
+                ? "Upload and view tender specifications, supplier quotation sheets, and compliance datasheets."
+                : "Upload and view supplier proformas, executed purchase contracts, and order documentation."}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,24 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  AlertTriangle,
   LayoutDashboard,
-  FileText,
   Container,
   ChevronDown,
   LogOut,
-  SettingsIcon,
+  Settings as SettingsIcon,
   Sun,
   Moon,
   ShoppingBag,
   Shield,
-  Briefcase,
-  PackageCheck,
-  ShieldAlert,
-  FileSpreadsheet,
   Boxes,
   Database,
-  GitCompare
+  GitCompare,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
@@ -26,17 +22,45 @@ import { useTheme } from "../../context/ThemeContext";
 import logo from "../../assets/Images/Freightliner.png";
 
 function Sidebar({ onLinkClick }) {
-  const [isSourcingOpen, setIsSourcingOpen] = useState(false);
-  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
-  const [isContainerOpen, setIsContainerOpen] = useState(false);
-  const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { permissions, user, logout, isRoot, hasModule } = useAuth();
-  const { isDark, theme, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Persisted Lock / Static state: when locked, sidebar stays statically expanded (w-64) without auto-collapsing
+  const [isLocked, setIsLocked] = useState(() => {
+    try {
+      const saved = localStorage.getItem("sidebar_locked");
+      return saved !== null ? saved === "true" : true; // Default to true (expanded & locked)
+    } catch (e) {
+      return true;
+    }
+  });
+
+  const toggleLock = () => {
+    setIsLocked((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("sidebar_locked", next.toString());
+      } catch (e) {}
+      if (!next) {
+        // If unlocking/collapsing, close any open accordion for clean collapsed state
+        setOpenAccordion(null);
+      } else {
+        // If locking/expanding, restore active section accordion
+        if (isDashboardSectionActive) setOpenAccordion("dashboard");
+        else if (isSourcingActive) setOpenAccordion("sourcing");
+        else if (isOrdersActive) setOpenAccordion("orders");
+        else if (isContainerActive) setOpenAccordion("containers");
+        else if (isMasterDataActive) setOpenAccordion("masterdata");
+        else if (isSettingsActive) setOpenAccordion("settings");
+      }
+      return next;
+    });
+  };
+
   const hasPermission = (field) => {
+    if (!permissions) return false;
     if (permissions.includes(field)) return true;
     if (field.startsWith("View_")) {
       const suffix = field.slice(5);
@@ -51,20 +75,26 @@ function Sidebar({ onLinkClick }) {
     }
     return false;
   };
+
   const initial = user ? user.charAt(0).toUpperCase() : "U";
 
   const handleLogout = () => {
     logout();
-    onLinkClick && onLinkClick();
+    if (onLinkClick) onLinkClick();
     setTimeout(() => navigate("/"), 0);
   };
 
-  const textClass =
-    "text-sm md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 delay-200 whitespace-nowrap overflow-hidden";
-
   const isActive = (path) => location.pathname === path;
 
-  const isSourcingActive = isActive("/sourcing") || isActive("/store-requests");
+  // Active section checkers
+  const isDashboardSectionActive =
+    isActive("/dashboard") ||
+    isActive("/dashboard/templates") ||
+    isActive("/dashboard-templates");
+
+  const isSourcingActive =
+    isActive("/sourcing") ||
+    isActive("/store-requests");
 
   const isOrdersActive =
     isActive("/orders") ||
@@ -79,479 +109,557 @@ function Sidebar({ onLinkClick }) {
 
   const isContainerActive =
     isActive("/viewContainer") ||
+    isActive("/ConatinerEntry") ||
     isActive("/BillOfLanding") ||
+    isActive("/billOfLanding") ||
+    isActive("/bill-of-landing-info") ||
     isActive("/Complete");
+
+  const isInventoryActive =
+    isActive("/inventory") ||
+    isActive("/inventory/products") ||
+    location.pathname.startsWith("/inventory");
 
   const isMasterDataActive =
     isActive("/master-data/suppliers") ||
     isActive("/master-data/currencies") ||
-    isActive("/master-data/payment-terms");
+    isActive("/master-data/payment-terms") ||
+    isActive("/master-data/document-types");
+
+  const isSettingsActive =
+    isActive("/settings-overview") ||
+    isActive("/settings") ||
+    isActive("/organization-settings") ||
+    isActive("/order-settings") ||
+    isActive("/logistics") ||
+    isActive("/reference-data");
+
+  const isAdminActive = isActive("/admin");
+
+  // Single active accordion: opening one submenu automatically closes all previous ones
+  const [openAccordion, setOpenAccordion] = useState(() => {
+    // Only auto-expand active accordion if sidebar is locked/pinned
+    const initialLocked = (() => {
+      try {
+        const saved = localStorage.getItem("sidebar_locked");
+        return saved !== null ? saved === "true" : true;
+      } catch (e) {
+        return true;
+      }
+    })();
+    if (!initialLocked) return null;
+    if (isDashboardSectionActive) return "dashboard";
+    if (isSourcingActive) return "sourcing";
+    if (isOrdersActive) return "orders";
+    if (isContainerActive) return "containers";
+    if (isMasterDataActive) return "masterdata";
+    if (isSettingsActive) return "settings";
+    return null;
+  });
+
+  const toggleAccordion = (sectionKey) => {
+    setOpenAccordion((prev) => (prev === sectionKey ? null : sectionKey));
+  };
+
+  // Automatically activate and expand the section corresponding to active route when locked
+  useEffect(() => {
+    if (isLocked) {
+      if (isDashboardSectionActive) {
+        setOpenAccordion("dashboard");
+      } else if (isSourcingActive) {
+        setOpenAccordion("sourcing");
+      } else if (isOrdersActive) {
+        setOpenAccordion("orders");
+      } else if (isContainerActive) {
+        setOpenAccordion("containers");
+      } else if (isMasterDataActive) {
+        setOpenAccordion("masterdata");
+      } else if (isSettingsActive) {
+        setOpenAccordion("settings");
+      }
+    }
+  }, [location.pathname, isLocked]);
+
+  // ── Render Helpers ──────────────────────────────────────────────────────────
+  // Height is exactly h-6 in both collapsed (divider) and expanded (header title) states
+  // to prevent any vertical shift when the sidebar expands horizontally on hover.
+  const renderSectionHeader = (title) => (
+    <div className="h-6 px-3 flex items-center justify-center my-0.5 overflow-hidden transition-all duration-200">
+      <div
+        className={`w-full h-px bg-slate-200/80 dark:bg-slate-800 ${
+          isLocked ? "hidden" : "hidden md:block md:group-hover:hidden"
+        }`}
+      />
+      <span
+        className={`text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 select-none truncate w-full ${
+          isLocked ? "block" : "block md:hidden md:group-hover:block"
+        }`}
+      >
+        {title}
+      </span>
+    </div>
+  );
+
+  const renderNavLink = (to, icon, label, isCurrentActive, badge = null) => (
+    <Link
+      to={to}
+      onClick={onLinkClick}
+      title={label}
+      aria-current={isCurrentActive ? "page" : undefined}
+      className={`relative flex items-center h-10 px-3 rounded-xl transition-all duration-150 group/item ${
+        isCurrentActive
+          ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-semibold shadow-2xs before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-indigo-600 dark:before:bg-indigo-400 before:rounded-r-full"
+          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 font-medium"
+      }`}
+    >
+      <div className="w-6 min-w-[1.5rem] flex items-center justify-center flex-shrink-0">
+        {React.cloneElement(icon, {
+          size: 18,
+          className: isCurrentActive
+            ? "text-indigo-600 dark:text-indigo-400"
+            : "text-slate-500 dark:text-slate-400 group-hover/item:text-slate-700 dark:group-hover/item:text-slate-200 transition-colors",
+        })}
+      </div>
+      <span
+        className={`text-[13px] ml-3 whitespace-nowrap overflow-hidden flex-1 truncate ${
+          isLocked
+            ? "opacity-100"
+            : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 delay-75"
+        }`}
+      >
+        {label}
+      </span>
+      {badge && (
+        <span
+          className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ${
+            isLocked
+              ? "opacity-100"
+              : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200"
+          }`}
+        >
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+
+  const renderAccordion = ({
+    sectionKey,
+    icon,
+    label,
+    isSectionActive,
+    children,
+  }) => {
+    const isOpen = openAccordion === sectionKey;
+
+    return (
+      <div className="space-y-0.5">
+        <button
+          type="button"
+          onClick={() => toggleAccordion(sectionKey)}
+          title={label}
+          className={`relative flex items-center h-10 px-3 rounded-xl w-full text-left bg-transparent border-0 cursor-pointer transition-all duration-150 group/item ${
+            isSectionActive
+              ? "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold before:absolute before:left-0 before:top-2.5 before:bottom-2.5 before:w-1 before:bg-indigo-600 dark:before:bg-indigo-400 before:rounded-r-full"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 font-medium"
+          }`}
+        >
+          <div className="w-6 min-w-[1.5rem] flex items-center justify-center flex-shrink-0">
+            {React.cloneElement(icon, {
+              size: 18,
+              className: isSectionActive
+                ? "text-indigo-600 dark:text-indigo-400"
+                : "text-slate-500 dark:text-slate-400 group-hover/item:text-slate-700 dark:group-hover/item:text-slate-200 transition-colors",
+            })}
+          </div>
+          <span
+            className={`text-[13px] ml-3 whitespace-nowrap overflow-hidden flex-1 truncate ${
+              isLocked
+                ? "opacity-100"
+                : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 delay-75"
+            }`}
+          >
+            {label}
+          </span>
+          <ChevronDown
+            size={15}
+            className={`ml-auto transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            } ${
+              isLocked
+                ? "opacity-100"
+                : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200"
+            } ${isSectionActive ? "text-indigo-500" : "text-slate-400"}`}
+          />
+        </button>
+
+        {/* Submenu with Tree Guideline: smooth accordion transition */}
+        <div
+          className={`overflow-hidden transition-all duration-200 ${
+            isOpen
+              ? "block max-h-96 opacity-100"
+              : "hidden max-h-0 opacity-0 pointer-events-none"
+          }`}
+        >
+          <div className="ml-6 pl-3 my-1 border-l-2 border-slate-200/80 dark:border-slate-800 space-y-0.5">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSubLink = (to, label, isCurrentActive) => (
+    <Link
+      to={to}
+      onClick={onLinkClick}
+      aria-current={isCurrentActive ? "page" : undefined}
+      className={`flex items-center h-8 px-2.5 rounded-lg text-xs transition-colors duration-150 ${
+        isCurrentActive
+          ? "bg-indigo-100/70 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold"
+          : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 font-medium"
+      }`}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full mr-2 transition-all ${
+          isCurrentActive
+            ? "bg-indigo-600 dark:bg-indigo-400 scale-125"
+            : "bg-slate-300 dark:bg-slate-600"
+        }`}
+      />
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+
+  // ── Permission & Role Computations ──────────────────────────────────────────
+  const canManageTemplates =
+    hasPermission("Manage_DashboardTemplate") ||
+    isRoot ||
+    (Array.isArray(permissions) && permissions.includes("Administrator"));
+
+  const canViewRFQ =
+    hasPermission("View_RFQ") || hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const canViewStoreReq =
+    hasPermission("View_StoreRequest") || hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const canViewTemplates =
+    hasPermission("View_OrderTemplate") || hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const canViewPO =
+    hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
+
+  const canViewSourcingMenu =
+    hasModule("ORDERS") &&
+    (canViewRFQ || canViewStoreReq || (!canViewPO && canViewTemplates));
+
+  const canViewQuotes =
+    hasPermission("Compare_Quote") || hasPermission("View_VendorQuote") || hasPermission("Send_RFQ") || canViewPO;
+  const canViewPackingList = hasPermission("View_PackingList") || canViewPO;
+  const canViewReceiving = hasPermission("View_Receiving") || canViewPO;
+  const canViewDefects =
+    hasPermission("View_Defect") ||
+    hasPermission("Add_Defect") ||
+    hasPermission("View_Report") ||
+    hasPermission("Add_Report") ||
+    hasPermission("Receive_Orders") ||
+    hasPermission("Manage_Orders") ||
+    canViewPO;
+  const canViewDailyWork = hasPermission("View_DailyWork") || canViewPO;
+
+  const canViewOrdersMenu =
+    hasModule("ORDERS") &&
+    (canViewPO || canViewQuotes || canViewTemplates || canViewPackingList || canViewReceiving || canViewDefects || canViewDailyWork);
+
+  const canViewContainers =
+    hasModule("LOGISTICS") &&
+    (hasPermission("View_Container") || hasPermission("Container") || (Array.isArray(permissions) && permissions.includes("Administrator")));
+  const canViewBL =
+    hasModule("LOGISTICS") &&
+    (hasPermission("View_BL") ||
+     hasPermission("BillOfLanding") ||
+     (Array.isArray(permissions) && (permissions.includes("View_BL") || permissions.includes("BillOfLanding"))));
+  const canViewInventory = hasModule("INVENTORY");
+  const canViewMasterData =
+    hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const canViewTenantConsole =
+    hasPermission("View_TenantConsole") ||
+    hasPermission("Manage_TenantConsole") ||
+    isRoot ||
+    (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const canViewSettings = hasPermission("View_Setting");
 
   return (
     <div
-      className={`flex flex-col h-full ${theme.background} group md:w-16 md:hover:w-64 w-64 transition-all duration-300 overflow-hidden border-r-2 ${theme.border}`}
+      className={`flex flex-col h-full ${
+        isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+      } group ${
+        isLocked ? "w-64" : "md:w-[68px] md:hover:w-64 w-64 transition-[width] duration-300 ease-in-out"
+      } overflow-hidden border-r shadow-xs select-none`}
       onMouseLeave={() => {
-        setIsSourcingOpen(false);
-        setIsOrdersOpen(false);
-        setIsContainerOpen(false);
-        setIsMasterDataOpen(false);
-        setIsSettingsOpen(false);
+        if (!isLocked) {
+          setOpenAccordion(null);
+        }
       }}
       role="navigation"
       aria-label="Main"
     >
-      {/* Logo Section */}
-      <div className={`flex items-center justify-between gap-3 px-4 py-4 border-b ${theme.border}`}>
-        <div className="flex items-center gap-3">
-          <img src={logo} alt="Logo" className="w-8 h-8" />
-          <span className={`${textClass} font-semibold`}>Freightliner</span>
+      {/* ── Brand Logo & Header ─────────────────────────────────────────────── */}
+      <div
+        className={`flex items-center justify-between h-16 px-3.5 border-b flex-shrink-0 ${
+          isDark ? "border-slate-800" : "border-slate-100"
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-indigo-600/10 dark:bg-indigo-400/10 flex items-center justify-center p-1.5 flex-shrink-0">
+            <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+          </div>
+          <div
+            className={`flex flex-col min-w-0 whitespace-nowrap overflow-hidden ${
+              isLocked
+                ? "opacity-100"
+                : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 delay-75"
+            }`}
+          >
+            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">Freightliner</span>
+            <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Enterprise</span>
+          </div>
         </div>
+
+        {/* Desktop Pin / Lock Toggle Button */}
+        <button
+          onClick={toggleLock}
+          type="button"
+          className={`hidden md:flex items-center justify-center w-7 h-7 rounded-lg transition-all cursor-pointer ${
+            isLocked
+              ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800/80 shadow-2xs"
+              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 md:opacity-0 md:group-hover:opacity-100"
+          }`}
+          title={isLocked ? "Collapse sidebar (Auto-collapse on mouse leave)" : "Lock sidebar (Keep statically expanded)"}
+          aria-label={isLocked ? "Collapse sidebar" : "Lock sidebar"}
+        >
+          {isLocked ? <Lock size={14} className="stroke-[2.5]" /> : <Unlock size={14} />}
+        </button>
+
+        {/* Mobile Close Button */}
         {onLinkClick && (
           <button
-            className="md:hidden text-xs px-2 py-1 rounded border"
+            className="md:hidden text-xs px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
             onClick={onLinkClick}
             aria-label="Close menu"
           >
-            Close
+            ✕
           </button>
         )}
       </div>
 
-      {/* Main Menu */}
-      <div className="flex-1 flex flex-col justify-start p-4 space-y-2 overflow-y-auto">
-        <nav className="flex flex-col gap-2">
-          {/* Dashboard */}
-          <Link
-            to="/dashboard"
-            aria-current={isActive("/dashboard") ? "page" : undefined}
-            className={`flex items-center gap-3 px-3 py-2 rounded transition ${theme.hover} ${isActive("/dashboard") ? "bg-blue-600/10 text-blue-600" : ""}`}
-            onClick={onLinkClick}
-          >
-            <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-              <LayoutDashboard size={18} />
-            </div>
-            <span className={textClass}>Dashboard</span>
-          </Link>
+      {/* ── Scrollable Menu Navigation ────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col justify-start p-3 space-y-1 overflow-y-auto overflow-x-hidden">
+        <nav className="flex flex-col gap-1">
+          {/* ── SECTION: CORE ───────────────────────────────────────────────── */}
+          {renderSectionHeader("Core")}
 
-          {/* ── 1. SOURCING MODULE (Requisitions & RFQs) ── */}
-          {(() => {
-            const canViewRFQ = hasPermission("View_RFQ") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
-            const canViewStoreReq = hasPermission("View_StoreRequest") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
-            const canViewTemplates = hasPermission("View_OrderTemplate") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
-            const canViewPO = hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
-
-            const canViewSourcingMenu = hasModule("ORDERS") && (canViewRFQ || canViewStoreReq || (!canViewPO && canViewTemplates));
-            if (!canViewSourcingMenu) return null;
-
-            return (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setIsSourcingOpen(!isSourcingOpen)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
-                    isSourcingActive ? "bg-amber-600/10 text-amber-600 font-semibold" : ""
-                  }`}
-                >
-                  <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                    <GitCompare size={18} className="text-amber-500" />
-                  </div>
-                  <span className={textClass}>Sourcing</span>
-                  <ChevronDown
-                    size={16}
-                    className={`ml-auto transition-transform ${
-                      isSourcingOpen ? "rotate-180" : ""
-                    } md:opacity-0 md:group-hover:opacity-100`}
-                  />
-                </button>
-
-                <div className={`${isSourcingOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
-                  {canViewRFQ && (
-                    <Link
-                      to="/sourcing"
-                      className={`block text-xs py-1 hover:text-amber-500 ${isActive("/sourcing") ? "text-amber-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Sourcing Requisitions
-                    </Link>
+          {canManageTemplates ? (
+            renderAccordion({
+              sectionKey: "dashboard",
+              icon: <LayoutDashboard />,
+              label: "Dashboard",
+              isSectionActive: isDashboardSectionActive,
+              children: (
+                <>
+                  {renderSubLink("/dashboard", "Overview", isActive("/dashboard"))}
+                  {renderSubLink(
+                    "/dashboard/templates",
+                    "Template Studio",
+                    isActive("/dashboard/templates") || isActive("/dashboard-templates")
                   )}
-                  {canViewStoreReq && (
-                    <Link
-                      to="/store-requests"
-                      className={`block text-xs py-1 hover:text-amber-500 ${isActive("/store-requests") ? "text-amber-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Store Requests
-                    </Link>
-                  )}
-                  {!canViewPO && canViewTemplates && (
-                    <Link
-                      to="/templates"
-                      className={`block text-xs py-1 hover:text-amber-500 ${isActive("/templates") ? "text-amber-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Order Templates
-                    </Link>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+                </>
+              ),
+            })
+          ) : (
+            renderNavLink("/dashboard", <LayoutDashboard />, "Dashboard", isActive("/dashboard"))
+          )}
 
-          {/* ── 2. PURCHASE ORDERS MODULE (Orders, Quotes, Receiving & Defects) ── */}
-          {(() => {
-            const canViewPO = hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
-            const canViewQuotes = hasPermission("Compare_Quote") || hasPermission("View_VendorQuote") || hasPermission("Send_RFQ") || canViewPO;
-            const canViewTemplates = hasPermission("View_OrderTemplate") || canViewPO;
-            const canViewPackingList = hasPermission("View_PackingList") || canViewPO;
-            const canViewReceiving = hasPermission("View_Receiving") || canViewPO;
-            const canViewDefects = hasPermission("View_Defect") || hasPermission("Add_Defect") || canViewPO;
-            const canViewDailyWork = hasPermission("View_DailyWork") || canViewPO;
+          {/* ── SECTION: PROCUREMENT & SOURCING ─────────────────────────────── */}
+          {(canViewSourcingMenu || canViewOrdersMenu) && renderSectionHeader("Procurement")}
 
-            const canViewOrdersMenu = hasModule("ORDERS") && (
-              canViewPO || canViewQuotes || canViewTemplates || canViewPackingList || canViewReceiving || canViewDefects || canViewDailyWork
-            );
+          {/* Sourcing Module */}
+          {canViewSourcingMenu &&
+            renderAccordion({
+              sectionKey: "sourcing",
+              icon: <GitCompare />,
+              label: "Sourcing",
+              isSectionActive: isSourcingActive,
+              children: (
+                <>
+                  {canViewRFQ && renderSubLink("/sourcing", "Requisitions & RFQs", isActive("/sourcing"))}
+                  {canViewStoreReq && renderSubLink("/store-requests", "Store Requests", isActive("/store-requests"))}
+                  {!canViewPO && canViewTemplates && renderSubLink("/templates", "Order Templates", isActive("/templates"))}
+                </>
+              ),
+            })}
 
-            if (!canViewOrdersMenu) return null;
-
-            return (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setIsOrdersOpen(!isOrdersOpen)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
-                    isOrdersActive ? "bg-blue-600/10 text-blue-600 font-semibold" : ""
-                  }`}
-                >
-                  <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                    <ShoppingBag size={18} className="text-blue-500" />
-                  </div>
-                  <span className={textClass}>Purchase Orders</span>
-                  <ChevronDown
-                    size={16}
-                    className={`ml-auto transition-transform ${
-                      isOrdersOpen ? "rotate-180" : ""
-                    } md:opacity-0 md:group-hover:opacity-100`}
-                  />
-                </button>
-
-                <div className={`${isOrdersOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
-                  {canViewPO && (
-                    <Link
-                      to="/orders"
-                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/orders") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Purchase Orders
-                    </Link>
-                  )}
+          {/* Purchase Orders Module */}
+          {canViewOrdersMenu &&
+            renderAccordion({
+              sectionKey: "orders",
+              icon: <ShoppingBag />,
+              label: "Purchase Orders",
+              isSectionActive: isOrdersActive,
+              children: (
+                <>
+                  {canViewPO && renderSubLink("/orders", "Purchase Orders", isActive("/orders"))}
                   {canViewQuotes && (
-                    <Link
-                      to="/orders/quotes"
-                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/orders/quotes") || isActive("/quotes") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Vendor Quotes & Bidding
-                    </Link>
+                    renderSubLink(
+                      "/orders/quotes",
+                      "Vendor Quotes & Bidding",
+                      isActive("/orders/quotes") || isActive("/quotes")
+                    )
                   )}
                   {canViewTemplates && (
-                    <Link
-                      to="/templates"
-                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/templates") || isActive("/orders/templates") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Manage Templates
-                    </Link>
+                    renderSubLink(
+                      "/templates",
+                      "Manage Templates",
+                      isActive("/templates") || isActive("/orders/templates")
+                    )
                   )}
-                  {canViewPackingList && (
-                    <Link
-                      to="/packing-lists"
-                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/packing-lists") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Packing Lists
-                    </Link>
+                  {canViewPackingList && renderSubLink("/packing-lists", "Packing Lists", isActive("/packing-lists"))}
+                  {canViewReceiving && renderSubLink("/goods-receiving", "Goods Receiving", isActive("/goods-receiving"))}
+                  {canViewDefects && renderSubLink("/damage-defects", "Damage & Defects", isActive("/damage-defects"))}
+                  {canViewDailyWork && renderSubLink("/daily-operations", "Daily Work & EOD", isActive("/daily-operations"))}
+                </>
+              ),
+            })}
+
+          {/* ── SECTION: LOGISTICS & INVENTORY ──────────────────────────────── */}
+          {(canViewContainers || canViewInventory) && renderSectionHeader("Logistics & Stock")}
+
+          {/* Containers Module */}
+          {canViewContainers &&
+            renderAccordion({
+              sectionKey: "containers",
+              icon: <Container />,
+              label: "Containers",
+              isSectionActive: isContainerActive,
+              children: (
+                <>
+                  {renderSubLink(
+                    "/viewContainer",
+                    "Container Register",
+                    isActive("/viewContainer") || isActive("/ConatinerEntry")
                   )}
-                  {canViewReceiving && (
-                    <Link
-                      to="/goods-receiving"
-                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/goods-receiving") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Goods Receiving
-                    </Link>
-                  )}
-                  {canViewDefects && (
-                    <Link
-                      to="/damage-defects"
-                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/damage-defects") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Damage & Defects
-                    </Link>
-                  )}
-                  {canViewDailyWork && (
-                    <Link
-                      to="/daily-operations"
-                      className={`block text-xs py-1 hover:text-blue-400 ${isActive("/daily-operations") ? "text-blue-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                      onClick={onLinkClick}
-                    >
-                      Daily Work & EOD
-                    </Link>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+                  {canViewBL &&
+                    renderSubLink(
+                      "/BillOfLanding",
+                      "Bills of Lading",
+                      isActive("/BillOfLanding") || isActive("/billOfLanding") || isActive("/bill-of-landing-info")
+                    )}
+                  {renderSubLink("/Complete", "Completed Containers", isActive("/Complete"))}
+                </>
+              ),
+            })}
 
-          {/* ── CONTAINERS MODULE ── */}
-          {hasModule("LOGISTICS") && hasPermission("View_Container") && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setIsContainerOpen(!isContainerOpen)}
-                className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
-                  isContainerActive ? "bg-blue-600/10 text-blue-600" : ""
-                }`}
-              >
-                <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                  <Container size={18} />
-                </div>
-                <span className={textClass}>Containers</span>
-                <ChevronDown
-                  size={16}
-                  className={`ml-auto transition-transform ${
-                    isContainerOpen ? "rotate-180" : ""
-                  } md:opacity-0 md:group-hover:opacity-100`}
-                />
-              </button>
+          {/* Inventory / Product Master */}
+          {canViewInventory &&
+            renderNavLink("/inventory", <Boxes />, "Product Master", isInventoryActive)}
 
-              <div className={`${isContainerOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
-                <Link
-                  to="/viewContainer"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/viewContainer") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Container Register
-                </Link>
-                {hasPermission("View_BL") && (
-                  <Link
-                    to="/BillOfLanding"
-                    className={`block text-xs py-1 hover:text-blue-400 ${isActive("/BillOfLanding") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                    onClick={onLinkClick}
-                  >
-                    Bills of Lading
-                  </Link>
-                )}
-                <Link
-                  to="/Complete"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/Complete") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Completed Containers
-                </Link>
-              </div>
-            </div>
-          )}
+          {/* ── SECTION: ADMINISTRATION & SETTINGS ─────────────────────────── */}
+          {(canViewMasterData || canViewTenantConsole || canViewSettings) &&
+            renderSectionHeader("System")}
 
-          {/* ── INVENTORY & PRODUCT MASTER MODULE ── */}
-          {hasModule("INVENTORY") && (
-            <Link
-              to="/inventory"
-              className={`flex items-center gap-3 px-3 py-2 rounded transition cursor-pointer ${theme.hover} ${
-                isActive("/inventory") || isActive("/inventory/products")
-                  ? "bg-indigo-600/10 text-indigo-600 font-bold"
-                  : ""
-              }`}
-              onClick={onLinkClick}
-            >
-              <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                <Boxes size={18} />
-              </div>
-              <span className={textClass}>Product Master</span>
-            </Link>
-          )}
-
-          {/* ── MASTER DATA & MULTI-CURRENCY ADMIN ── */}
-          {(hasPermission("View_Setting") || isRoot || permissions.includes("Administrator")) && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setIsMasterDataOpen(!isMasterDataOpen)}
-                className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
-                  isMasterDataActive ? "bg-emerald-600/10 text-emerald-600 font-semibold" : ""
-                }`}
-              >
-                <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                  <Database size={18} className="text-emerald-500" />
-                </div>
-                <span className={textClass}>Master Data</span>
-                <ChevronDown
-                  size={16}
-                  className={`ml-auto transition-transform ${
-                    isMasterDataOpen ? "rotate-180" : ""
-                  } md:opacity-0 md:group-hover:opacity-100`}
-                />
-              </button>
-
-              <div className={`${isMasterDataOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
-                <Link
-                  to="/master-data/suppliers"
-                  className={`block text-xs py-1 hover:text-emerald-500 ${isActive("/master-data/suppliers") ? "text-emerald-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Suppliers & Vendors
-                </Link>
-                <Link
-                  to="/master-data/currencies"
-                  className={`block text-xs py-1 hover:text-emerald-500 ${isActive("/master-data/currencies") ? "text-emerald-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Currencies & FX Rates
-                </Link>
-                <Link
-                  to="/master-data/payment-terms"
-                  className={`block text-xs py-1 hover:text-emerald-500 ${isActive("/master-data/payment-terms") ? "text-emerald-600 font-bold" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Payment Terms
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Damage & Defects (formerly Report) — standalone rose-accented link */}
-          {(hasModule("LOGISTICS") || hasModule("ORDERS")) && (hasPermission("View_Report") || hasPermission("Receive_Orders") || hasPermission("Manage_Orders") || hasPermission("Add_Report") || isRoot) && (
-            <Link
-              to="/damage-defects"
-              onClick={onLinkClick}
-              aria-current={(isActive("/damage-defects") || isActive("/report") || isActive("/orders/issues")) ? "page" : undefined}
-              className={`flex items-center gap-3 px-3 py-2 rounded transition ${
-                (isActive("/damage-defects") || isActive("/report") || isActive("/orders/issues"))
-                  ? "bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-200 font-semibold"
-                  : `hover:bg-rose-50 dark:hover:bg-rose-950 hover:text-rose-600 dark:hover:text-rose-400 ${theme.hover}`
-              }`}
-            >
-              <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                <AlertTriangle size={18} className={(isActive("/damage-defects") || isActive("/report") || isActive("/orders/issues")) ? "text-rose-600" : "text-rose-400"} />
-              </div>
-              <span className={textClass}>Damage & Defects</span>
-            </Link>
-          )}
+          {/* Master Data Module */}
+          {canViewMasterData &&
+            renderAccordion({
+              sectionKey: "masterdata",
+              icon: <Database />,
+              label: "Master Data",
+              isSectionActive: isMasterDataActive,
+              children: (
+                <>
+                  {renderSubLink("/master-data/suppliers", "Suppliers & Vendors", isActive("/master-data/suppliers"))}
+                  {renderSubLink("/master-data/currencies", "Currencies & FX Rates", isActive("/master-data/currencies"))}
+                  {renderSubLink("/master-data/payment-terms", "Payment Terms", isActive("/master-data/payment-terms"))}
+                  {renderSubLink("/master-data/document-types", "Document Types", isActive("/master-data/document-types"))}
+                </>
+              ),
+            })}
 
           {/* Tenant Console */}
-          <Link
-            to="/admin"
-            onClick={onLinkClick}
-            aria-current={isActive("/admin") ? "page" : undefined}
-            className={`flex items-center gap-3 px-3 py-2 rounded transition ${theme.hover} ${isActive("/admin") ? "bg-amber-500/10 text-amber-500 font-bold" : ""}`}
-          >
-            <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-              <Shield size={18} className="text-amber-500" />
-            </div>
-            <span className={`${textClass} text-amber-500 dark:text-amber-300 font-bold`}>Tenant Console</span>
-          </Link>
+          {canViewTenantConsole &&
+            renderNavLink("/admin", <Shield />, "Tenant Console", isAdminActive)}
 
-          {/* Settings */}
-          {hasPermission("View_Setting") && (
-            <div>
-              <button
-                type="button"
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className={`flex items-center gap-3 px-3 py-2 rounded transition w-full text-left bg-transparent border-0 cursor-pointer ${theme.hover} ${
-                  (isActive("/settings-overview") || isActive("/settings") || isActive("/organization-settings") || isActive("/order-settings") || isActive("/logistics") || isActive("/reference-data")) ? "bg-blue-600/10 text-blue-600" : ""
-                }`}
-              >
-                <div className="w-6 min-w-[1.5rem] flex justify-center items-center">
-                  <SettingsIcon size={18} />
-                </div>
-                <span className={textClass}>Settings</span>
-                <ChevronDown
-                  size={16}
-                  className={`ml-auto transition-transform ${
-                    isSettingsOpen ? "rotate-180" : ""
-                  } md:opacity-0 md:group-hover:opacity-100`}
-                />
-              </button>
-
-              <div className={`${isSettingsOpen ? "block" : "hidden"} ml-6 mt-1 space-y-1`}>
-                <Link
-                  to="/settings-overview"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/settings-overview") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Settings Overview
-                </Link>
-                <Link
-                  to="/organization-settings"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/organization-settings") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Organization & Companies
-                </Link>
-                <Link
-                  to="/settings"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/settings") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Users & Access
-                </Link>
-                {hasModule("ORDERS") && (
-                  <Link
-                    to="/order-settings"
-                    className={`block text-xs py-1 hover:text-blue-400 ${isActive("/order-settings") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                    onClick={onLinkClick}
-                  >
-                    Orders & Procurement
-                  </Link>
-                )}
-                {hasModule("LOGISTICS") && (
-                  <Link
-                    to="/logistics"
-                    className={`block text-xs py-1 hover:text-blue-400 ${isActive("/logistics") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                    onClick={onLinkClick}
-                  >
-                    Logistics & Demurrage
-                  </Link>
-                )}
-                <Link
-                  to="/reference-data"
-                  className={`block text-xs py-1 hover:text-blue-400 ${isActive("/reference-data") ? "text-blue-600 font-medium" : "text-gray-500 dark:text-gray-400"}`}
-                  onClick={onLinkClick}
-                >
-                  Reference Data
-                </Link>
-              </div>
-            </div>
-          )}
+          {/* Settings Module */}
+          {canViewSettings &&
+            renderAccordion({
+              sectionKey: "settings",
+              icon: <SettingsIcon />,
+              label: "Settings",
+              isSectionActive: isSettingsActive,
+              children: (
+                <>
+                  {renderSubLink("/settings-overview", "Settings Overview", isActive("/settings-overview"))}
+                  {canViewTenantConsole &&
+                    renderSubLink("/organization-settings", "Tenant & Org Console", isActive("/organization-settings"))}
+                  {renderSubLink("/settings", "Users & Access", isActive("/settings"))}
+                  {hasModule("ORDERS") && renderSubLink("/order-settings", "Orders & Procurement", isActive("/order-settings"))}
+                  {hasModule("LOGISTICS") && renderSubLink("/logistics", "Logistics & Demurrage", isActive("/logistics"))}
+                  {renderSubLink("/reference-data", "Reference Data", isActive("/reference-data"))}
+                </>
+              ),
+            })}
         </nav>
       </div>
 
-      {/* User Info & Footer */}
-      <div className={`p-4 border-t ${theme.border} space-y-3`}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
-            {initial}
+      {/* ── User Profile & Footer ─────────────────────────────────────────────── */}
+      <div
+        className={`p-3 border-t flex-shrink-0 ${
+          isDark ? "border-slate-800" : "border-slate-100"
+        } mt-auto space-y-2`}
+      >
+        {/* User Card */}
+        <div className="flex items-center gap-2.5 px-1 py-1 rounded-xl">
+          <div className="relative flex-shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+              {initial}
+            </div>
+            <span className="w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full absolute -bottom-0.5 -right-0.5" />
           </div>
-          <div className="flex-1 min-w-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-            <p className="text-xs font-semibold truncate">{user || "User"}</p>
-            <p className="text-[10px] text-gray-400 truncate">{isRoot ? "Group Admin" : "Tenant User"}</p>
+          <div
+            className={`flex-1 min-w-0 ${
+              isLocked
+                ? "opacity-100"
+                : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 delay-75"
+            }`}
+          >
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{user || "User"}</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
+              {isRoot ? "Super Admin" : "Organization User"}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2">
+        {/* Controls: Theme & Logout */}
+        <div className="flex items-center justify-between pt-1">
           <button
             onClick={toggleTheme}
-            className={`p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition`}
+            className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             aria-label="Toggle theme"
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-xs text-red-500 hover:text-red-600 font-medium transition"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold transition cursor-pointer"
+            title="Logout"
           >
             <LogOut size={16} />
-            <span className={textClass}>Logout</span>
+            <span
+              className={
+                isLocked
+                  ? "opacity-100"
+                  : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 delay-75"
+              }
+            >
+              Logout
+            </span>
           </button>
         </div>
       </div>

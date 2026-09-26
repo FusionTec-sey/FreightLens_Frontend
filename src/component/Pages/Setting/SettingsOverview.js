@@ -11,6 +11,7 @@ const settingsCards = [
     title: "Organization & companies",
     description: "Group identity, company names and active companies used throughout Freightliner.",
     icon: Building2,
+    tenantConsole: true,
   },
   {
     to: "/settings",
@@ -40,7 +41,7 @@ const settingsCards = [
 ];
 
 export default function SettingsOverview() {
-  const { permissions } = useAuth();
+  const { permissions = [], isRoot } = useAuth();
   const [summary, setSummary] = useState({ groups: 0, companies: 0, activeCompanies: 0 });
 
   useEffect(() => {
@@ -62,15 +63,22 @@ export default function SettingsOverview() {
     };
   }, []);
 
+  const canViewTenantConsole =
+    isRoot ||
+    permissions.includes("Administrator") ||
+    permissions.includes("View_TenantConsole") ||
+    permissions.includes("Manage_TenantConsole");
+
   const visibleCards = useMemo(
     () =>
       settingsCards.filter(
         (card) =>
-          !card.userAccess ||
-          permissions.includes("View_User") ||
-          permissions.includes("View_Role")
+          (!card.userAccess ||
+            permissions.includes("View_User") ||
+            permissions.includes("View_Role")) &&
+          (!card.tenantConsole || canViewTenantConsole)
       ),
-    [permissions]
+    [permissions, canViewTenantConsole]
   );
 
   return (

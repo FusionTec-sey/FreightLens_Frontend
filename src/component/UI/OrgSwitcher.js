@@ -11,18 +11,22 @@ export default function OrgSwitcher() {
   const [organisations, setOrganisations] = useState([]);
 
   useEffect(() => {
-    if (isRoot) {
-      axios
-        .get(`${process.env.REACT_APP_NETWORK}/organisations`, {
-          headers: { skip_zrok_interstitial: "true" },
-        })
-        .then((res) => {
-          setOrganisations(res.data || []);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch organisations for switcher:", err);
-        });
-    }
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    axios
+      .get(`${process.env.REACT_APP_NETWORK}/organisations`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          skip_zrok_interstitial: "true" 
+        },
+      })
+      .then((res) => {
+        setOrganisations(res.data || []);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch organisations for switcher:", err);
+      });
   }, [isRoot]);
 
   // Determine active company display label
@@ -30,7 +34,7 @@ export default function OrgSwitcher() {
     ? organisations.find((o) => o.id === selectedOrgId)?.display_name ||
       organisations.find((o) => o.id === selectedOrgId)?.name ||
       `Org #${selectedOrgId}`
-    : "All Companies (Sahaj Group)";
+    : (isRoot ? "All Companies (Sahaj Group)" : (organisations.length > 1 ? "All Assigned Companies" : orgName));
 
   if (!isRoot && organisations.length <= 1) {
     return (
@@ -70,7 +74,7 @@ export default function OrgSwitcher() {
             }}
             className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition ${isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-gray-100 text-gray-800"}`}
           >
-            <span className="font-semibold">All Companies (Combined)</span>
+            <span className="font-semibold">{isRoot ? "All Companies (Sahaj Group)" : "All Assigned Companies (Combined)"}</span>
             {!selectedOrgId && <Check size={14} className="text-blue-500" />}
           </button>
 

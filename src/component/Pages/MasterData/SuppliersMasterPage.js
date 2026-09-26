@@ -65,7 +65,10 @@ export default function SuppliersMasterPage() {
         axios.get(`${process.env.REACT_APP_NETWORK}/master-data/currencies?active_only=true`, { headers }),
         axios.get(`${process.env.REACT_APP_NETWORK}/master-data/payment-terms?active_only=true`, { headers }),
       ]);
-      setSuppliers(supRes.data || []);
+      const supList = Array.isArray(supRes.data)
+        ? supRes.data
+        : (Array.isArray(supRes.data?.items) ? supRes.data.items : (supRes.data?.data || []));
+      setSuppliers(supList);
       setCurrencies(curRes.data || []);
       setPaymentTerms(ptRes.data || []);
     } catch (err) {

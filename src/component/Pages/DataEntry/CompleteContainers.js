@@ -1,51 +1,72 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { toast } from 'react-toastify';
-import TableDisplay from '../../TableDisplay/TableDisplay';
-import ContainerEntryForm from './ContainerForm';
-import ContainerContextPanel from './ContainerContextPanel';
 import axios from 'axios';
+import { toast } from 'react-toastify';
+import {
+  PackageCheck,
+  Search,
+  RefreshCw,
+  FilterX,
+  Clock,
+  Calendar,
+  MapPin,
+  Building,
+  CheckCircle2,
+  Trash2,
+  Pencil,
+  X,
+  Container,
+  Package,
+  Layers,
+  Archive
+} from 'lucide-react';
+
 import { useAuth } from '../../../context/AuthContext';
-import { formatDateTime12hr } from '../../../utils/DateFormater';
-import { getMaterialNames } from '../../../utils/reSolveMaterial';
-import { useOptions } from "../../../hooks/useOptions";
-import { Trash2, X } from 'lucide-react';
-import FilterForm from '../../../utils/FilterForm';
 import { useTheme } from '../../../context/ThemeContext';
 import { useConfirm } from '../../../context/ConfirmContext';
-
-const CLIENT_PAGE_SIZE = 15;
-const SERVER_PAGE_SIZE = 50;
+import { useOptions } from '../../../hooks/useOptions';
+import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
+import ContainerSiderDrawer from './ContainerSiderDrawer';
+import { formatDateTime12hr } from '../../../utils/DateFormater';
+import { getMaterialNames } from '../../../utils/reSolveMaterial';
 
 export default function CompleteContainer() {
-  const [rows, setRows] = useState([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [editingContainer, setEditingContainer] = useState(null);
-  const [currentServerPage, setCurrentServerPage] = useState(1);
-  const [loadedServerPages, setLoadedServerPages] = useState(new Set());
-  const [filterData, setFilterData] = useState({});
-  const { isDark, theme } = useTheme();
+  const { isDark } = useTheme();
   const { confirm } = useConfirm();
-  const { permissions, logout } = useAuth();
+  const { permissions, logout, isRoot } = useAuth();
   const {
-    material: materialOptions,
-    status,
-    loading: optionsLoading,
+    material: materialOptions = [],
+    suppliers = [],
+    consignees = [],
+    loading: optionsLoading
   } = useOptions();
 
-  const columns = useMemo(() => [
-    { key: "ContainerId", label: "Container Id", sortable: true, width: "95px" },
-    { key: "Container", label: "Container No", sortable: true, filterable: true, type: "text", width: "135px" },
-    { key: "Supplier", label: "Supplier", filterable: true, type: "text", width: "140px" },
-    { key: "ArrivalDate", label: "Arrival Date", sortable: true, width: "145px" },
-    { key: "EmptyAt", label: "Empty At", width: "110px" },
-    { key: "Demurrage", label: "Free Days / D&D", width: "135px" },
-    { key: "Status", label: "Status", filterable: true, type: "select", options: (status || []).map(item => item.name), width: "110px" },
-    { key: "Material", label: "Materials", filterable: true, type: "text", width: "150px" },
-    { key: "Consignee", label: "Consignee", type: "text", width: "150px" }
-  ], [status]);
+  // Primary Data State
+  const [rows, setRows] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSupplierFilter, setSelectedSupplierFilter] = useState("ALL");
+  const [selectedConsigneeFilter, setSelectedConsigneeFilter] = useState("ALL");
+
+  // Sider Drawer State
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedContainer, setSelectedContainer] = useState(null);
+
+  const canDelete = permissions.includes("Delete_Container") || permissions.includes("Container") || (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const canViewSupplier = Array.isArray(permissions) && (
+    permissions.includes("View_Supplier") ||
+    permissions.includes("Supplier") ||
+    permissions.includes("Edit_Supplier") ||
+    permissions.includes("Add_Supplier")
+  );
+
+  // Data transform
   const transformData = useCallback((apiData) => {
     return (apiData || []).map(c => {
       const freeDaysVal = c.FreeDays !== null && c.FreeDays !== undefined ? c.FreeDays : (c.bill_of_landing?.FreeDays ?? 10);
@@ -53,13 +74,13 @@ export default function CompleteContainer() {
         ContainerId: c.Container_ID,
         Container: c.container_no || "",
         Consignee: c.bill_of_landing?.consignee_name || "",
-        Supplier: c.bill_of_landing?.supplier_name || "",
+        Supplier: canViewSupplier ? (c.bill_of_landing?.supplier_name || "") : "",
         ArrivalDate: c.bill_of_landing?.ArrivalDate
           ? formatDateTime12hr(c.bill_of_landing.ArrivalDate.slice(0, 16))
           : "",
         EmptyAt: c.location || "",
         Demurrage: `${freeDaysVal} Free Days`,
-        Status: c.state || "",
+        Status: c.state || "Completed",
         Material: getMaterialNames(c.materials, materialOptions),
         created_at: c.created_at ? formatDateTime12hr(c.created_at.slice(0, 16)) : "",
         updated_at: c.updated_at ? formatDateTime12hr(c.updated_at.slice(0, 16)) : "",
@@ -69,37 +90,21 @@ export default function CompleteContainer() {
       };
     });
   }, [materialOptions]);
- 
-  const getIdByName = (name) => {
-    const found = (status || []).find(item => item.name === name);
-    return found ? found.id : null;
-  };
 
-  const fetchData = useCallback(async (
-    rawOffset = 0,
-    rawLimit = SERVER_PAGE_SIZE,
-    filters = filterData
-  ) => {
-    const safeOffset = Math.max(0, Math.floor(Number(rawOffset) || 0));
-    const safeLimit = Math.max(1, Math.floor(Number(rawLimit) || SERVER_PAGE_SIZE));
-    const pageNum = Math.floor(safeOffset / safeLimit) + 1;
-
-    if (loadedServerPages.has(pageNum)) return;
-
+  // Fetch Completed Containers
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
+      const offset = (page - 1) * pageSize;
       const params = {
-        status: 4,
-        offset: safeOffset,
-        limit: safeLimit,
+        status: 4, // 4 = Completed
+        offset,
+        limit: pageSize,
       };
 
-      if (filters.search) params.search = filters.search;
-      if (filters.Container) params.container_no = filters.Container;
-      if (filters.Supplier) params.SupplierName = filters.Supplier;
-      if (filters.Consignee) params.ConsigneeName = filters.Consignee;
-      if (filters.Status) params.status = getIdByName(filters.Status);
-      if (filters.Material) params.material = filters.Material;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (selectedSupplierFilter !== "ALL") params.SupplierName = selectedSupplierFilter;
+      if (selectedConsigneeFilter !== "ALL") params.ConsigneeName = selectedConsigneeFilter;
 
       const response = await axios.get(
         `${process.env.REACT_APP_NETWORK}/containers`,
@@ -113,50 +118,61 @@ export default function CompleteContainer() {
       );
 
       const { data, total_count } = response.data || {};
-      const transformedData = transformData(data || []);
-
-      if (totalItems !== (total_count || 0)) {
-        setTotalItems(total_count || 0);
-      }
-
-      setRows(prev => {
-        const newRows = [...prev];
-        for (let i = 0; i < transformedData.length; i++) {
-          newRows[safeOffset + i] = transformedData[i];
-        }
-        return newRows.filter(Boolean);
-      });
-
-      setLoadedServerPages(prev => new Set(prev).add(pageNum));
+      setRows(transformData(data || []));
+      setTotalCount(total_count || 0);
     } catch (error) {
-      console.error("Failed to fetch containers:", error);
+      console.error("Failed to fetch completed containers:", error);
       if (error.response?.status === 401) {
-        toast.warn("Session expired. Logging in again...");
+        toast.warn("Session expired. Please log in again.");
         logout();
+      } else {
+        toast.error("Failed to load completed containers");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [transformData, totalItems, loadedServerPages, filterData, status, logout]);
+  }, [
+    page,
+    pageSize,
+    searchQuery,
+    selectedSupplierFilter,
+    selectedConsigneeFilter,
+    transformData,
+    logout
+  ]);
 
-  const handlePageChange = useCallback((offsetOrPage, pageSize) => {
-    let targetOffset = 0;
-    if (typeof offsetOrPage === "number") {
-      targetOffset = Math.max(0, Math.floor(offsetOrPage));
+  useEffect(() => {
+    if (!optionsLoading) {
+      fetchData();
     }
-    fetchData(targetOffset, SERVER_PAGE_SIZE);
-  }, [fetchData]);
+  }, [fetchData, optionsLoading]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchQuery.trim()) count++;
+    if (selectedSupplierFilter !== "ALL") count++;
+    if (selectedConsigneeFilter !== "ALL") count++;
+    return count;
+  }, [searchQuery, selectedSupplierFilter, selectedConsigneeFilter]);
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setSelectedSupplierFilter("ALL");
+    setSelectedConsigneeFilter("ALL");
+    setPage(1);
+  };
 
   const handleEdit = useCallback((row) => {
     const containerData = row?.rawData || row;
-    setEditingContainer(containerData);
-    setIsEditFormOpen(true);
+    setSelectedContainer(containerData);
+    setIsDrawerOpen(true);
   }, []);
 
-  const handleDelete = useCallback(async (containerId) => {
-    const isConfirmed = await confirm("Are you sure you want to delete this container?");
+  const handleDelete = useCallback(async (containerId, e) => {
+    if (e) e.stopPropagation();
+    const isConfirmed = await confirm("Are you sure you want to delete this completed container record?");
     if (!isConfirmed) return;
-    
+
     try {
       await axios.delete(
         `${process.env.REACT_APP_NETWORK}/containers/${containerId}`,
@@ -167,188 +183,361 @@ export default function CompleteContainer() {
           },
         }
       );
-
       toast.success("Container deleted successfully");
-      setLoadedServerPages(new Set());
-      setRows([]);
-      fetchData(0, SERVER_PAGE_SIZE, filterData);
+      fetchData();
     } catch (error) {
       console.error("Failed to delete container:", error);
-      toast.error("Failed to delete container");
+      toast.error(error.response?.data?.detail || "Failed to delete container");
     }
-  }, [fetchData, filterData, confirm]);
+  }, [confirm, fetchData]);
 
-  const handleEditFormClose = useCallback(() => {
-    setIsEditFormOpen(false);
-    setEditingContainer(null);
-  }, []);
+  const handleDrawerClose = () => {
+    setIsDrawerOpen(false);
+    setSelectedContainer(null);
+  };
 
-  const handleEditFormSubmitSuccess = useCallback(() => {
-    setLoadedServerPages(new Set());
-    setRows([]);
-    fetchData(0, SERVER_PAGE_SIZE, filterData);
-    handleEditFormClose();
-  }, [fetchData, handleEditFormClose, filterData]);
+  const handleDrawerSuccess = () => {
+    handleDrawerClose();
+    fetchData();
+  };
 
-  useEffect(() => {
-    if (!optionsLoading) {
-      fetchData(0, SERVER_PAGE_SIZE);
-    }
-  }, [optionsLoading]);
-
-  function handleFilterSubmit(col, val) {
-    const newFilters = { [col]: val };
-    setFilterData(newFilters);
-    setLoadedServerPages(new Set());
-    setRows([]);
-    fetchData(0, SERVER_PAGE_SIZE, newFilters);
-  }
-
-  const handleSearch = useCallback((query) => {
-    const trimmed = (query || '').trim();
-    const newFilters = { ...filterData };
-    if (trimmed) {
-      newFilters.search = trimmed;
-    } else {
-      delete newFilters.search;
-    }
-    setFilterData(newFilters);
-    setLoadedServerPages(new Set());
-    setRows([]);
-    fetchData(0, SERVER_PAGE_SIZE, newFilters);
-  }, [filterData, fetchData]);
-
-  const filterPopup = (
-    <FilterForm
-      columns={columns}
-      userPermissions={permissions}
-      handleFilterChange={handleFilterSubmit}
-    />
-  );
-
-  const actionColumn = useMemo(() => {
-    return {
-      key: "actions",
-      label: "",
-      width: "48px",
-      render: (_, row) => (
-        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => handleDelete(row.ContainerId)}
-            className="p-1 text-red-600 hover:text-red-800 transition"
-            title="Delete Container"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      )
-    };
-  }, [handleDelete]);
-
-  const allColumns = useMemo(() => {
-    return [...columns, actionColumn];
-  }, [columns, actionColumn]);
-
-  const getRowClassName = useCallback((row) => {
-    const isOverdue = row.Demurrage && String(row.Demurrage).includes("Overdue");
-    if (isDark) {
-        if (isOverdue) {
-            return 'hover:bg-red-450 bg-red-400 text-red-50';
-        } else {
-            switch (row.Status) {
-                case 'Unloaded':
-                    return 'hover:bg-yellow-800 bg-yellow-900 text-yellow-100';
-                case 'In Transit':
-                    return 'hover:bg-slate-800 bg-slate-900 text-slate-200';
-                case 'On port':
-                    return 'hover:bg-blue-800 bg-blue-900 text-blue-100';
-                case 'Gate Pass':
-                    return 'hover:bg-green-800 bg-green-900 text-green-100';
-                case 'Arrived':
-                    return 'hover:bg-indigo-800 bg-indigo-900 text-indigo-100';
-                default:
-                    return 'hover:bg-slate-800 bg-slate-900 text-slate-200';
-            }
-        }
-    } else {
-        if (isOverdue) {
-            return 'hover:bg-red-450 bg-red-400 text-red-50';
-        } else {
-            switch (row.Status) {
-                case 'Unloaded':
-                    return 'hover:bg-yellow-50 bg-yellow-200 text-yellow-900';
-                case 'In Transit':
-                    return `hover:bg-gray-100 bg-white ${theme.text}`;
-                case 'On port':
-                    return 'hover:bg-blue-50 bg-blue-200 text-blue-900';
-                case 'Gate Pass':
-                    return 'hover:bg-green-50 bg-green-200 text-green-900';
-                case 'Arrived':
-                    return 'hover:bg-indigo-50 bg-indigo-200 text-indigo-900';
-                default:
-                    return `hover:bg-gray-100 bg-white ${theme.text}`;
-            }
-        }
-    }
-  }, [isDark, theme]);
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
   return (
-    <div className="space-y-3 flex flex-col h-full flex-1 min-h-0 overflow-hidden">
-      <div className="flex items-center justify-between">
-        <h1 className={`text-lg font-bold ${theme.text}`}>View Complete Containers</h1>
-      </div>
-
-      <TableDisplay
-        data={rows}
-        columns={allColumns}
-        totalItems={totalItems}
-        pageSize={CLIENT_PAGE_SIZE}
-        isLoading={isLoading}
-        onPageChange={handlePageChange}
-        FilterForm={filterPopup}
-        getRowClassName={getRowClassName}
-        onRowClick={handleEdit}
-        primaryKey="Container"
-        onSearch={handleSearch}
-        searchPlaceholder="Search Container No, Supplier, Consignee..."
-      />
-
-      {isEditFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`rounded-lg w-full max-w-5xl max-h-[92vh] flex flex-col border-2 ${theme.background} ${theme.border} shadow-2xl overflow-hidden`}>
-            <div className="flex justify-between items-center p-4 border-b">
-              <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold">Edit Completed Container</h3>
-                {editingContainer && (
-                  <span className="text-xs px-2.5 py-1 rounded-md font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200">
-                    {editingContainer.container_no || editingContainer.Container}
-                  </span>
-                )}
-              </div>
-              <button onClick={handleEditFormClose} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
-                <X size={20} />
-              </button>
+    <div className="p-4 sm:p-6 flex flex-col h-full flex-1 min-h-0 overflow-hidden space-y-4">
+      {/* ── Page Header Banner ────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-teal-600/10 dark:bg-teal-400/10 text-teal-600 dark:text-teal-400 flex items-center justify-center p-2.5 flex-shrink-0 shadow-xs">
+            <PackageCheck size={22} className="stroke-[2.2]" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                Logistics & Freight
+              </span>
             </div>
-            <div className={`overflow-y-auto p-4 ${theme.scrollbar}`} style={{ maxHeight: 'calc(92vh - 64px)' }}>
-              <ContainerEntryForm
-                isOpen={isEditFormOpen}
-                userPermissions={permissions}
-                onClose={handleEditFormClose}
-                editData={editingContainer}
-                onSubmitSuccess={handleEditFormSubmitSuccess}
-              />
-
-              {/* Cross-Module Operations & Context Panel */}
-              {editingContainer && (
-                <ContainerContextPanel
-                  containerId={editingContainer.Container_ID || editingContainer.ContainerId}
-                  containerNo={editingContainer.container_no || editingContainer.Container}
-                />
-              )}
-            </div>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Completed Containers
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Historical archive of returned and discharged containers.
+            </p>
           </div>
         </div>
-      )}
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchData()}
+            disabled={isLoading}
+            className={`p-2 rounded-xl border transition ${
+              isDark
+                ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white"
+                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+            title="Refresh Completed Containers"
+          >
+            <RefreshCw size={15} className={isLoading ? "animate-spin text-teal-600" : ""} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Filters & Search Control Bar ──────────────────────────────────── */}
+      <div className={`p-3 rounded-2xl border transition-all ${
+        isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200/80 shadow-xs"
+      } space-y-2.5 shrink-0`}>
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[220px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search Container No, Supplier, Consignee..."
+                className={`w-full pl-9 pr-8 py-1.5 border rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all ${
+                  isDark
+                    ? "bg-slate-800/90 border-slate-700 text-white placeholder-slate-500"
+                    : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Supplier Select Filter - Only visible if user has supplier permission */}
+            {canViewSupplier && suppliers && suppliers.length > 0 && (
+              <select
+                value={selectedSupplierFilter}
+                onChange={(e) => {
+                  setSelectedSupplierFilter(e.target.value);
+                  setPage(1);
+                }}
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-xl border transition focus:outline-none cursor-pointer ${
+                  selectedSupplierFilter !== "ALL"
+                    ? "bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700"
+                    : isDark
+                    ? "bg-slate-800/80 text-slate-300 border-slate-700"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                <option value="ALL">Supplier: All</option>
+                {suppliers.map(s => (
+                  <option key={s.id || s.name} value={s.name || s}>
+                    {s.name || s}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Consignee Select Filter */}
+            {consignees && consignees.length > 0 && (
+              <select
+                value={selectedConsigneeFilter}
+                onChange={(e) => {
+                  setSelectedConsigneeFilter(e.target.value);
+                  setPage(1);
+                }}
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-xl border transition focus:outline-none cursor-pointer ${
+                  selectedConsigneeFilter !== "ALL"
+                    ? "bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700"
+                    : isDark
+                    ? "bg-slate-800/80 text-slate-300 border-slate-700"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                <option value="ALL">Consignee: All</option>
+                {consignees.map(c => (
+                  <option key={c.id || c.name} value={c.name || c}>
+                    {c.name || c}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Reset Filters Button */}
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900 transition cursor-pointer"
+              >
+                <FilterX size={13} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Table Container ───────────────────────────────────────────────── */}
+      <div className={`flex-1 overflow-auto rounded-2xl border transition relative flex flex-col min-h-0 ${
+        isDark ? "bg-slate-900/70 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+      }`}>
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className={`sticky top-0 z-10 border-b backdrop-blur-md ${
+              isDark
+                ? "bg-slate-900/95 border-slate-800 text-slate-400"
+                : "bg-slate-50/95 border-slate-200 text-slate-500"
+            } text-[11px] font-bold uppercase tracking-wider`}>
+              <tr>
+                <th className="py-3 px-4 w-28">Container No</th>
+                <th className="py-3 px-4">{canViewSupplier ? "Supplier & Consignee" : "Consignee"}</th>
+                <th className="py-3 px-4">Materials / Cargo</th>
+                <th className="py-3 px-4 w-36">Arrival Date</th>
+                <th className="py-3 px-4 w-32">Empty At</th>
+                <th className="py-3 px-4 w-32">Demurrage</th>
+                <th className="py-3 px-4 w-28">Status</th>
+                <th className="py-3 px-4 w-20 text-right">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <RefreshCw size={24} className="animate-spin text-teal-600 dark:text-teal-400" />
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Loading completed containers...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto text-slate-400">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                        <PackageCheck size={26} className="opacity-60" />
+                      </div>
+                      <p className="font-bold text-sm text-slate-700 dark:text-slate-300">No Completed Containers Found</p>
+                      <p className="text-xs text-slate-400">
+                        {activeFilterCount > 0 ? "Try adjusting or clearing your filters." : "Completed container shipments will appear here once discharged."}
+                      </p>
+                      {activeFilterCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={resetFilters}
+                          className="mt-2 px-3 py-1.5 text-xs font-bold rounded-xl bg-teal-50 dark:bg-teal-950 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
+                        >
+                          Clear All Filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                rows.map((row) => (
+                  <tr
+                    key={row.ContainerId || row.Container}
+                    onClick={() => handleEdit(row)}
+                    className={`transition cursor-pointer group ${
+                      isDark
+                        ? "hover:bg-slate-800/60 text-slate-300"
+                        : "hover:bg-teal-50/40 text-slate-700"
+                    }`}
+                  >
+                    {/* Container No */}
+                    <td className="py-3 px-4 font-mono font-bold text-teal-600 dark:text-teal-400 group-hover:underline">
+                      <div className="flex items-center gap-1.5">
+                        <Container size={14} className="opacity-60 flex-shrink-0" />
+                        <span>{row.Container || `ID: ${row.ContainerId}`}</span>
+                      </div>
+                    </td>
+
+                    {/* Supplier & Consignee */}
+                    <td className="py-3 px-4 min-w-[180px]">
+                      <div className="flex flex-col">
+                        {canViewSupplier ? (
+                          <span className="font-semibold text-slate-900 dark:text-white truncate">
+                            {row.Supplier || "No Supplier"}
+                          </span>
+                        ) : null}
+                        <span className={`${canViewSupplier ? "text-[11px] text-slate-400" : "font-semibold text-slate-900 dark:text-white"} truncate flex items-center gap-1`}>
+                          <Building size={11} className="opacity-60" />
+                          {row.Consignee || "No Consignee"}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Materials */}
+                    <td className="py-3 px-4 max-w-[200px] truncate">
+                      {row.Material ? (
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-medium truncate max-w-[180px]" title={row.Material}>
+                          {row.Material}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">-</span>
+                      )}
+                    </td>
+
+                    {/* Arrival Date */}
+                    <td className="py-3 px-4 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                      {row.ArrivalDate ? (
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={13} className="text-slate-400 flex-shrink-0" />
+                          <span>{row.ArrivalDate}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+
+                    {/* Empty At */}
+                    <td className="py-3 px-4 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                      {row.EmptyAt ? (
+                        <div className="flex items-center gap-1">
+                          <MapPin size={12} className="text-slate-400 flex-shrink-0" />
+                          <span>{row.EmptyAt}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+
+                    {/* Demurrage */}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        <Clock size={11} className="text-slate-400 flex-shrink-0" />
+                        <span>{row.Demurrage}</span>
+                      </span>
+                    </td>
+
+                    {/* Status */}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400 border-teal-200 dark:border-teal-800">
+                        {row.Status}
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(row)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-slate-800 transition"
+                          title="Edit Container Details"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDelete(row.ContainerId, e)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition"
+                            title="Delete Container Record"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Sticky Pagination Footer ────────────────────────────────────── */}
+        <PaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          isDark={isDark}
+          className="border-t border-slate-200 dark:border-slate-800 rounded-none border-x-0 border-b-0"
+        />
+      </div>
+
+      {/* ── Slide-Over Container Sider Drawer ─────────────────────────────── */}
+      <ContainerSiderDrawer
+        isOpen={isDrawerOpen}
+        onClose={handleDrawerClose}
+        container={selectedContainer}
+        onSubmitSuccess={handleDrawerSuccess}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

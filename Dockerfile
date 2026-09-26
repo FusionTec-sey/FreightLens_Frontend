@@ -1,14 +1,25 @@
-FROM node:20-alpine
+﻿# Build stage
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 COPY . .
 
-ENV PORT=3000
-EXPOSE 3000
+# Build argument passed by Coolify / Docker Compose
+ARG REACT_APP_NETWORK
+ENV REACT_APP_NETWORK=$REACT_APP_NETWORK
 
-CMD ["npm", "start"]
+RUN npm run build
+
+# Production serve stage using Nginx (~15MB RAM)
+FROM nginx:alpine
+
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

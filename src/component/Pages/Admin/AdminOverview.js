@@ -16,7 +16,11 @@ import { toast } from "react-toastify";
 
 export default function AdminOverview() {
   const { theme, isDark } = useTheme();
-  const { setSelectedOrgId, isRoot } = useAuth();
+  const { setSelectedOrgId, isRoot, permissions = [] } = useAuth();
+  const canManageTenant =
+    isRoot ||
+    permissions.includes("Administrator") ||
+    permissions.includes("Manage_TenantConsole");
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -129,14 +133,16 @@ export default function AdminOverview() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className={`flex items-center gap-2 px-3.5 py-2 font-semibold rounded-lg text-xs transition ${theme.button}`}
-          >
-            <Plus size={15} />
-            <span>Add Sub-Organisation</span>
-          </button>
+          {canManageTenant && (
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className={`flex items-center gap-2 px-3.5 py-2 font-semibold rounded-lg text-xs transition ${theme.button}`}
+            >
+              <Plus size={15} />
+              <span>Add Sub-Organisation</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -291,14 +297,14 @@ export default function AdminOverview() {
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    disabled={!isRoot}
+                    disabled={!canManageTenant}
                     onClick={() => handleToggleModule(o.id, o.modules || ["LOGISTICS", "ORDERS", "INVENTORY"], "LOGISTICS")}
                     className={`flex-1 py-1 px-2 rounded text-[11px] font-bold border transition flex items-center justify-center gap-1 ${
                       (o.modules || []).includes("LOGISTICS")
                         ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                         : "bg-transparent text-gray-400 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-500"
                     }`}
-                    title={isRoot ? "Click to enable/disable Logistics module" : "Subscribed module"}
+                    title={canManageTenant ? "Click to enable/disable Logistics module" : "Subscribed module"}
                   >
                     <span>Logistics</span>
                     {(o.modules || []).includes("LOGISTICS") && <span>✓</span>}
@@ -306,14 +312,14 @@ export default function AdminOverview() {
 
                   <button
                     type="button"
-                    disabled={!isRoot}
+                    disabled={!canManageTenant}
                     onClick={() => handleToggleModule(o.id, o.modules || ["LOGISTICS", "ORDERS", "INVENTORY"], "ORDERS")}
                     className={`flex-1 py-1 px-2 rounded text-[11px] font-bold border transition flex items-center justify-center gap-1 ${
                       (o.modules || []).includes("ORDERS")
                         ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                         : "bg-transparent text-gray-400 border-dashed border-gray-300 dark:border-gray-700 hover:border-emerald-500"
                     }`}
-                    title={isRoot ? "Click to enable/disable Orders module" : "Subscribed module"}
+                    title={canManageTenant ? "Click to enable/disable Orders module" : "Subscribed module"}
                   >
                     <span>Orders</span>
                     {(o.modules || []).includes("ORDERS") && <span>✓</span>}
@@ -321,7 +327,7 @@ export default function AdminOverview() {
 
                   <button
                     type="button"
-                    disabled={!isRoot}
+                    disabled={!canManageTenant}
                     onClick={() => handleToggleModule(o.id, o.modules || ["LOGISTICS", "ORDERS", "INVENTORY"], "INVENTORY")}
                     className={`flex-1 py-1 px-2 rounded text-[11px] font-bold border transition flex items-center justify-center gap-1 ${
                       (o.modules || []).includes("INVENTORY")

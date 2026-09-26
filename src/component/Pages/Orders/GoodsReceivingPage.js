@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   CheckSquare, Plus, Search, CheckCircle2, AlertTriangle, 
   PackageCheck, Camera, X, ChevronRight, FileSpreadsheet, Eye 
@@ -6,6 +6,7 @@ import {
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import { toast } from "react-toastify";
+import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
 
 export default function GoodsReceivingPage() {
   const { theme } = useTheme();
@@ -17,6 +18,12 @@ export default function GoodsReceivingPage() {
   const [showModal, setShowModal] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState(null);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   // New Verification Form
   const [selectedPO, setSelectedPO] = useState(null);
   const [formData, setFormData] = useState({
@@ -27,29 +34,60 @@ export default function GoodsReceivingPage() {
     items: []
   });
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const params = {
+        page,
+        limit: pageSize,
+      };
+      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
+
       const [recRes, ordRes] = await Promise.all([
         axios.get(`${process.env.REACT_APP_NETWORK}/goods-receiving`, {
+          params,
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }),
-        axios.get(`${process.env.REACT_APP_NETWORK}/orders`, {
+        axios.get(`${process.env.REACT_APP_NETWORK}/orders?limit=100`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         })
       ]);
-      setReceipts(recRes.data || []);
-      setOrders(ordRes.data || []);
+      let recData = recRes.data;
+      if (typeof recData === "string") recData = JSON.parse(recData);
+      if (recData && recData.items && Array.isArray(recData.items)) {
+        setReceipts(recData.items);
+        setTotalCount(recData.total || 0);
+        setTotalPages(recData.pages || 1);
+      } else if (Array.isArray(recData)) {
+        setReceipts(recData);
+        setTotalCount(recData.length);
+        setTotalPages(1);
+      } else if (recData && Array.isArray(recData.data)) {
+        setReceipts(recData.data);
+        setTotalCount(recData.data.length);
+        setTotalPages(1);
+      } else {
+        setReceipts([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
+
+      let ordData = ordRes.data;
+      if (typeof ordData === "string") ordData = JSON.parse(ordData);
+      const ordersList = Array.isArray(ordData)
+        ? ordData
+        : (Array.isArray(ordData?.items) ? ordData.items : (ordData?.data || []));
+      setOrders(ordersList);
     } catch (err) {
       toast.error("Failed to load receiving data");
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, searchQuery]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleSelectPO = (poId) => {
     const po = orders.find(o => o.id === parseInt(poId));
@@ -140,7 +178,10 @@ export default function GoodsReceivingPage() {
             type="text"
             placeholder="Search receipt #, PO, warehouse..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
           />
         </div>
@@ -201,6 +242,22 @@ export default function GoodsReceivingPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Pagination Toolbar */}
+      {!loading && receipts.length > 0 && (
+        <PaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          onPageChange={(newPage) => setPage(newPage)}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          isDark={theme?.mode === "dark"}
+        />
       )}
 
       {/* Verify Goods Modal */}

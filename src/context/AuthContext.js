@@ -437,6 +437,8 @@ export const AuthProvider = ({ children }) => {
     user,
     orgId,
     orgName,
+    selectedOrgId,
+    setSelectedOrgId,
     isRoot,
     modules,
     plan,

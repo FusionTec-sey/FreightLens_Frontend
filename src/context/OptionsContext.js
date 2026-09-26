@@ -51,6 +51,8 @@ export const OptionsProvider = ({ children }) => {
             sequence_order: row[3] || 10,
             progress: row[4] !== undefined ? row[4] : 50,
             color: row[5] || "bg-blue-500",
+            badge_color: row[6] || "bg-blue-50 text-blue-800 border-blue-200",
+            badgeColor: row[6] || "bg-blue-50 text-blue-800 border-blue-200",
           };
         }
         if (pathKey === "consignees") {

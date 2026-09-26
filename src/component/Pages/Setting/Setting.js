@@ -28,7 +28,6 @@ import {
     Award,
 } from 'lucide-react';
 import axios from 'axios';
-import { useTheme } from '../../../context/ThemeContext';
 import { toast } from 'react-toastify';
 
 // Permissions that are basic operational requirements and should NOT clutter the role configuration UI.
@@ -38,7 +37,6 @@ const REDUNDANT_VIEW_PERMISSIONS = new Set([
     'View_container_no',
     'View_ContainerId',
     'View_ReportId',
-    'View_BillOfLanding',
     'View_Status',
     'View_status',
     'View_ContainerType',
@@ -160,6 +158,14 @@ const PERMISSION_SECTIONS = [
         match: (n) => /Dashboard|Report|DailyWork/i.test(n)
     },
     {
+        id: 'tenant_console',
+        title: 'Tenant & Multi-Organization Console',
+        description: 'Multi-tenant administration: configure subsidiary tenants, company legal entities, prefixes, modules, and cross-company tenant isolation',
+        icon: Building2,
+        badgeColor: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/60 dark:text-violet-300 dark:border-violet-800',
+        match: (n) => /Tenant|Organisation|Organization/i.test(n)
+    },
+    {
         id: 'administration',
         title: 'System Administration & Security',
         description: 'User access accounts, role security configuration, reference data, and settings',
@@ -171,6 +177,8 @@ const PERMISSION_SECTIONS = [
 
 function formatPermName(name) {
     if (!name) return '';
+    if (name === 'View_TenantConsole') return 'View Tenant Console (Company & Org Administration)';
+    if (name === 'Manage_TenantConsole') return 'Manage Tenant Console (Entities, Prefixes & Modules)';
     if (name === 'View_Supplier') return 'View Supplier (Vendor Confidentiality)';
     if (name === 'View_Consignee') return 'View Consignee (Importing Entity)';
     if (name === 'View_consignee_name') return 'View Consignee Name in B/L';
@@ -233,7 +241,6 @@ function getActionBadge(name) {
 }
 
 function Setting({ currentUser }) {
-    const { isDark } = useTheme();
 
     const [organisations, setOrganisations] = useState([]);
     const [roles, setRoles] = useState([]);
@@ -403,20 +410,26 @@ function Setting({ currentUser }) {
     // USER ACTIONS
     async function handleAddUser(e) {
         if (e) e.preventDefault();
-        if (!newUser.name.trim()) {
+        const usernameVal = newUser.name ? newUser.name.trim() : '';
+        if (!usernameVal) {
             toast.error("Please enter username");
             return;
         }
-        if (!editingUserId && !newUser.password.trim()) {
+        if (!editingUserId && (!newUser.password || !newUser.password.trim())) {
             toast.error("Please enter password");
             return;
         }
 
         try {
+            const orgIdsToSend = newUser.isRoot 
+                ? [1] 
+                : (newUser.org_ids && newUser.org_ids.length > 0 ? newUser.org_ids : [2]);
             const payload = {
-                name: newUser.name.trim(),
+                username: usernameVal,
+                name: usernameVal,
                 password: newUser.password ? newUser.password.trim() : undefined,
-                org_ids: newUser.isRoot ? [1] : newUser.org_ids,
+                org_id: orgIdsToSend[0],
+                org_ids: orgIdsToSend,
                 roles: newUser.roles
             };
 
@@ -438,13 +451,27 @@ function Setting({ currentUser }) {
             getUsers();
         } catch (err) {
             console.error("Failed to save user:", err);
-            toast.error(err.response?.data?.detail || "Failed to save user.");
+            let detail = err.response?.data?.detail;
+            if (Array.isArray(detail)) {
+                detail = detail.map(d => d.msg || JSON.stringify(d)).join(", ");
+            } else if (typeof detail === 'object' && detail !== null) {
+                detail = JSON.stringify(detail);
+            }
+            toast.error(detail || "Failed to save user.");
         }
     }
 
     function startEditUser(user) {
-        const isRoot = user.org_ids?.includes(1) || user.org_id === 1;
-        const currentOrgIds = isRoot ? [1] : (user.org_ids?.length ? user.org_ids : (user.org_id ? [user.org_id] : [2]));
+        let initialOrgIds = [];
+        if (Array.isArray(user.org_ids) && user.org_ids.length > 0) {
+            initialOrgIds = [...user.org_ids];
+        } else if (user.org_id) {
+            initialOrgIds = [user.org_id];
+        } else {
+            initialOrgIds = [1];
+        }
+
+        const isRoot = initialOrgIds.includes(1);
         
         let currentRoleIds = [];
         if (Array.isArray(user.roles)) {
@@ -459,7 +486,7 @@ function Setting({ currentUser }) {
             name: user.username || user.name || '',
             password: '',
             isRoot: isRoot,
-            org_ids: currentOrgIds,
+            org_ids: isRoot ? [1] : initialOrgIds,
             roles: currentRoleIds
         });
         setShowAddUserModal(true);
@@ -481,15 +508,22 @@ function Setting({ currentUser }) {
 
     function toggleOrgSelection(orgId) {
         setNewUser(prev => {
-            const exists = prev.org_ids.includes(orgId);
+            const currentList = Array.isArray(prev.org_ids) ? [...prev.org_ids] : [];
+            const exists = currentList.includes(orgId);
             let next;
             if (exists) {
-                next = prev.org_ids.filter(id => id !== orgId);
+                next = currentList.filter(id => id !== orgId);
             } else {
-                next = [...prev.org_ids.filter(id => id !== 1), orgId];
+                next = [...currentList, orgId];
             }
-            if (next.length === 0) next = [2];
-            return { ...prev, org_ids: next };
+            if (next.length === 0) {
+                next = [orgId];
+            }
+            return {
+                ...prev,
+                isRoot: false,
+                org_ids: next
+            };
         });
     }
 
@@ -788,12 +822,12 @@ function Setting({ currentUser }) {
                                 </div>
                             </div>
 
-                            {/* MULTI-ORGANIZATION SELECTION */}
+                            {/* MULTI-ORGANIZATION / TENANT SELECTION */}
                             <div>
                                 <label className="block text-xs font-medium mb-1 text-gray-800">
                                     Organization / Tenant Access *
                                 </label>
-                                <p className="text-[11px] text-gray-500 mb-2 font-normal">Select tenant companies this user is authorized to access.</p>
+                                <p className="text-[11px] text-gray-500 mb-2 font-normal">Select one or more tenant companies this user is authorized to access.</p>
                                 
                                 <div className="p-3 rounded-lg border border-gray-200 bg-gray-50 space-y-2.5">
                                     <label className={`flex items-center space-x-2.5 p-2 rounded-lg cursor-pointer transition ${newUser.isRoot ? 'bg-blue-50 text-blue-900 border border-blue-200' : 'hover:bg-white text-gray-800'}`}>
@@ -810,13 +844,16 @@ function Setting({ currentUser }) {
                                             }}
                                             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                         />
-                                        <span className="font-semibold text-xs text-gray-900">Root / All Tenant Access (Access to All Organizations)</span>
+                                        <div>
+                                            <span className="font-semibold text-xs text-gray-900 block">Root / All Tenant Access</span>
+                                            <span className="text-[10px] text-gray-500">Unrestricted access across all tenant organizations</span>
+                                        </div>
                                     </label>
 
                                     {!newUser.isRoot && (
-                                        <div className="space-y-2 pt-2 border-t border-gray-200">
+                                        <div className="space-y-1.5 pt-2 border-t border-gray-200">
                                             <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Select One or More Tenant Companies:</p>
-                                            {organisations.filter(o => o.id !== 1).map(org => {
+                                            {organisations.map(org => {
                                                 const isSelected = newUser.org_ids.includes(org.id);
                                                 return (
                                                     <label key={org.id} className={`flex items-center space-x-2.5 p-2 rounded-lg text-xs cursor-pointer transition ${isSelected ? 'bg-blue-50 text-blue-900 border border-blue-200' : 'hover:bg-white text-gray-700'}`}>

@@ -13,8 +13,12 @@ import {
 } from "../Orders/OrderUi";
 
 export default function OrganizationSettings() {
-  const { permissions } = useAuth();
-  const canEdit = permissions.includes("Edit_Setting");
+  const { permissions = [], isRoot } = useAuth();
+  const canEdit =
+    isRoot ||
+    permissions.includes("Administrator") ||
+    permissions.includes("Manage_TenantConsole") ||
+    permissions.includes("Edit_Setting");
   const [groups, setGroups] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);

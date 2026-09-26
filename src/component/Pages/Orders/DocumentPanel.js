@@ -20,6 +20,7 @@ export default function DocumentPanel({
   requestId,
   purchaseOrderId,
   defectReportId,
+  space: spaceProp,
   title = "Supporting documents",
   description = "Upload and retain evidence against this order record.",
   allowedTypes,
@@ -46,6 +47,13 @@ export default function DocumentPanel({
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const activeSpace = useMemo(() => {
+    if (spaceProp) return spaceProp;
+    if (defectReportId) return "DEFECTS";
+    if (requestId && !purchaseOrderId) return "SOURCING";
+    return "ORDER";
+  }, [spaceProp, defectReportId, requestId, purchaseOrderId]);
+
   const params = useMemo(
     () => ({
       ...(requestId ? { request_id: requestId } : {}),
@@ -58,7 +66,7 @@ export default function DocumentPanel({
   const load = useCallback(async () => {
     try {
       const [config, rows] = await Promise.all([
-        ordersApi.documentConfig(),
+        ordersApi.documentConfig(activeSpace),
         ordersApi.documents(params),
       ]);
       const available = (config.document_types || []).filter(
@@ -71,7 +79,7 @@ export default function DocumentPanel({
     } catch (error) {
       notifyOrderError(error);
     }
-  }, [allowedTypes, params]);
+  }, [activeSpace, allowedTypes, params]);
 
   useEffect(() => {
     load();
@@ -131,7 +139,18 @@ export default function DocumentPanel({
       {canUpload && types.length > 0 && (
         <div className="grid gap-3 border-b border-gray-200 dark:border-gray-700 p-4 md:grid-cols-[240px_1fr_auto] md:items-end">
           <label className="text-sm">
-            <span className="mb-1 block font-medium">Document type</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium">Document type</span>
+              <a
+                href="/master-data/document-types"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-semibold hover:underline"
+                title="Configure and add more document types in Reference Data"
+              >
+                + Add / Manage
+              </a>
+            </div>
             <select
               className={fieldClass}
               value={documentType}

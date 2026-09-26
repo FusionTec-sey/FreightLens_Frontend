@@ -44,7 +44,12 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
   const canAddTemplate = hasPermission("Add_OrderTemplate") || hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
   const canEditTemplate = hasPermission("Edit_OrderTemplate") || hasPermission("Edit_Order") || isRoot || permissions.includes("Administrator");
   const canDeleteTemplate = hasPermission("Delete_OrderTemplate") || hasPermission("Delete_Order") || isRoot || permissions.includes("Administrator");
-  const canViewSupplier = hasPermission("View_Supplier") || hasPermission("Supplier") || isRoot || permissions.includes("Administrator");
+  const canViewSupplier = Boolean(
+    isRoot ||
+    permissions.includes("Administrator") ||
+    permissions.includes("View_Supplier") ||
+    permissions.includes("Supplier")
+  );
   const canViewPO = hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
 
   const handleUseTemplate = onUseTemplateForOrder || ((template) => {
@@ -120,7 +125,7 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
       }
       return true;
     });
-  }, [templates, selectedTag, searchQuery]);
+  }, [templates, selectedTag, searchQuery, canViewSupplier]);
 
   const handleEdit = (template) => {
     setEditingTemplate(template);
@@ -497,6 +502,7 @@ export default function OrderTemplatesPage({ onUseTemplateForOrder }) {
       {showForm && (
         <TemplateForm
           templateData={editingTemplate}
+          existingTags={allTags}
           onClose={() => setShowForm(false)}
           onSave={handleSaved}
         />

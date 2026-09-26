@@ -26,14 +26,28 @@ import {
   Trash2,
   RotateCcw,
   ShieldAlert,
-  Send
+  Send,
+  Paperclip,
+  Download
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
+import { ordersApi } from "../../../services/ordersApi";
 import { useOptions } from "../../../hooks/useOptions";
 import VendorQuoteEntryModal from "./VendorQuoteEntryModal";
+
+const downloadBlob = (blob, name) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
 
 export default function QuoteComparisonPage() {
   const navigate = useNavigate();
@@ -816,6 +830,32 @@ export default function QuoteComparisonPage() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Attached Quotation Document Badge */}
+                    {v.documents && v.documents.length > 0 && (
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const doc = v.documents[0];
+                              const blob = await ordersApi.downloadDocument(doc.id);
+                              downloadBlob(blob, doc.file_name || `quote_${doc.id}.pdf`);
+                            } catch (err) {
+                              toast.error("Could not download quote document.");
+                            }
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/25 transition shadow-2xs group"
+                          title={`Download ${v.documents[0].file_name}`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Paperclip size={11} className="text-blue-500 group-hover:scale-110 transition-transform" />
+                            <span className="truncate">{v.documents[0].file_name}</span>
+                          </div>
+                          <Download size={11} className="opacity-70 flex-none ml-1" />
+                        </button>
+                      </div>
+                    )}
 
                     {/* Action Area */}
                     <div className="pt-1">

@@ -169,6 +169,34 @@ export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = 
                     {order.consignee || order.org_name || order.sheet_type}
                   </span>
 
+                  {/* Independent Payment Status Pill for Purchase Orders */}
+                  {order.doc_type !== "RFQ" && (
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${order.payment_badge_color || (
+                        order.payment_status === "FULLY_PAID"
+                          ? isDark
+                            ? "bg-emerald-950/40 text-emerald-300 border-emerald-800"
+                            : "bg-emerald-50 text-emerald-800 border-emerald-300"
+                          : order.payment_status === "PART_PAID"
+                            ? isDark
+                              ? "bg-amber-950/40 text-amber-300 border-amber-800"
+                              : "bg-amber-50 text-amber-800 border-amber-300"
+                            : isDark
+                              ? "bg-slate-800 text-slate-400 border-slate-700"
+                              : "bg-slate-100 text-slate-600 border-slate-300"
+                      )}`}
+                      title="Financial / Payment Status"
+                    >
+                      {order.payment_label || (
+                        order.payment_status === "FULLY_PAID"
+                          ? "Paid"
+                          : order.payment_status === "PART_PAID"
+                            ? "Part Paid"
+                            : "Unpaid"
+                      )}
+                    </span>
+                  )}
+
                   {/* Version & Stage Badge */}
                   <button
                     type="button"
@@ -342,16 +370,63 @@ export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = 
             {/* PIPELINE STAGE & VISUAL PROGRESS BAR (No percentage text displayed) */}
             <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {stageLabel}
-                </span>
+                {order.doc_type === "RFQ" || activeTab === "sourcing" ? (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {(order.lifecycle_stage || "DRAFT").replace('_', ' ')}
+                    </span>
+                    {order.fulfillment_summary && (
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border flex items-center gap-1 ${order.fulfillment_summary.primary_badge_color}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${order.fulfillment_summary.primary_status_color}`} />
+                        <span>{order.fulfillment_summary.primary_status_label}</span>
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {stageLabel}
+                  </span>
+                )}
               </div>
+
+              {/* Child POs mini badges for Sourcing RFQs */}
+              {(order.doc_type === "RFQ" || activeTab === "sourcing") && order.child_pos && order.child_pos.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                  {order.child_pos.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/orders/${c.id}/edit`);
+                      }}
+                      title={`Open ${c.po_number}: ${c.status_label || c.status}${c.eta_date ? ` (ETA: ${c.eta_date})` : ''}`}
+                      className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>{c.po_number}</span>
+                      <span className="font-sans font-semibold text-[8px] text-indigo-600 dark:text-indigo-400">
+                        • {c.status_label || c.status}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Progress bar */}
               <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-300 ${stageObj.color}`}
-                  style={{ width: `${progress}%` }}
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    (order.doc_type === "RFQ" || activeTab === "sourcing") && order.fulfillment_summary
+                      ? order.fulfillment_summary.primary_status_color
+                      : stageObj.color
+                  }`}
+                  style={{
+                    width: `${
+                      (order.doc_type === "RFQ" || activeTab === "sourcing") && order.fulfillment_summary
+                        ? order.fulfillment_summary.primary_progress
+                        : progress
+                    }%`,
+                  }}
                 />
               </div>
             </div>
@@ -368,7 +443,7 @@ export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = 
 
               <div className="flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400">
                 <Clock size={12} />
-                <span>ETA: {order.eta_date || order.pi_confirmed_date || "TBD"}</span>
+                <span>ETA: {order.eta_date || order.fulfillment_summary?.eta_date || order.pi_confirmed_date || "TBD"}</span>
               </div>
             </div>
           </div>

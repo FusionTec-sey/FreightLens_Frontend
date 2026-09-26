@@ -10,13 +10,17 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  Filter
+  Filter,
+  Paperclip,
+  FileUp,
+  Download
 } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import CurrencyInput, { CurrencyDisplay } from "../../UI/UXComponent/CurrencyInput";
 import { toast } from "react-toastify";
+import { ordersApi } from "../../../services/ordersApi";
 
 export default function VendorQuoteEntryModal({
   isOpen,
@@ -41,6 +45,22 @@ export default function VendorQuoteEntryModal({
   const [masterSuppliers, setMasterSuppliers] = useState([]);
   const [masterPaymentTerms, setMasterPaymentTerms] = useState([]);
   const [masterCurrencies, setMasterCurrencies] = useState([]);
+  const [quoteFile, setQuoteFile] = useState(null);
+  const [existingQuoteDocs, setExistingQuoteDocs] = useState([]);
+
+  useEffect(() => {
+    if (quoteToEdit && isOpen) {
+      const qId = quoteToEdit.quote_id || quoteToEdit.id;
+      if (qId) {
+        ordersApi.documents({ vendor_quote_id: qId }).then((docs) => {
+          setExistingQuoteDocs(docs || []);
+        }).catch(() => setExistingQuoteDocs([]));
+      }
+    } else {
+      setExistingQuoteDocs([]);
+      setQuoteFile(null);
+    }
+  }, [quoteToEdit, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -356,10 +376,10 @@ export default function VendorQuoteEntryModal({
         })),
       };
 
+      let targetQuoteId = quoteToEdit ? (quoteToEdit.quote_id || quoteToEdit.id) : null;
       if (quoteToEdit) {
-        const quoteId = quoteToEdit.quote_id || quoteToEdit.id;
         await axios.put(
-          `${process.env.REACT_APP_NETWORK}/orders/${po.id}/quotes/${quoteId}`,
+          `${process.env.REACT_APP_NETWORK}/orders/${po.id}/quotes/${targetQuoteId}`,
           payload,
           {
             headers: {
@@ -370,7 +390,7 @@ export default function VendorQuoteEntryModal({
         );
         toast.success("Vendor quote updated successfully!");
       } else {
-        await axios.post(
+        const res = await axios.post(
           `${process.env.REACT_APP_NETWORK}/orders/${po.id}/quotes`,
           payload,
           {
@@ -380,8 +400,23 @@ export default function VendorQuoteEntryModal({
             }
           }
         );
+        targetQuoteId = res.data?.quote_id;
         toast.success("Vendor quotation recorded successfully!");
       }
+
+      if (quoteFile && targetQuoteId) {
+        const formData = new FormData();
+        formData.append("file", quoteFile);
+        formData.append("document_type", "quotation");
+        formData.append("vendor_quote_id", targetQuoteId);
+        try {
+          await ordersApi.uploadDocument(formData);
+          toast.success("Quotation sheet attached successfully!");
+        } catch (uploadErr) {
+          console.warn("Could not upload quote attachment:", uploadErr);
+        }
+      }
+
       if (onQuoteSaved) onQuoteSaved();
       onClose();
     } catch (err) {
@@ -662,6 +697,73 @@ export default function VendorQuoteEntryModal({
                         <option key={pt.id || pt.code} value={pt.name} />
                       ))}
                     </datalist>
+                  </div>
+
+                  {/* Vendor Quotation Document Attachment */}
+                  <div className="sm:col-span-2 md:col-span-4 lg:col-span-8 space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Vendor Quotation Sheet / Proforma Document (Optional)
+                    </label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {existingQuoteDocs.map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const blob = await ordersApi.downloadDocument(doc.id);
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = doc.original_name || `quote_${doc.id}.pdf`;
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(url);
+                            } catch (err) {
+                              toast.error("Download failed");
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 transition shadow-2xs group"
+                          title="Download existing attached document"
+                        >
+                          <Paperclip size={12} className="text-blue-500" />
+                          <span className="max-w-[150px] truncate">{doc.original_name || "Quote Document"}</span>
+                          <Download size={11} className="opacity-60" />
+                        </button>
+                      ))}
+
+                      {quoteFile ? (
+                        <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border text-xs ${
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-300 text-slate-900"
+                        }`}>
+                          <Paperclip size={12} className="text-emerald-500 flex-none" />
+                          <span className="text-[11px] font-medium truncate max-w-[160px]">{quoteFile.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setQuoteFile(null)}
+                            className="p-0.5 text-slate-400 hover:text-rose-500 rounded"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-dashed cursor-pointer text-xs transition ${
+                          isDark ? "border-slate-700 hover:border-blue-500 bg-slate-800/40 text-slate-300" : "border-slate-300 hover:border-blue-500 bg-slate-50 text-slate-600"
+                        }`}>
+                          <FileUp size={13} className="text-blue-500" />
+                          <span className="text-[11px] font-semibold">+ Attach Quotation PDF / Sheet</span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) setQuoteFile(e.target.files[0]);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1,233 +1,213 @@
-import React, { useEffect, useState } from "react";
-import {
-  Package,
-  Truck,
-  Anchor,
-  BadgeCheck,
-  CheckCircle,
-  BarChart2,
-} from "lucide-react";
-import { Bar } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  BarElement,
-  CategoryScale,
-  LinearScale,
-  Tooltip,
-  Legend,
-} from "chart.js";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import axios from "axios";
+import { LayoutDashboard, RefreshCw, Building2 } from "lucide-react";
+import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
-ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+import { useAuth } from "../../../context/AuthContext";
+import WidgetCard from "./components/WidgetCard";
 
-const Dashboard = () => {
-  const [stats, setStats] = useState({
-    total: 0,
-    inTransit: 0,
-    onPort: 0,
-    gatePass: 0,
-    arrived: 0,
-    emptied: 0,
-  });
-
-  const [arrivedContainers, setArrivedContainers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isChartLoading, setIsChartLoading] = useState(true);
-  const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: currentYear - 2020 + 1 }, (_, i) => (2020 + i).toString());
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const [yearlyData, setYearlyData] = useState(Array(12).fill(0));
+export default function Dashboard() {
   const { theme } = useTheme();
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const isDark = theme === "dark";
+  const { isRoot, orgName, selectedOrgId } = useAuth();
 
-  const chartData = {
-    labels: months,
-    datasets: [
-      {
-        label: "Containers",
-        data: yearlyData,
-        backgroundColor: "rgba(59, 130, 246, 0.7)",
-        borderRadius: 6,
-        barThickness: 20,
-      },
-    ],
-  };
+  // ── State ───────────────────────────────────────────────────────────────────
+  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [layoutWidgets, setLayoutWidgets] = useState([]);
+  const [liveData, setLiveData] = useState({});
+  const [lastRefreshed, setLastRefreshed] = useState(new Date());
+  const [organisations, setOrganisations] = useState([]);
 
-  const chartOptions = {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: { stepSize: 10 },
-      },
-    },
-  };
+  // Selected year for monthly trend widgets
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
 
-  const cards = [
-    { label: "Active Containers", key: "total", icon: <Package size={24} />, bg: "bg-gray-100 text-gray-700" },
-    { label: "In Transit", key: "inTransit", icon: <Truck size={24} />, bg: "bg-yellow-100 text-yellow-600" },
-    { label: "On Port", key: "onPort", icon: <Anchor size={24} />, bg: "bg-blue-100 text-blue-600" },
-    { label: "Gate Pass Issued", key: "gatePass", icon: <BadgeCheck size={24} />, bg: "bg-purple-100 text-purple-600" },
-    { label: "Emptied", key: "emptied", icon: <Package size={24} />, bg: "bg-green-100 text-green-700" },
-  ];
+  // ── Fetch Organisations for multi-tenant awareness ──────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    axios
+      .get(`${process.env.REACT_APP_NETWORK}/organisations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        setOrganisations(res.data || []);
+      })
+      .catch(() => {});
+  }, [isRoot]);
+
+  // Determine active company display label
+  const activeOrgChip = useMemo(() => {
+    if (selectedOrgId) {
+      const match = organisations.find((o) => o.id === selectedOrgId);
+      return match?.display_name || match?.name || `Org #${selectedOrgId}`;
+    }
+    if (isRoot) {
+      return "All Companies (Group View)";
+    }
+    if (organisations.length > 1) {
+      return "All Assigned Companies";
+    }
+    return orgName || "Sahaj Construction";
+  }, [selectedOrgId, organisations, isRoot, orgName]);
+
+  // ── Auth Header Helper ──────────────────────────────────────────────────────
+  const getAuthHeaders = useCallback(() => {
+    const token = localStorage.getItem("token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    if (selectedOrgId) {
+      headers["X-Active-Org"] = selectedOrgId.toString();
+    }
+    return headers;
+  }, [selectedOrgId]);
+
+  // ── Fetch Dashboard Layout ──────────────────────────────────────────────────
+  const fetchLayout = useCallback(async () => {
+    try {
+      setLoading(true);
+      const headers = getAuthHeaders();
+      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/dashboard/layout`, { headers });
+      const widgets = res.data?.widgets || [];
+      setLayoutWidgets(widgets);
+    } catch (err) {
+      console.error("Failed to load dashboard configuration:", err);
+      toast.error("Failed to load dashboard layout");
+    } finally {
+      setLoading(false);
+    }
+  }, [getAuthHeaders]);
+
+  // ── Fetch Live Metric Data ──────────────────────────────────────────────────
+  const fetchLiveData = useCallback(async () => {
+    try {
+      setDataLoading(true);
+      const headers = getAuthHeaders();
+      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/dashboard/data`, {
+        params: { year: parseInt(selectedYear, 10) },
+        headers,
+      });
+
+      setLiveData(res.data?.data || {});
+      setLastRefreshed(new Date());
+    } catch (err) {
+      console.error("Failed to fetch live dashboard metrics:", err);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [getAuthHeaders, selectedYear]);
+
+  // Re-fetch layout and data when selected organisation or year changes
+  useEffect(() => {
+    fetchLayout();
+  }, [fetchLayout, selectedOrgId]);
 
   useEffect(() => {
-    async function getDashboardInfo() {
-      try {
-        setIsLoading(true);
-        const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getDashboardInfo`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}`,
-            // "skip_zrok_interstitial": "true", 
-            
-          },
-          withCredentials: false,
-        });
-        let data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-        setStats({
-          total: data.TotalActive ?? data.TotalContainer ?? 0,
-          inTransit: data.InTransit ?? 0,
-          onPort: data.OnPort ?? 0,
-          gatePass: data.GatePass ?? 0,
-          arrived: data.Arrived ?? 0,
-          emptied: data.Emptied ?? 0,
-        });
-        // console.log(data.ArrivedAtLocation)
-        setArrivedContainers(data.ArrivedAtLocation || []);
-      } catch (err) {
-        console.error("Dashboard fetch error:", err);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!loading) {
+      fetchLiveData();
     }
-    getDashboardInfo();
-  }, []);
+  }, [loading, selectedYear, fetchLiveData, selectedOrgId]);
 
-  useEffect(() => {
-    async function updateGraph() {
-      try {
-        setIsChartLoading(true);
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getContainerCountsByMonth/${selectedYear}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          // withCredentials: false
-        });
-
-
-        const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-        setYearlyData(data || []);
-      } catch (err) {
-        console.error("Graph data fetch error:", err);
-      } finally {
-        setIsChartLoading(false);
-      }
-    }
-    updateGraph();
-  }, [selectedYear]);
-
-  // Skeleton loader component
-  const SkeletonCard = () => (
-    <div className="rounded-xl border-2 border-gray-200 shadow-sm p-4 animate-pulse">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="h-4 bg-gray-300 rounded w-20 mb-2"></div>
-          <div className="h-8 bg-gray-300 rounded w-12"></div>
+  // ── Render Loading Skeleton ─────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="p-4 space-y-4 max-w-[1720px] mx-auto animate-pulse">
+        <div className="h-16 bg-slate-200 dark:bg-slate-800 rounded-2xl w-full" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+          ))}
         </div>
-        <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+          <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className={`p-4 sm:p-6 h-full ${theme.background} ${theme.text}`}>
-      <h1 className="text-2xl sm:text-3xl font-bold mb-4">Dashboard</h1>
+    <div className="space-y-4 w-full max-w-[1720px] mx-auto px-3 sm:px-5 lg:px-6 pb-12">
+      {/* ── Compact Operational Hero Bar ────────────────────────────────────────── */}
+      <div
+        className={`px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl border shadow-xs transition ${
+          isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+              <LayoutDashboard size={18} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-sm sm:text-base font-extrabold tracking-tight truncate">
+                  Operations & Inventory Dashboard
+                </h1>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shrink-0">
+                  <Building2 size={12} className="text-indigo-500" />
+                  <span>{activeOrgChip}</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                Real-time operational visibility across procurement, shipments, and inventory health
+              </p>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {isLoading ? (
-          Array(5).fill(0).map((_, i) => <SkeletonCard key={i} />)
-        ) : (
-          cards.map((card, i) => (
-            <div
-              key={i}
-              className={`group rounded-xl border-2 border-gray-200 shadow-sm p-4 flex items-center justify-between hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ${theme.border} ${theme.background} hover:border-blue-300`}
+          {/* Action Buttons Toolbar */}
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+            {/* Live refresh */}
+            <button
+              type="button"
+              onClick={fetchLiveData}
+              disabled={dataLoading}
+              title={`Last updated: ${lastRefreshed.toLocaleTimeString()}`}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                isDark
+                  ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
+                  : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+              } ${dataLoading ? "opacity-60" : ""}`}
             >
-            <div>
-              <h2 className={`text-sm font-medium uppercase ${theme.profileText} group-hover:text-gray-300 transition-colors`}>{card.label}</h2>
-              <p className={`text-2xl font-bold ${theme.text} group-hover:text-blue-400 transition-colors`}>{stats[card.key]}</p>
-              </div>
-              <div className={`${card.bg} p-3 rounded-full group-hover:scale-110 transition-transform duration-300`}>{card.icon}</div>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-4">
-        <div className={`h-max border-2 rounded-xl p-4 shadow-sm lg:col-span-1 hover:shadow-md transition-shadow ${theme.border} ${theme.background}`}>
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <h2 className={`text-sm font-medium uppercase ${theme.profileText}`}>Arrived</h2>
-              <p className={`text-2xl font-bold ${theme.text}`}>{stats.arrived}</p>
-            </div>
-            <div className="p-3 rounded-full bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200">
-              <CheckCircle size={24} />
-            </div>
-          </div>
-          <div className={`overflow-y-auto max-h-52 border-2 rounded ${theme.scrollbar} ${theme.border}`}>
-            <table className="w-full text-sm">
-              <thead className={`sticky top-0 ${theme.tableHeader} border-b ${theme.border}`}>
-                <tr>
-                  <th className={`p-2 text-left text-xs font-semibold ${theme.text}`}>Container</th>
-                  <th className={`p-2 text-left text-xs font-semibold ${theme.text}`}>Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                {arrivedContainers.map((c, i) => (
-                  <tr key={i} className={`border-t ${theme.border} ${theme.tableRow} transition-colors`}>
-                    <td className={`p-2 font-medium ${theme.tableText}`}>{c.container_no}</td>
-                    <td className={`p-2 ${theme.tableMutedText}`}>{c.location}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className={`border rounded-xl p-4 shadow-sm lg:col-span-2 hover:shadow-md transition-shadow ${theme.border} ${theme.background}`}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-            <div>
-              <h2 className={`text-lg font-semibold ${theme.text}`}>Containers per Month</h2>
-              <p className={`text-sm ${theme.profileText}`}>Yearly overview with monthly breakdown</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                className={`border ${theme.border} rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 ${theme.text} ${theme.background} hover:border-gray-400 transition-colors`}
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-              >
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-              <div className="p-2 rounded-full bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200 transition-colors">
-                <BarChart2 size={20} />
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <span className={`font-medium ${theme.profileText}`}>Total containers in {selectedYear}: </span>
-            <span className={`font-bold text-lg ${theme.accentText}`}>
-              {yearlyData.reduce((sum, val) => sum + val, 0)}
-            </span>
-          </div>
-
-          <div className="h-[30vh] w-full overflow-x-auto ">
-            <Bar data={chartData} options={{ ...chartOptions, maintainAspectRatio: false }} />
+              <RefreshCw size={12} className={dataLoading ? "animate-spin" : ""} />
+              <span className="text-[11px]">{dataLoading ? "Refreshing..." : "Refresh"}</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* ── Main Responsive Widget Grid ─────────────────────────────────────── */}
+      {layoutWidgets.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {layoutWidgets.map((widget) => (
+            <WidgetCard
+              key={widget.id}
+              widget={widget}
+              data={liveData}
+              isDark={isDark}
+              isCustomizing={false}
+              selectedYear={selectedYear}
+              onYearChange={setSelectedYear}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Empty State */
+        <div
+          className={`p-12 rounded-3xl border text-center space-y-3 ${
+            isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+          }`}
+        >
+          <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center">
+            <LayoutDashboard size={28} />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold">Your Dashboard is Empty</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+              No widgets have been assigned to your role yet. Your dashboard layout is managed centrally in the Template Studio.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export default Dashboard;
+}

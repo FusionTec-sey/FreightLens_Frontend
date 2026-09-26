@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Layers,
   Building,
+  Star,
   Eye,
   Pencil,
   Trash2,
@@ -34,10 +35,24 @@ import {
   Play,
   Upload,
   Image as ImageIcon,
+  Maximize2,
+  RefreshCw,
+  SlidersHorizontal,
+  Copy,
+  Calculator,
+  Download,
+  MoreVertical,
+  Warehouse,
+  Hash,
 } from "lucide-react";
+import StockGaugeBar from "./components/StockGaugeBar";
+import StockAdjustModal from "./components/StockAdjustModal";
+import ProductQuickView from "./components/ProductQuickView";
+import BulkActionToolbar from "./components/BulkActionToolbar";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
+import { useOptions } from "../../../hooks/useOptions";
 import { COUNTRIES, getCountryFlag, formatCountryDisplay } from "../../../utils/countries";
 
 const UOM_OPTIONS = [
@@ -57,6 +72,65 @@ const UOM_OPTIONS = [
 const DIMENSION_UNITS = ["mm", "cm", "m", "in", "ft"];
 const WEIGHT_UNITS = ["kg", "g", "lbs", "ton"];
 
+const RETAIL_PACKAGING_TYPES = [
+  "Retail Color Box",
+  "Polybag / Pouch",
+  "Blister Pack / Card",
+  "Clamshell",
+  "Hang Tag Pack",
+  "Shrink Wrapped",
+  "Bare / Unpackaged",
+];
+
+const WHOLESALE_PACKAGING_TYPES = [
+  "Inner Carton",
+  "Shrink Wrapped Bundle",
+  "Corrugated Protective Sleeve",
+  "Poly Wrapped Pack",
+  "Direct to Master (No Inner)",
+];
+
+const IMPORT_PACKAGING_TYPES = [
+  "Master Carton (Corrugated Box)",
+  "Tiles SQM Box (Square Meter Crated)",
+  "Sanitary Ware Wooden Crate",
+  "Steel Rebar / Rod Bundle",
+  "Timber / Lumber Pack",
+  "Drum / Barrel (200L / 55 Gallon)",
+  "Bulk Bag / FIBC Jumbo Sack",
+  "Roll / Spool / Reel (Cables & Fabrics)",
+  "Glass A-Frame Crate",
+  "Heavy Machinery Wooden Skid",
+  "Plywood / Panel Pallet Pack",
+  "Loose / Bulk Stuffed",
+];
+
+const PALLET_TYPES = [
+  "Euro Pallet (1200 × 800 mm)",
+  "Standard ISO Industrial (1200 × 1000 mm)",
+  "Half Pallet (800 × 600 mm)",
+  "Heavy-Duty Wooden Skid (Custom)",
+  "Plastic Export Pallet",
+  "Floor Loaded / No Pallet",
+];
+
+const SUGGESTED_TAGS = [
+  "Premium",
+  "Commercial",
+  "Residential",
+  "Ceramics",
+  "Floor",
+  "Wall",
+  "Heavy Duty",
+  "Polished",
+  "Matt",
+  "Non-Slip",
+  "Waterproof",
+  "Indoor",
+  "Outdoor",
+  "Fast Moving",
+];
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   return {
@@ -67,17 +141,216 @@ const getAuthHeaders = () => {
 
 export default function ProductMasterPage() {
   const { isDark } = useTheme();
-  const { user, isRoot } = useAuth();
+  const { user, isRoot, permissions = [] } = useAuth();
+
+  const canViewVendor = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return (
+      perms.includes("Administrator") ||
+      perms.includes("View_Supplier") ||
+      perms.includes("Supplier") ||
+      perms.includes("Edit_Supplier") ||
+      perms.includes("Add_Supplier")
+    );
+  }, [isRoot, permissions]);
+
+  const canViewFinancials = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return (
+      perms.includes("Administrator") ||
+      perms.includes("View_Financials") ||
+      perms.includes("Manage_Financials")
+    );
+  }, [isRoot, permissions]);
+
+  const canAddProduct = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return perms.includes("Administrator") || perms.includes("Add_Product");
+  }, [isRoot, permissions]);
+
+  const canEditProduct = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return perms.includes("Administrator") || perms.includes("Edit_Product");
+  }, [isRoot, permissions]);
+
+  const canDeleteProduct = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return perms.includes("Administrator") || perms.includes("Delete_Product");
+  }, [isRoot, permissions]);
+
+  const canAdjustStock = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return perms.includes("Administrator") || perms.includes("Adjust_Stock");
+  }, [isRoot, permissions]);
+
+  const canExport = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return perms.includes("Administrator") || perms.includes("Export_Inventory");
+  }, [isRoot, permissions]);
+
+  const canViewCategories = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return perms.includes("Administrator") || perms.includes("View_ProductCategory");
+  }, [isRoot, permissions]);
+
+  const canManageCategories = useMemo(() => {
+    if (isRoot) return true;
+    const perms = Array.isArray(permissions) ? permissions : [];
+    return perms.includes("Administrator") || perms.includes("Manage_ProductCategory");
+  }, [isRoot, permissions]);
+
+  // ── Multi-Select & Quick Action UI State ─────────────────────────────────────
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [quickViewProduct, setQuickViewProduct] = useState(null);
+  const [stockAdjustProduct, setStockAdjustProduct] = useState(null);
+  const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   // ── Screen Navigation Mode: "products" | "categories" | "product_detail" ─────
   const [currentView, setCurrentView] = useState("products");
   const [returnToView, setReturnToView] = useState("products");
-  const [activeProductTab, setActiveProductTab] = useState("overview");
+  const [activeProductTab, setActiveProductTab] = useState("specs");
+  const [copiedSku, setCopiedSku] = useState(false);
+
+  // Product Active Editing / Viewing State (for Dedicated Screen)
+  const [activeProduct, setActiveProduct] = useState(null);
+  const [formData, setFormData] = useState(null);
+  const [productLoading, setProductLoading] = useState(false);
+
+  const handleCopySku = () => {
+    if (formData?.sku) {
+      navigator.clipboard.writeText(formData.sku);
+      setCopiedSku(true);
+      setTimeout(() => setCopiedSku(false), 2000);
+      toast.info(`Copied SKU: ${formData.sku}`);
+    }
+  };
+
+  const primaryImageSrc = useMemo(() => {
+    if (!formData?.images || formData.images.length === 0) return null;
+    const prim = formData.images.find((im) => im.is_primary) || formData.images[0];
+    return prim?.file_url || null;
+  }, [formData?.images]);
+
+  const calculatedCBM = useMemo(() => {
+    const l = parseFloat(formData?.length) || 0;
+    const w = parseFloat(formData?.width) || 0;
+    const h = parseFloat(formData?.height) || 0;
+    if (l <= 0 || w <= 0 || h <= 0) return null;
+    const unit = formData?.dimension_unit || "mm";
+    let factor = 0.001; // default mm to m
+    if (unit === "cm") factor = 0.01;
+    else if (unit === "m") factor = 1.0;
+    else if (unit === "in") factor = 0.0254;
+    else if (unit === "ft") factor = 0.3048;
+    const cbm = (l * factor) * (w * factor) * (h * factor);
+    return cbm > 0 ? cbm.toFixed(4) : null;
+  }, [formData?.length, formData?.width, formData?.height, formData?.dimension_unit]);
+
+  const calculatedBoxCBM = useMemo(() => {
+    // 1. If explicit master dimensions are set, use them
+    const ml = parseFloat(formData?.master_length) || 0;
+    const mw = parseFloat(formData?.master_width) || 0;
+    const mh = parseFloat(formData?.master_height) || 0;
+    const unit = formData?.dimension_unit || "mm";
+    let factor = 0.001;
+    if (unit === "cm") factor = 0.01;
+    else if (unit === "m") factor = 1.0;
+    else if (unit === "in") factor = 0.0254;
+    else if (unit === "ft") factor = 0.3048;
+
+    if (ml > 0 && mw > 0 && mh > 0) {
+      const cbm = (ml * factor) * (mw * factor) * (mh * factor);
+      return cbm > 0 ? cbm.toFixed(4) : null;
+    }
+
+    // 2. Otherwise calculate units_per_box * unit CBM
+    const unitsPerBox = parseFloat(formData?.units_per_box) || 0;
+    const unitCbm = parseFloat(calculatedCBM) || 0;
+    if (unitsPerBox > 0 && unitCbm > 0) {
+      return (unitsPerBox * unitCbm).toFixed(4);
+    }
+    return null;
+  }, [formData?.master_length, formData?.master_width, formData?.master_height, formData?.dimension_unit, formData?.units_per_box, calculatedCBM]);
+
+  const handleEstimateContainerCapacity = useCallback(() => {
+    const boxCbm = parseFloat(calculatedBoxCBM) || parseFloat(calculatedCBM) || 0;
+    const unitsPerBox = parseFloat(formData?.units_per_box) || 1;
+    if (boxCbm <= 0) {
+      toast.warn("Please enter packaging dimensions (Length, Width, Height) to calculate volume first.");
+      return;
+    }
+    // Practical usable volumes (20ft practical usable ~28 CBM; 40ft HC practical usable ~68 CBM)
+    const estBoxes20 = Math.floor(28.0 / boxCbm);
+    const estUnits20 = Math.floor(estBoxes20 * unitsPerBox);
+    const estBoxes40hc = Math.floor(68.0 / boxCbm);
+    const estUnits40hc = Math.floor(estBoxes40hc * unitsPerBox);
+
+    setFormData((prev) => ({
+      ...prev,
+      est_qty_20ft: estUnits20 > 0 ? estUnits20 : "",
+      est_qty_40hc: estUnits40hc > 0 ? estUnits40hc : "",
+    }));
+    toast.success(
+      `Estimated: ~${estUnits20.toLocaleString()} units (20ft) / ~${estUnits40hc.toLocaleString()} units (40ft HC). Both values remain editable.`
+    );
+  }, [calculatedBoxCBM, calculatedCBM, formData?.units_per_box]);
+
+  // Product Tagging System State
+  const [tagInput, setTagInput] = useState("");
+
+  const handleAddTag = useCallback((tagText) => {
+    const clean = (tagText || tagInput || "").trim().replace(/^#/, "");
+    if (!clean) return;
+    const currentTags = Array.isArray(formData?.tags) ? formData.tags : [];
+    if (!currentTags.includes(clean)) {
+      setFormData((prev) => ({
+        ...prev,
+        tags: [...currentTags, clean],
+      }));
+    }
+    setTagInput("");
+  }, [tagInput, formData?.tags]);
+
+  const handleRemoveTag = useCallback((tagToRemove) => {
+    setFormData((prev) => ({
+      ...prev,
+      tags: (Array.isArray(prev?.tags) ? prev.tags : []).filter((t) => t !== tagToRemove),
+    }));
+  }, []);
 
   // ── Data State ─────────────────────────────────────────────────────────────
   const [products, setProducts] = useState([]);
   const [categoriesFlat, setCategoriesFlat] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
+  const { suppliers: contextSuppliers = [] } = useOptions();
+  const [fetchedSuppliers, setFetchedSuppliers] = useState([]);
+
+  useEffect(() => {
+    if (contextSuppliers && contextSuppliers.length > 0) return;
+    axios
+      .get(`${process.env.REACT_APP_NETWORK}/suppliers`, { headers: getAuthHeaders() })
+      .then((res) => {
+        let data = res.data;
+        if (typeof data === "string") data = JSON.parse(data);
+        const rows = data?.data || [];
+        const mapped = rows.map((r) => ({ id: r[0], name: r[1] }));
+        setFetchedSuppliers(mapped);
+      })
+      .catch((err) => console.error("Failed to fetch fallback suppliers:", err));
+  }, [contextSuppliers]);
+
+  const suppliers = useMemo(() => {
+    if (contextSuppliers && contextSuppliers.length > 0) return contextSuppliers;
+    return fetchedSuppliers;
+  }, [contextSuppliers, fetchedSuppliers]);
+
   const [loading, setLoading] = useState(true);
 
   // Category Screen State (Tree selection & expand/collapse)
@@ -103,18 +376,36 @@ export default function ProductMasterPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [jumpPageInput, setJumpPageInput] = useState("");
+
+  // Media Lightbox Modal State
+  const [previewMediaModal, setPreviewMediaModal] = useState(null);
+  const [activeMediaIdx, setActiveMediaIdx] = useState(0);
+
+  // Helper to format dimensions (Length x Width x Height)
+  const formatDimensions = useCallback((p) => {
+    if (!p) return null;
+    const u = p.dimension_unit || "mm";
+    const w = p.width;
+    const h = p.height;
+    const l = p.length;
+    if (l && w && h) return `${l} × ${w} × ${h} ${u}`;
+    if (w && h) return `${w}W × ${h}H ${u}`;
+    if (l && w) return `${l}L × ${w}W ${u}`;
+    if (w) return `${w}W ${u}`;
+    if (h) return `${h}H ${u}`;
+    if (l) return `${l}L ${u}`;
+    return null;
+  }, []);
+
 
   // Category-Screen Product List state (right panel on Category Screen)
   const [categoryProducts, setCategoryProducts] = useState([]);
   const [categoryProductsLoading, setCategoryProductsLoading] = useState(false);
   const [categoryProductsTotal, setCategoryProductsTotal] = useState(0);
-
-  // Product Active Editing / Viewing State (for Dedicated Screen)
-  const [activeProduct, setActiveProduct] = useState(null);
-  const [formData, setFormData] = useState(null);
-  const [productLoading, setProductLoading] = useState(false);
 
   // Linking state on dedicated product screen
   const [linkSearch, setLinkSearch] = useState("");
@@ -163,6 +454,35 @@ export default function ProductMasterPage() {
     weight_unit: "kg",
     units_per_box: "",
     box_weight: "",
+    tags: [],
+    // Retail Packaging
+    retail_packaging_type: "Retail Color Box",
+    gross_weight_per_unit: "",
+    // Wholesale Packaging
+    wholesale_packaging_type: "Inner Carton",
+    units_per_inner: "",
+    inner_length: "",
+    inner_width: "",
+    inner_height: "",
+    inner_weight: "",
+    // Import / Master Packaging
+    import_packaging_type: "Master Carton (Corrugated Box)",
+    master_length: "",
+    master_width: "",
+    master_height: "",
+    master_tare_weight: "",
+    // Palletization & Container Loading
+    pallet_type: "Euro Pallet (1200 × 800 mm)",
+    cartons_per_layer: "",
+    layers_per_pallet: "",
+    total_cartons_per_pallet: "",
+    max_stacking_layers: "",
+    est_qty_20ft: "",
+    est_qty_40hc: "",
+    // Warehouse Coordinates
+    warehouse_location: "",
+    default_bin: "",
+    packaging_specs: {},
     unit_cost: "",
     currency: "USD",
     current_stock: 0,
@@ -173,6 +493,8 @@ export default function ProductMasterPage() {
     min_quantity_order: "",
     lead_time_days: "",
     default_supplier_id: "",
+    factory_code: "",
+    suppliers: [],
     is_consumable: false,
     is_hazardous: false,
     is_perishable: false,
@@ -299,10 +621,18 @@ export default function ProductMasterPage() {
 
   const fetchSuppliers = useCallback(async () => {
     try {
-      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/getSuppliers`, {
+      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/suppliers`, {
         headers: getAuthHeaders(),
       });
-      setSuppliers(res.data || []);
+      let data = res.data;
+      if (typeof data === "string") data = JSON.parse(data);
+      const rows = data?.data || [];
+      const mapped = rows.map((r) => ({
+        id: r[0],
+        supplier_id: r[0],
+        name: r[1],
+      }));
+      setFetchedSuppliers(mapped);
     } catch (err) {
       console.error("Failed to load suppliers:", err);
     }
@@ -314,11 +644,11 @@ export default function ProductMasterPage() {
     try {
       const params = {
         page,
-        limit: 25,
+        limit: pageSize,
       };
       if (search.trim()) params.search = search.trim();
       if (selectedCategoryFilter) params.category_id = selectedCategoryFilter;
-      if (selectedSupplier) params.supplier_id = selectedSupplier;
+      if (canViewVendor && selectedSupplier) params.supplier_id = selectedSupplier;
       if (statusFilter) params.status = statusFilter;
       if (lowStockOnly) params.low_stock_only = true;
 
@@ -336,7 +666,7 @@ export default function ProductMasterPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, selectedCategoryFilter, selectedSupplier, statusFilter, lowStockOnly]);
+  }, [page, pageSize, search, selectedCategoryFilter, selectedSupplier, statusFilter, lowStockOnly, canViewVendor]);
 
   // Fetch Products for Category Screen
   const fetchCategoryScreenProducts = useCallback(async (catId) => {
@@ -356,6 +686,173 @@ export default function ProductMasterPage() {
       setCategoryProductsLoading(false);
     }
   }, []);
+
+  // ── Multi-select Handlers ───────────────────────────────────────────────────
+  const handleToggleSelectAll = () => {
+    if (selectedProductIds.length === products.length && products.length > 0) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(products.map((p) => p.id));
+    }
+  };
+
+  const handleToggleSelectProduct = (productId) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+    );
+  };
+
+  // ── Quick & Bulk Product Operations ─────────────────────────────────────────
+  const handleDuplicateProduct = async (prod) => {
+    if (!canAddProduct) return;
+    try {
+      toast.info(`Cloning ${prod.sku}...`);
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/products/${prod.id}/duplicate`,
+        {},
+        { headers: getAuthHeaders() }
+      );
+      toast.success(`Created duplicate product: ${res.data?.sku}`);
+      fetchProducts();
+    } catch (err) {
+      console.error("Failed to duplicate product:", err);
+      toast.error(err.response?.data?.detail || "Failed to duplicate product");
+    }
+  };
+
+  const handleToggleProductStatus = async (prod) => {
+    if (!canEditProduct) return;
+    const newStatus = prod.status === "active" ? "inactive" : "active";
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_NETWORK}/inventory/products/${prod.id}`,
+        { status: newStatus },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(`Product marked as ${newStatus}`);
+      fetchProducts();
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      toast.error(err.response?.data?.detail || "Failed to update product status");
+    }
+  };
+
+  const handleBulkCategoryMove = async (categoryId) => {
+    if (!canEditProduct || selectedProductIds.length === 0) return;
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/products/bulk-category`,
+        {
+          product_ids: selectedProductIds,
+          category_id: categoryId,
+        },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Categories updated successfully");
+      setSelectedProductIds([]);
+      fetchProducts();
+    } catch (err) {
+      console.error("Failed bulk category move:", err);
+      toast.error(err.response?.data?.detail || "Failed to update categories");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!canDeleteProduct || selectedProductIds.length === 0) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to deactivate/delete ${selectedProductIds.length} selected product(s)?`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/products/bulk-delete`,
+        { product_ids: selectedProductIds },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Products deleted successfully");
+      setSelectedProductIds([]);
+      fetchProducts();
+    } catch (err) {
+      console.error("Failed bulk delete:", err);
+      toast.error(err.response?.data?.detail || "Failed to delete products");
+    }
+  };
+
+  const handleDeleteProduct = async (productId, sku) => {
+    if (!canDeleteProduct) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete ${sku ? `product "${sku}"` : "this product"}?`
+      )
+    ) {
+      return;
+    }
+    try {
+      await axios.delete(`${process.env.REACT_APP_NETWORK}/inventory/products/${productId}`, {
+        headers: getAuthHeaders(),
+      });
+      toast.success("Product deleted successfully");
+      fetchProducts();
+    } catch (err) {
+      console.error("Failed to delete product:", err);
+      toast.error(err.response?.data?.detail || "Failed to delete product");
+    }
+  };
+
+  const handleExportCatalog = async () => {
+    if (!canExport) return;
+    try {
+      toast.info("Generating CSV export...");
+      const params = {};
+      if (search.trim()) params.search = search.trim();
+      if (selectedCategoryFilter) params.category_id = selectedCategoryFilter;
+      if (canViewVendor && selectedSupplier) params.supplier_id = selectedSupplier;
+      if (statusFilter) params.status = statusFilter;
+
+      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/inventory/products/export`, {
+        params,
+        headers: getAuthHeaders(),
+        responseType: "blob",
+      });
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `inventory_catalog_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("CSV export downloaded");
+    } catch (err) {
+      console.error("Failed to export catalog:", err);
+      toast.error("Failed to export catalog CSV");
+    }
+  };
+
+  const handleBulkExportSelected = () => {
+    if (selectedProductIds.length === 0) return;
+    const selectedProds = products.filter((p) => selectedProductIds.includes(p.id));
+    if (selectedProds.length === 0) return;
+
+    let csvContent = "SKU,Code,Name,Category,Unit,Current Stock,Min Stock,Status\n";
+    selectedProds.forEach((p) => {
+      csvContent += `"${p.sku || ""}","${p.code || ""}","${(p.name || "").replace(/"/g, '""')}","${
+        p.category_name || ""
+      }","${p.unit || "PCS"}",${p.current_stock || 0},${p.min_stock_quantity || 0},"${p.status || "active"}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `selected_products_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   useEffect(() => {
     fetchCategories();
@@ -495,7 +992,7 @@ export default function ProductMasterPage() {
     setReturnToView(fromScreen);
     setProductLoading(true);
     setCurrentView("product_detail");
-    setActiveProductTab("overview");
+    setActiveProductTab("specs");
     try {
       const res = await axios.get(`${process.env.REACT_APP_NETWORK}/inventory/products/${prod.id}`, {
         headers: getAuthHeaders(),
@@ -526,6 +1023,35 @@ export default function ProductMasterPage() {
         weight_unit: p.weight_unit || "kg",
         units_per_box: p.units_per_box !== null && p.units_per_box !== undefined ? p.units_per_box : "",
         box_weight: p.box_weight !== null && p.box_weight !== undefined ? p.box_weight : "",
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        // Retail Packaging
+        retail_packaging_type: p.retail_packaging_type || "Retail Color Box",
+        gross_weight_per_unit: p.gross_weight_per_unit !== null && p.gross_weight_per_unit !== undefined ? p.gross_weight_per_unit : "",
+        // Wholesale Packaging
+        wholesale_packaging_type: p.wholesale_packaging_type || "Inner Carton",
+        units_per_inner: p.units_per_inner !== null && p.units_per_inner !== undefined ? p.units_per_inner : "",
+        inner_length: p.inner_length !== null && p.inner_length !== undefined ? p.inner_length : "",
+        inner_width: p.inner_width !== null && p.inner_width !== undefined ? p.inner_width : "",
+        inner_height: p.inner_height !== null && p.inner_height !== undefined ? p.inner_height : "",
+        inner_weight: p.inner_weight !== null && p.inner_weight !== undefined ? p.inner_weight : "",
+        // Import / Master Packaging
+        import_packaging_type: p.import_packaging_type || "Master Carton (Corrugated Box)",
+        master_length: p.master_length !== null && p.master_length !== undefined ? p.master_length : "",
+        master_width: p.master_width !== null && p.master_width !== undefined ? p.master_width : "",
+        master_height: p.master_height !== null && p.master_height !== undefined ? p.master_height : "",
+        master_tare_weight: p.master_tare_weight !== null && p.master_tare_weight !== undefined ? p.master_tare_weight : "",
+        // Palletization & Container Loading
+        pallet_type: p.pallet_type || "Euro Pallet (1200 × 800 mm)",
+        cartons_per_layer: p.cartons_per_layer !== null && p.cartons_per_layer !== undefined ? p.cartons_per_layer : "",
+        layers_per_pallet: p.layers_per_pallet !== null && p.layers_per_pallet !== undefined ? p.layers_per_pallet : "",
+        total_cartons_per_pallet: p.total_cartons_per_pallet !== null && p.total_cartons_per_pallet !== undefined ? p.total_cartons_per_pallet : "",
+        max_stacking_layers: p.max_stacking_layers !== null && p.max_stacking_layers !== undefined ? p.max_stacking_layers : "",
+        est_qty_20ft: p.est_qty_20ft !== null && p.est_qty_20ft !== undefined ? p.est_qty_20ft : "",
+        est_qty_40hc: p.est_qty_40hc !== null && p.est_qty_40hc !== undefined ? p.est_qty_40hc : "",
+        // Warehouse Coordinates
+        warehouse_location: p.warehouse_location || "",
+        default_bin: p.default_bin || "",
+        packaging_specs: p.packaging_specs || {},
         unit_cost: p.unit_cost !== null && p.unit_cost !== undefined ? p.unit_cost : "",
         currency: p.currency || "USD",
         current_stock: p.current_stock || 0,
@@ -536,6 +1062,8 @@ export default function ProductMasterPage() {
         min_quantity_order: p.min_quantity_order !== null && p.min_quantity_order !== undefined ? p.min_quantity_order : "",
         lead_time_days: p.lead_time_days !== null && p.lead_time_days !== undefined ? p.lead_time_days : "",
         default_supplier_id: p.default_supplier_id || "",
+        factory_code: p.default_factory_code || p.factory_code || "",
+        suppliers: Array.isArray(p.suppliers) ? p.suppliers : [],
         is_consumable: Boolean(p.is_consumable),
         is_hazardous: Boolean(p.is_hazardous),
         is_perishable: Boolean(p.is_perishable),
@@ -555,6 +1083,74 @@ export default function ProductMasterPage() {
     }
   };
 
+  const handleAddSupplierRow = () => {
+    const existingIds = (formData?.suppliers || []).map((s) => Number(s.supplier_id));
+    const available = suppliers.find((s) => !existingIds.includes(Number(s.supplier_id || s.id))) || suppliers[0];
+    if (!available) {
+      toast.info("Please create suppliers in Master Data first.");
+      return;
+    }
+    const suppId = Number(available.supplier_id || available.id);
+    const newRow = {
+      supplier_id: suppId,
+      supplier_name: available.name || "",
+      factory_code: "",
+      vendor_product_name: "",
+      unit_cost: formData?.unit_cost || "",
+      currency: formData?.currency || "USD",
+      min_order_qty: formData?.min_quantity_order || "",
+      lead_time_days: formData?.lead_time_days || "",
+      is_default: (formData?.suppliers || []).length === 0,
+      notes: ""
+    };
+    const nextSuppliers = [...(formData?.suppliers || []), newRow];
+    setFormData({
+      ...formData,
+      suppliers: nextSuppliers,
+      default_supplier_id: newRow.is_default ? newRow.supplier_id : formData?.default_supplier_id
+    });
+  };
+
+  const handleUpdateSupplierRow = (index, field, value) => {
+    const next = [...(formData?.suppliers || [])];
+    if (field === "supplier_id") {
+      const suppObj = suppliers.find((s) => Number(s.supplier_id || s.id) === Number(value));
+      next[index] = {
+        ...next[index],
+        supplier_id: Number(value),
+        supplier_name: suppObj?.name || next[index].supplier_name || ""
+      };
+    } else {
+      next[index] = { ...next[index], [field]: value };
+    }
+    if (field === "is_default" && value === true) {
+      next.forEach((row, i) => {
+        if (i !== index) row.is_default = false;
+      });
+      setFormData({
+        ...formData,
+        suppliers: next,
+        default_supplier_id: next[index].supplier_id,
+        factory_code: next[index].factory_code || formData?.factory_code
+      });
+      return;
+    }
+    setFormData({ ...formData, suppliers: next });
+  };
+
+  const handleRemoveSupplierRow = (index) => {
+    const next = (formData?.suppliers || []).filter((_, i) => i !== index);
+    if (next.length > 0 && !next.some((s) => s.is_default)) {
+      next[0].is_default = true;
+    }
+    const defaultRow = next.find((s) => s.is_default);
+    setFormData({
+      ...formData,
+      suppliers: next,
+      default_supplier_id: defaultRow ? defaultRow.supplier_id : ""
+    });
+  };
+
   const handleOpenCreateProduct = (fromScreen = "products") => {
     setReturnToView(fromScreen);
     setActiveProduct(null);
@@ -562,7 +1158,7 @@ export default function ProductMasterPage() {
       ...initialFormData,
       category_id: (fromScreen === "categories" && categoryScreenSelectedId) || (flattenedCategories[0]?.id || ""),
     });
-    setActiveProductTab("basic");
+    setActiveProductTab("specs");
     setCurrentView("product_detail");
   };
 
@@ -707,18 +1303,19 @@ export default function ProductMasterPage() {
   // ── Save Product Action ────────────────────────────────────────────────────
   const handleSaveProduct = async (e) => {
     if (e) e.preventDefault();
-    if (!formData.name.trim()) {
+    if (!formData.name?.trim()) {
       toast.error("Product name is required");
       return;
     }
-    if (!activeProduct && !formData.sku.trim()) {
+    if (!formData.sku?.trim()) {
       toast.error("Trading SKU is required");
       return;
     }
 
     try {
       const payload = {
-        code: formData.code.trim() ? formData.code.trim().toUpperCase() : null,
+        sku: formData.sku.trim().toUpperCase(),
+        code: formData.code?.trim() ? formData.code.trim().toUpperCase() : null,
         name: formData.name.trim(),
         description: formData.description.trim() || null,
         description_quick: formData.description_quick.trim() || null,
@@ -740,6 +1337,35 @@ export default function ProductMasterPage() {
         weight_unit: formData.weight_unit || "kg",
         units_per_box: formData.units_per_box !== "" ? parseFloat(formData.units_per_box) : null,
         box_weight: formData.box_weight !== "" ? parseFloat(formData.box_weight) : null,
+        tags: Array.isArray(formData.tags) ? formData.tags : [],
+        // Retail Packaging
+        retail_packaging_type: formData.retail_packaging_type || null,
+        gross_weight_per_unit: formData.gross_weight_per_unit !== "" ? parseFloat(formData.gross_weight_per_unit) : null,
+        // Wholesale Packaging
+        wholesale_packaging_type: formData.wholesale_packaging_type || null,
+        units_per_inner: formData.units_per_inner !== "" ? parseFloat(formData.units_per_inner) : null,
+        inner_length: formData.inner_length !== "" ? parseFloat(formData.inner_length) : null,
+        inner_width: formData.inner_width !== "" ? parseFloat(formData.inner_width) : null,
+        inner_height: formData.inner_height !== "" ? parseFloat(formData.inner_height) : null,
+        inner_weight: formData.inner_weight !== "" ? parseFloat(formData.inner_weight) : null,
+        // Import / Master Packaging
+        import_packaging_type: formData.import_packaging_type || null,
+        master_length: formData.master_length !== "" ? parseFloat(formData.master_length) : null,
+        master_width: formData.master_width !== "" ? parseFloat(formData.master_width) : null,
+        master_height: formData.master_height !== "" ? parseFloat(formData.master_height) : null,
+        master_tare_weight: formData.master_tare_weight !== "" ? parseFloat(formData.master_tare_weight) : null,
+        // Palletization & Container Loading
+        pallet_type: formData.pallet_type || null,
+        cartons_per_layer: formData.cartons_per_layer !== "" ? parseInt(formData.cartons_per_layer, 10) : null,
+        layers_per_pallet: formData.layers_per_pallet !== "" ? parseInt(formData.layers_per_pallet, 10) : null,
+        total_cartons_per_pallet: formData.total_cartons_per_pallet !== "" ? parseInt(formData.total_cartons_per_pallet, 10) : null,
+        max_stacking_layers: formData.max_stacking_layers !== "" ? parseInt(formData.max_stacking_layers, 10) : null,
+        est_qty_20ft: formData.est_qty_20ft !== "" ? parseFloat(formData.est_qty_20ft) : null,
+        est_qty_40hc: formData.est_qty_40hc !== "" ? parseFloat(formData.est_qty_40hc) : null,
+        // Warehouse Coordinates
+        warehouse_location: formData.warehouse_location?.trim() || null,
+        default_bin: formData.default_bin?.trim() || null,
+        packaging_specs: formData.packaging_specs || {},
         unit_cost: formData.unit_cost !== "" ? parseFloat(formData.unit_cost) : null,
         currency: formData.currency || "USD",
         current_stock: parseFloat(formData.current_stock) || 0.0,
@@ -750,6 +1376,18 @@ export default function ProductMasterPage() {
         min_quantity_order: formData.min_quantity_order !== "" ? parseFloat(formData.min_quantity_order) : null,
         lead_time_days: formData.lead_time_days !== "" ? parseInt(formData.lead_time_days, 10) : null,
         default_supplier_id: formData.default_supplier_id ? parseInt(formData.default_supplier_id, 10) : null,
+        factory_code: formData.factory_code || null,
+        suppliers: (formData.suppliers || []).map((s) => ({
+          supplier_id: parseInt(s.supplier_id, 10),
+          factory_code: s.factory_code || null,
+          vendor_product_name: s.vendor_product_name || null,
+          unit_cost: s.unit_cost !== "" && s.unit_cost !== null && s.unit_cost !== undefined ? parseFloat(s.unit_cost) : null,
+          currency: s.currency || "USD",
+          min_order_qty: s.min_order_qty !== "" && s.min_order_qty !== null && s.min_order_qty !== undefined ? parseFloat(s.min_order_qty) : null,
+          lead_time_days: s.lead_time_days !== "" && s.lead_time_days !== null && s.lead_time_days !== undefined ? parseInt(s.lead_time_days, 10) : null,
+          is_default: Boolean(s.is_default),
+          notes: s.notes || null,
+        })),
         images: formData.images || [],
         videos: formData.videos || [],
         attachment: formData.attachment || [],
@@ -991,75 +1629,73 @@ export default function ProductMasterPage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (currentView === "product_detail") {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto pb-16">
-        {/* Top Header */}
+      <div className="h-[calc(100vh-1.5rem)] flex flex-col min-h-0 w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8 py-2.5 space-y-3 overflow-hidden">
+        {/* Compact Action & Title Bar - FIXED PINNED */}
         <div
-          className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${
+          className={`flex-none p-3.5 rounded-2xl border shadow-xs transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
             isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
           }`}
         >
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <button
               type="button"
               onClick={handleBack}
-              className={`p-2.5 rounded-xl border transition flex items-center gap-1.5 text-xs font-bold ${
+              className={`px-3 py-2 rounded-xl border transition flex items-center gap-1.5 text-xs font-bold shrink-0 cursor-pointer ${
                 isDark
-                  ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700"
+                  ? "bg-slate-800/80 border-slate-700 text-slate-200 hover:bg-slate-700"
                   : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
               }`}
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={15} />
               <span>Back to {returnToView === "categories" ? "Categories" : "Products"}</span>
             </button>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
-                  {formData?.sku || "NEW PRODUCT"}
-                </span>
-                {formData?.code && (
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
-                    Internal: {formData.code}
-                  </span>
-                )}
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
-                    formData?.status === "active"
-                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300"
-                  }`}
-                >
-                  {formData?.status || "ACTIVE"}
-                </span>
-                {formData?.country_of_origin && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                    <span>{getCountryFlag(formData.country_of_origin)}</span>
-                    <span>{formatCountryDisplay(formData.country_of_origin)}</span>
-                  </span>
-                )}
-                {formData?.videos && formData.videos.length > 0 && (
+            <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+
+            <div className="flex items-center gap-2 text-xs min-w-0">
+              <span className="text-slate-400 hidden md:inline">Inventory Master</span>
+              <ChevronRight size={13} className="text-slate-400 hidden md:inline" />
+              <h2 className="font-extrabold text-slate-900 dark:text-white truncate max-w-xs sm:max-w-md">
+                {formData?.name || (activeProduct ? "Edit Product" : "Register Product")}
+              </h2>
+              {formData?.sku && (
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono text-[11px] font-extrabold shrink-0">
+                  <span>{formData.sku}</span>
                   <button
                     type="button"
-                    onClick={() => setActiveProductTab("media")}
-                    className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 font-bold border border-rose-500/20 flex items-center gap-1 hover:bg-rose-500/20 transition cursor-pointer"
+                    onClick={handleCopySku}
+                    className="hover:text-indigo-900 dark:hover:text-white transition p-0.5 cursor-pointer"
+                    title="Copy Trading SKU"
                   >
-                    <Play size={10} fill="currentColor" />
-                    <span>{formData.videos.length} {formData.videos.length === 1 ? "Video" : "Videos"}</span>
+                    <Copy size={11} />
                   </button>
-                )}
-              </div>
-              <h2 className="text-xl font-extrabold tracking-tight mt-0.5">
-                {formData?.name || "Register Product Master Item"}
-              </h2>
+                </div>
+              )}
+              {formData?.status && (
+                <span
+                  className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border items-center gap-1 shrink-0 ${
+                    formData.status === "active"
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                      : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      formData.status === "active" ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
+                  />
+                  <span>{formData.status}</span>
+                </span>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
             {activeProduct && (
               <button
                 type="button"
                 onClick={handleDeleteActiveProduct}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold text-red-600 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30 transition flex items-center gap-1.5"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold text-red-600 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30 transition flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 size={14} />
                 <span>Delete</span>
@@ -1069,7 +1705,7 @@ export default function ProductMasterPage() {
             <button
               type="button"
               onClick={handleSaveProduct}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20 active:scale-95 flex items-center gap-1.5"
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/25 active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <Check size={16} />
               <span>{activeProduct ? "Save Specifications" : "Register Product"}</span>
@@ -1077,36 +1713,62 @@ export default function ProductMasterPage() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation - FIXED PINNED */}
         <div
-          className={`p-2 rounded-2xl border shadow-xs flex items-center gap-1.5 overflow-x-auto text-xs font-bold ${
+          className={`flex-none p-1.5 rounded-2xl border shadow-xs flex items-center gap-1.5 overflow-x-auto text-xs font-bold scrollbar-thin ${
             isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
           }`}
         >
           {[
-            { id: "overview", label: "Overview & Orders Pipeline", icon: TrendingUp },
-            { id: "basic", label: "Identity & Classification", icon: Boxes },
+            {
+              id: "specs",
+              label: "Specifications & Identity",
+              icon: Boxes,
+              match: ["specs", "basic"],
+            },
+            {
+              id: "dimensions",
+              label: "Dimensions & Packaging",
+              icon: Ruler,
+              match: ["dimensions", "packaging"],
+            },
+            {
+              id: "stock",
+              label: "Warehouse & Stock Controls",
+              icon: Warehouse,
+              match: ["stock", "warehouse"],
+            },
+            {
+              id: "sourcing",
+              label: `Sourcing & Suppliers (${formData?.suppliers?.length || 0})`,
+              icon: Building,
+              match: ["sourcing", "vendors"],
+            },
+            {
+              id: "trade",
+              label: "Customs & Compliance",
+              icon: ShieldCheck,
+              match: ["trade", "flags"],
+            },
             {
               id: "media",
-              label: `Media & Videos (${(formData?.images?.length || 0) + (formData?.videos?.length || 0)})`,
+              label: `Media & Gallery (${(formData?.images?.length || 0) + (formData?.videos?.length || 0)})`,
               icon: Film,
+              match: ["media"],
             },
-            { id: "trade", label: "Customs & HS Code", icon: Truck },
-            { id: "dimensions", label: "Dimensions & Packaging", icon: Ruler },
-            { id: "inventory", label: "Inventory & Stock Rules", icon: Layers },
-            {
-              id: "links",
-              label: `Linked Items (${
-                (activeProduct?.links?.variants?.length || 0) +
-                (activeProduct?.links?.related?.length || 0) +
-                (activeProduct?.links?.parts?.length || 0)
-              })`,
-              icon: Link2,
-            },
-            { id: "flags", label: "Compliance & Handling", icon: ShieldCheck },
+            ...(activeProduct
+              ? [
+                  {
+                    id: "pipeline",
+                    label: "Orders Pipeline & Links",
+                    icon: TrendingUp,
+                    match: ["pipeline", "overview", "links"],
+                  },
+                ]
+              : []),
           ].map((tab) => {
             const Icon = tab.icon;
-            const isActive = activeProductTab === tab.id;
+            const isActive = tab.match.includes(activeProductTab);
             return (
               <button
                 key={tab.id}
@@ -1127,9 +1789,9 @@ export default function ProductMasterPage() {
           })}
         </div>
 
-        {/* Tab Content Panels */}
+        {/* Tab Content Panels - CONTAINED SCROLLING UNDER TABS */}
         <div
-          className={`p-6 rounded-2xl border shadow-xs ${
+          className={`flex-1 min-h-0 overflow-y-auto scrollbar-thin p-6 rounded-2xl border shadow-xs ${
             isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
           }`}
         >
@@ -1140,9 +1802,13 @@ export default function ProductMasterPage() {
             </div>
           ) : (
             <>
-              {/* TAB 1: OVERVIEW & PIPELINE */}
-              {activeProductTab === "overview" && (
+              {/* TAB 5: OVERVIEW & PIPELINE */}
+              {(activeProductTab === "pipeline" || activeProductTab === "overview") && (
                 <div className="space-y-6">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
+                    <TrendingUp size={16} className="text-indigo-500" />
+                    <span>Procurement Order Delivery Pipeline</span>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div
                       className={`p-4 rounded-xl border text-center ${
@@ -1254,16 +1920,19 @@ export default function ProductMasterPage() {
                 </div>
               )}
 
-              {/* TAB 2: IDENTITY & CLASSIFICATION */}
-              {activeProductTab === "basic" && (
+              {/* TAB 1: SPECIFICATIONS & IDENTITY */}
+              {(activeProductTab === "specs" || activeProductTab === "basic") && (
                 <div className="space-y-5">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
+                    <Boxes size={16} className="text-indigo-500" />
+                    <span>Product Master Identity & Classification</span>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-xs font-bold mb-1">Trading SKU (External) *</label>
                       <input
                         type="text"
                         required
-                        disabled={Boolean(activeProduct)}
                         value={formData?.sku || ""}
                         onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
                         placeholder="e.g. TL-PORC-60X60-IVORY"
@@ -1271,9 +1940,9 @@ export default function ProductMasterPage() {
                           isDark
                             ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
                             : "bg-slate-50 border-slate-200 text-slate-900"
-                        } ${activeProduct ? "opacity-60 cursor-not-allowed" : ""}`}
+                        }`}
                       />
-                      <p className="text-[10px] text-slate-400 mt-1">Trading code for suppliers & market orders</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Trading code for suppliers & market orders (must be unique)</p>
                     </div>
 
                     <div>
@@ -1315,6 +1984,46 @@ export default function ProductMasterPage() {
                           isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
                         }`}
                       />
+                    </div>
+
+                    {/* Sourcing & Factory Code Quick Overview */}
+                    <div className="sm:col-span-2 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/40 dark:bg-indigo-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <Building size={16} className="text-indigo-600 dark:text-indigo-400 flex-none" />
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Primary Vendor:{" "}
+                          <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">
+                            {suppliers.find((s) => Number(s.supplier_id || s.id) === Number(formData?.default_supplier_id))?.name ||
+                              (formData?.suppliers && formData.suppliers.find((s) => s.is_default)?.supplier_name) ||
+                              "Not Assigned"}
+                          </span>
+                        </span>
+                        {(() => {
+                          const defSupp = formData?.suppliers?.find((s) => s.is_default) || formData?.suppliers?.[0];
+                          const fc = defSupp?.factory_code || formData?.factory_code;
+                          return fc ? (
+                            <span
+                              title="Vendor's factory / catalog article code"
+                              className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1"
+                            >
+                              <span>🏭 Factory Code: {fc}</span>
+                            </span>
+                          ) : null;
+                        })()}
+                        {formData?.suppliers && formData.suppliers.length > 1 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold">
+                            +{formData.suppliers.length - 1} other vendors
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveProductTab("inventory")}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 hover:underline flex items-center gap-1 self-start sm:self-auto"
+                      >
+                        <span>Manage Vendors & Factory Codes</span>
+                        <ChevronRight size={13} />
+                      </button>
                     </div>
 
                     <div>
@@ -1406,6 +2115,93 @@ export default function ProductMasterPage() {
                         }`}
                       />
                     </div>
+
+                    {/* Dynamic Tagging System */}
+                    <div className="sm:col-span-2 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
+                          <Tag size={14} className="text-indigo-500" />
+                          <span>Product Classification Tags</span>
+                          <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">(Used for catalog discovery, warehouse routing & search)</span>
+                        </label>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          {Array.isArray(formData?.tags) ? formData.tags.length : 0} tags
+                        </span>
+                      </div>
+
+                      {/* Tag Chips */}
+                      <div className="flex flex-wrap items-center gap-1.5 min-h-[32px]">
+                        {Array.isArray(formData?.tags) && formData.tags.length > 0 ? (
+                          formData.tags.map((t) => (
+                            <span
+                              key={t}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                            >
+                              <span>#{t}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTag(t)}
+                                className="text-indigo-400 hover:text-rose-500 transition p-0.5 cursor-pointer"
+                                title={`Remove tag ${t}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No tags assigned yet. Type a tag below or select suggestions.</span>
+                        )}
+                      </div>
+
+                      {/* Add Tag Input */}
+                      <div className="flex gap-2 pt-1">
+                        <div className="relative flex-1">
+                          <Hash size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === ",") {
+                                e.preventDefault();
+                                handleAddTag();
+                              }
+                            }}
+                            placeholder="Add tag (press Enter or comma)..."
+                            className={`w-full pl-8 pr-20 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddTag()}
+                            disabled={!tagInput.trim()}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Suggested Quick Tags */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Suggestions:</span>
+                        {SUGGESTED_TAGS.filter((st) => !((formData?.tags || []).includes(st))).slice(0, 8).map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => handleAddTag(st)}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition cursor-pointer ${
+                              isDark
+                                ? "bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-indigo-950/60 hover:border-indigo-800 hover:text-indigo-300"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700"
+                            }`}
+                          >
+                            +{st}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -1423,187 +2219,71 @@ export default function ProductMasterPage() {
                 </div>
               )}
 
-              {/* TAB 3: CUSTOMS & HS CODE */}
-              {activeProductTab === "trade" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Harmonized Tariff (HS Code)</label>
-                    <input
-                      type="text"
-                      value={formData?.hs_code || ""}
-                      onChange={(e) => setFormData({ ...formData, hs_code: e.target.value })}
-                      placeholder="e.g. 6907.21"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
-                      }`}
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">International HS tariff classification for customs</p>
+              {/* TRADE & CUSTOMS */}
+              {(activeProductTab === "trade" || activeProductTab === "flags") && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
+                    <Truck size={16} className="text-indigo-500" />
+                    <span>Customs Tariff, HS Code & Origin</span>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Customs Duty Rate (%)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData?.duty_rate !== null ? formData.duty_rate : ""}
-                      onChange={(e) => setFormData({ ...formData, duty_rate: e.target.value })}
-                      placeholder="e.g. 5.00"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
-                      }`}
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">Import duty percentage applied on landed value</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Country of Origin</label>
-                    <select
-                      value={formData?.country_of_origin || ""}
-                      onChange={(e) => setFormData({ ...formData, country_of_origin: e.target.value })}
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
-                      }`}
-                    >
-                      <option value="">— Select Manufacturing Country of Origin —</option>
-                      {COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.name}>
-                          {c.flag} {c.name} ({c.code})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-slate-400 mt-1">Country of origin used for customs clearing and landed valuation</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Barcode (EAN / UPC / GTIN)</label>
-                    <input
-                      type="text"
-                      value={formData?.barcode || ""}
-                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                      placeholder="e.g. 8901234567890"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
-                      }`}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 4: DIMENSIONS & PACKAGING */}
-              {activeProductTab === "dimensions" && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-xs font-bold mb-1">Length</label>
+                      <label className="block text-xs font-bold mb-1">Harmonized Tariff (HS Code)</label>
                       <input
-                        type="number"
-                        step="any"
-                        value={formData?.length !== null ? formData.length : ""}
-                        onChange={(e) => setFormData({ ...formData, length: e.target.value })}
-                        placeholder="0.0"
-                        className={`w-full px-3 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                        type="text"
+                        value={formData?.hs_code || ""}
+                        onChange={(e) => setFormData({ ...formData, hs_code: e.target.value })}
+                        placeholder="e.g. 6907.21"
+                        className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
                         }`}
                       />
+                      <p className="text-[10px] text-slate-400 mt-1">International HS tariff classification for customs</p>
                     </div>
+
                     <div>
-                      <label className="block text-xs font-bold mb-1">Width</label>
+                      <label className="block text-xs font-bold mb-1">Customs Duty Rate (%)</label>
                       <input
                         type="number"
-                        step="any"
-                        value={formData?.width !== null ? formData.width : ""}
-                        onChange={(e) => setFormData({ ...formData, width: e.target.value })}
-                        placeholder="0.0"
-                        className={`w-full px-3 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                        step="0.01"
+                        value={formData?.duty_rate !== null ? formData.duty_rate : ""}
+                        onChange={(e) => setFormData({ ...formData, duty_rate: e.target.value })}
+                        placeholder="e.g. 5.00"
+                        className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
                         }`}
                       />
+                      <p className="text-[10px] text-slate-400 mt-1">Import duty percentage applied on landed value</p>
                     </div>
+
                     <div>
-                      <label className="block text-xs font-bold mb-1">Height</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={formData?.height !== null ? formData.height : ""}
-                        onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                        placeholder="0.0"
-                        className={`w-full px-3 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold mb-1">Dimension Unit</label>
+                      <label className="block text-xs font-bold mb-1">Country of Origin</label>
                       <select
-                        value={formData?.dimension_unit || "mm"}
-                        onChange={(e) => setFormData({ ...formData, dimension_unit: e.target.value })}
-                        className={`w-full px-3 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                        value={formData?.country_of_origin || ""}
+                        onChange={(e) => setFormData({ ...formData, country_of_origin: e.target.value })}
+                        className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
                         }`}
                       >
-                        {DIMENSION_UNITS.map((u) => (
-                          <option key={u} value={u}>
-                            {u}
+                        <option value="">— Select Manufacturing Country of Origin —</option>
+                        {COUNTRIES.map((c) => (
+                          <option key={c.code} value={c.name}>
+                            {c.flag} {c.name} ({c.code})
                           </option>
                         ))}
                       </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
-                    <div>
-                      <label className="block text-xs font-bold mb-1">Unit Weight</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          step="any"
-                          value={formData?.weight_per_unit !== null ? formData.weight_per_unit : ""}
-                          onChange={(e) => setFormData({ ...formData, weight_per_unit: e.target.value })}
-                          placeholder="0.00"
-                          className={`flex-1 px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                          }`}
-                        />
-                        <select
-                          value={formData?.weight_unit || "kg"}
-                          onChange={(e) => setFormData({ ...formData, weight_unit: e.target.value })}
-                          className={`w-28 px-3 py-2.5 border rounded-xl text-xs font-mono focus:outline-none ${
-                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                          }`}
-                        >
-                          {WEIGHT_UNITS.map((w) => (
-                            <option key={w} value={w}>
-                              {w}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Country of origin used for customs clearing and landed valuation</p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold mb-1">Units per Box / Carton</label>
+                      <label className="block text-xs font-bold mb-1">Barcode (EAN / UPC / GTIN)</label>
                       <input
-                        type="number"
-                        step="any"
-                        value={formData?.units_per_box !== null ? formData.units_per_box : ""}
-                        onChange={(e) => setFormData({ ...formData, units_per_box: e.target.value })}
-                        placeholder="e.g. 4"
+                        type="text"
+                        value={formData?.barcode || ""}
+                        onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                        placeholder="e.g. 8901234567890"
                         className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                        }`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold mb-1">Total Box Gross Weight ({formData?.weight_unit || "kg"})</label>
-                      <input
-                        type="number"
-                        step="any"
-                        value={formData?.box_weight !== null ? formData.box_weight : ""}
-                        onChange={(e) => setFormData({ ...formData, box_weight: e.target.value })}
-                        placeholder="e.g. 28.5"
-                        className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
                         }`}
                       />
                     </div>
@@ -1611,111 +2291,995 @@ export default function ProductMasterPage() {
                 </div>
               )}
 
-              {/* TAB 5: INVENTORY & STOCK RULES */}
-              {activeProductTab === "inventory" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Baseline On-Hand Stock</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData?.current_stock}
-                      onChange={(e) => setFormData({ ...formData, current_stock: e.target.value })}
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                      }`}
-                    />
+              {/* TAB 2: DIMENSIONS & MULTI-TIER PACKAGING */}
+              {(activeProductTab === "dimensions" || activeProductTab === "packaging") && (
+                <div className="space-y-6">
+                  {/* Top Summary Banner */}
+                  <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    isDark ? "bg-slate-800/40 border-slate-700/80" : "bg-gradient-to-r from-indigo-50/60 to-purple-50/40 border-indigo-100"
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-xs">
+                        <Ruler size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">Multi-Tier Packaging & Container Load Plan</h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Configure primary retail unit, wholesale inner pack, master shipping container, and container stuffing capacity.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleEstimateContainerCapacity}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        title="Auto-calculate 20ft and 40ft HC capacity based on current packaging CBM"
+                      >
+                        <Calculator size={13} />
+                        <span>Estimate Container Load</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Min Stock Alert Threshold</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData?.min_stock_quantity}
-                      onChange={(e) => setFormData({ ...formData, min_stock_quantity: e.target.value })}
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                      }`}
-                    />
+                  {/* ── TIER 1: RETAIL (PRIMARY) PACKAGING ─────────────────────── */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+                  }`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-xs font-extrabold flex items-center justify-center">1</span>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Retail Packaging (Individual Consumer Unit)</h4>
+                      </div>
+                      {calculatedCBM && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          Unit Volume: {calculatedCBM} CBM
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold mb-1">Retail Packaging Type</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={RETAIL_PACKAGING_TYPES.includes(formData?.retail_packaging_type) ? formData.retail_packaging_type : "Custom"}
+                            onChange={(e) => {
+                              if (e.target.value !== "Custom") {
+                                setFormData({ ...formData, retail_packaging_type: e.target.value });
+                              }
+                            }}
+                            className={`w-1/2 px-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                            }`}
+                          >
+                            {RETAIL_PACKAGING_TYPES.map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                            <option value="Custom">Custom Write-in...</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={formData?.retail_packaging_type || ""}
+                            onChange={(e) => setFormData({ ...formData, retail_packaging_type: e.target.value })}
+                            placeholder="Type retail packaging type..."
+                            className={`flex-1 px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Unit Net Weight</label>
+                        <div className="flex gap-1.5">
+                          <input
+                            type="number"
+                            step="any"
+                            value={formData?.weight_per_unit !== null ? formData.weight_per_unit : ""}
+                            onChange={(e) => setFormData({ ...formData, weight_per_unit: e.target.value })}
+                            placeholder="0.00"
+                            className={`flex-1 px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                          <select
+                            value={formData?.weight_unit || "kg"}
+                            onChange={(e) => setFormData({ ...formData, weight_unit: e.target.value })}
+                            className={`w-20 px-2 py-2 border rounded-xl text-xs font-mono focus:outline-none ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                            }`}
+                          >
+                            {WEIGHT_UNITS.map((w) => (<option key={w} value={w}>{w}</option>))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Unit Gross Weight (w/ pack)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.gross_weight_per_unit !== null ? formData.gross_weight_per_unit : ""}
+                          onChange={(e) => setFormData({ ...formData, gross_weight_per_unit: e.target.value })}
+                          placeholder="0.00"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Unit Length</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.length !== null ? formData.length : ""}
+                          onChange={(e) => setFormData({ ...formData, length: e.target.value })}
+                          placeholder="0.0"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Unit Width</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.width !== null ? formData.width : ""}
+                          onChange={(e) => setFormData({ ...formData, width: e.target.value })}
+                          placeholder="0.0"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Unit Height</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.height !== null ? formData.height : ""}
+                          onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                          placeholder="0.0"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Dimension Unit</label>
+                        <select
+                          value={formData?.dimension_unit || "mm"}
+                          onChange={(e) => setFormData({ ...formData, dimension_unit: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        >
+                          {DIMENSION_UNITS.map((u) => (<option key={u} value={u}>{u}</option>))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Reorder Point (Trigger Qty)</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData?.order_threshold_qty !== null ? formData.order_threshold_qty : ""}
-                      onChange={(e) => setFormData({ ...formData, order_threshold_qty: e.target.value })}
-                      placeholder="Trigger quantity for auto PO alert"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                      }`}
-                    />
+                  {/* ── TIER 2: WHOLESALE (INNER PACK) PACKAGING ────────────────── */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+                  }`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-extrabold flex items-center justify-center">2</span>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Wholesale Packaging (Inner Pack / Bundle / Sub-Box)</h4>
+                      </div>
+                      <span className="text-[11px] text-slate-400">Optional tier for bundled wholesale distribution</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold mb-1">Wholesale Packaging Type</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={WHOLESALE_PACKAGING_TYPES.includes(formData?.wholesale_packaging_type) ? formData.wholesale_packaging_type : "Custom"}
+                            onChange={(e) => {
+                              if (e.target.value !== "Custom") {
+                                setFormData({ ...formData, wholesale_packaging_type: e.target.value });
+                              }
+                            }}
+                            className={`w-1/2 px-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                            }`}
+                          >
+                            {WHOLESALE_PACKAGING_TYPES.map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                            <option value="Custom">Custom Write-in...</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={formData?.wholesale_packaging_type || ""}
+                            onChange={(e) => setFormData({ ...formData, wholesale_packaging_type: e.target.value })}
+                            placeholder="Type wholesale packaging type..."
+                            className={`flex-1 px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Units per Inner Pack</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.units_per_inner !== null ? formData.units_per_inner : ""}
+                          onChange={(e) => setFormData({ ...formData, units_per_inner: e.target.value })}
+                          placeholder="e.g. 6 or 12"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Inner Pack Weight ({formData?.weight_unit || "kg"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.inner_weight !== null ? formData.inner_weight : ""}
+                          onChange={(e) => setFormData({ ...formData, inner_weight: e.target.value })}
+                          placeholder="0.00"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4 pt-1">
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Inner Length ({formData?.dimension_unit || "mm"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.inner_length !== null ? formData.inner_length : ""}
+                          onChange={(e) => setFormData({ ...formData, inner_length: e.target.value })}
+                          placeholder="0.0"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Inner Width ({formData?.dimension_unit || "mm"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.inner_width !== null ? formData.inner_width : ""}
+                          onChange={(e) => setFormData({ ...formData, inner_width: e.target.value })}
+                          placeholder="0.0"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Inner Height ({formData?.dimension_unit || "mm"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.inner_height !== null ? formData.inner_height : ""}
+                          onChange={(e) => setFormData({ ...formData, inner_height: e.target.value })}
+                          placeholder="0.0"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Safety Stock Cushion</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData?.threshold_qty !== null ? formData.threshold_qty : ""}
-                      onChange={(e) => setFormData({ ...formData, threshold_qty: e.target.value })}
-                      placeholder="Emergency reserve"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                      }`}
-                    />
+                  {/* ── TIER 3: IMPORT / MASTER SHIPPING PACKAGING ──────────────── */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+                  }`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-xs font-extrabold flex items-center justify-center">3</span>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Import & Master Shipping Packaging (Freight Unit)</h4>
+                      </div>
+                      {calculatedBoxCBM && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          Master CBM: {calculatedBoxCBM} CBM
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-bold mb-1">Master Packaging Type (Industry Format)</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={IMPORT_PACKAGING_TYPES.includes(formData?.import_packaging_type) ? formData.import_packaging_type : "Custom"}
+                            onChange={(e) => {
+                              if (e.target.value !== "Custom") {
+                                setFormData({ ...formData, import_packaging_type: e.target.value });
+                              }
+                            }}
+                            className={`w-1/2 px-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                            }`}
+                          >
+                            {IMPORT_PACKAGING_TYPES.map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                            <option value="Custom">Custom Write-in...</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={formData?.import_packaging_type || ""}
+                            onChange={(e) => setFormData({ ...formData, import_packaging_type: e.target.value })}
+                            placeholder="e.g. Tiles SQM Box, Rebar Bundle, Timber Pack..."
+                            className={`flex-1 px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Units per Master Box / Crate / Pack *</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.units_per_box !== null ? formData.units_per_box : ""}
+                          onChange={(e) => setFormData({ ...formData, units_per_box: e.target.value })}
+                          placeholder="e.g. 24 or 100"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Total Master Gross Weight ({formData?.weight_unit || "kg"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.box_weight !== null ? formData.box_weight : ""}
+                          onChange={(e) => setFormData({ ...formData, box_weight: e.target.value })}
+                          placeholder="e.g. 28.5"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Master Length ({formData?.dimension_unit || "mm"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.master_length !== null ? formData.master_length : ""}
+                          onChange={(e) => setFormData({ ...formData, master_length: e.target.value })}
+                          placeholder="Outer length"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Master Width ({formData?.dimension_unit || "mm"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.master_width !== null ? formData.master_width : ""}
+                          onChange={(e) => setFormData({ ...formData, master_width: e.target.value })}
+                          placeholder="Outer width"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Master Height ({formData?.dimension_unit || "mm"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.master_height !== null ? formData.master_height : ""}
+                          onChange={(e) => setFormData({ ...formData, master_height: e.target.value })}
+                          placeholder="Outer height"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Carton Tare Weight ({formData?.weight_unit || "kg"})</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.master_tare_weight !== null ? formData.master_tare_weight : ""}
+                          onChange={(e) => setFormData({ ...formData, master_tare_weight: e.target.value })}
+                          placeholder="Empty box weight"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Minimum Order Qty (MOQ)</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={formData?.min_quantity_order !== null ? formData.min_quantity_order : ""}
-                      onChange={(e) => setFormData({ ...formData, min_quantity_order: e.target.value })}
-                      placeholder="Supplier MOQ"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                      }`}
-                    />
+                  {/* ── TIER 4: PALLETIZATION & CONTAINER LOADING CAPACITY ────── */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+                  }`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-xs font-extrabold flex items-center justify-center">4</span>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Palletization & Container Loading Capacity</h4>
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-500">
+                        Usable Standard Volume: <strong className="text-indigo-600 dark:text-indigo-400">20ft (~28–33 CBM)</strong> | <strong className="text-purple-600 dark:text-purple-400">40ft HC (~68–76 CBM)</strong>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Pallet Spec / Type</label>
+                        <select
+                          value={formData?.pallet_type || "Euro Pallet (1200 × 800 mm)"}
+                          onChange={(e) => setFormData({ ...formData, pallet_type: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                          }`}
+                        >
+                          {PALLET_TYPES.map((pt) => (<option key={pt} value={pt}>{pt}</option>))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Cartons per Layer (TI)</label>
+                        <input
+                          type="number"
+                          value={formData?.cartons_per_layer !== null ? formData.cartons_per_layer : ""}
+                          onChange={(e) => {
+                            const ti = parseInt(e.target.value, 10) || 0;
+                            const hi = parseInt(formData?.layers_per_pallet, 10) || 0;
+                            setFormData({
+                              ...formData,
+                              cartons_per_layer: e.target.value,
+                              total_cartons_per_pallet: ti > 0 && hi > 0 ? ti * hi : formData?.total_cartons_per_pallet
+                            });
+                          }}
+                          placeholder="e.g. 8"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Layers per Pallet (HI)</label>
+                        <input
+                          type="number"
+                          value={formData?.layers_per_pallet !== null ? formData.layers_per_pallet : ""}
+                          onChange={(e) => {
+                            const hi = parseInt(e.target.value, 10) || 0;
+                            const ti = parseInt(formData?.cartons_per_layer, 10) || 0;
+                            setFormData({
+                              ...formData,
+                              layers_per_pallet: e.target.value,
+                              total_cartons_per_pallet: ti > 0 && hi > 0 ? ti * hi : formData?.total_cartons_per_pallet
+                            });
+                          }}
+                          placeholder="e.g. 5"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Total Cartons per Pallet</label>
+                        <input
+                          type="number"
+                          value={formData?.total_cartons_per_pallet !== null ? formData.total_cartons_per_pallet : ""}
+                          onChange={(e) => setFormData({ ...formData, total_cartons_per_pallet: e.target.value })}
+                          placeholder="TI × HI auto"
+                          className={`w-full px-3 py-2 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Auto-Estimated & User-Editable Container Capacity Inputs */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className={`p-4 rounded-xl border ${
+                          isDark ? "bg-slate-800/40 border-slate-700" : "bg-indigo-50/40 border-indigo-100"
+                        }`}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                              <Truck size={14} />
+                              <span>20ft Container Units (Usable ~28–33 CBM)</span>
+                            </label>
+                            <span className="text-[10px] text-slate-400 font-mono">Editable</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="any"
+                              value={formData?.est_qty_20ft !== null ? formData.est_qty_20ft : ""}
+                              onChange={(e) => setFormData({ ...formData, est_qty_20ft: e.target.value })}
+                              placeholder="e.g. 5200"
+                              className={`flex-1 px-3 py-2 border rounded-xl text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                                isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                              }`}
+                            />
+                            <span className="text-xs font-mono font-semibold text-slate-500">{formData?.unit || "PCS"}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5">
+                            <span>
+                              {formData?.est_qty_20ft && formData?.units_per_box
+                                ? `≈ ${Math.floor(formData.est_qty_20ft / formData.units_per_box)} master cartons`
+                                : "Auto-calculated from box CBM or enter manual value"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className={`p-4 rounded-xl border ${
+                          isDark ? "bg-slate-800/40 border-slate-700" : "bg-purple-50/40 border-purple-100"
+                        }`}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-xs font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
+                              <Truck size={14} />
+                              <span>40ft High Cube Units (Usable ~68–76 CBM)</span>
+                            </label>
+                            <span className="text-[10px] text-slate-400 font-mono">Editable</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="any"
+                              value={formData?.est_qty_40hc !== null ? formData.est_qty_40hc : ""}
+                              onChange={(e) => setFormData({ ...formData, est_qty_40hc: e.target.value })}
+                              placeholder="e.g. 12800"
+                              className={`flex-1 px-3 py-2 border rounded-xl text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                                isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                              }`}
+                            />
+                            <span className="text-xs font-mono font-semibold text-slate-500">{formData?.unit || "PCS"}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5">
+                            <span>
+                              {formData?.est_qty_40hc && formData?.units_per_box
+                                ? `≈ ${Math.floor(formData.est_qty_40hc / formData.units_per_box)} master cartons`
+                                : "Auto-calculated from box CBM or enter manual value"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: WAREHOUSE & STOCK CONTROLS (WMS PREPARATION) */}
+              {(activeProductTab === "stock" || activeProductTab === "warehouse") && (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
+                    <Warehouse size={16} className="text-indigo-500" />
+                    <span>Warehouse Inventory Controls & Storage Coordinates</span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Procurement Lead Time (Days)</label>
-                    <input
-                      type="number"
-                      value={formData?.lead_time_days !== null ? formData.lead_time_days : ""}
-                      onChange={(e) => setFormData({ ...formData, lead_time_days: e.target.value })}
-                      placeholder="e.g. 45"
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
-                      }`}
-                    />
+                  {/* Stock Metrics Card */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+                  }`}>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                      Stock Thresholds & Reorder Rules
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Baseline On-Hand Stock</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.current_stock}
+                          onChange={(e) => setFormData({ ...formData, current_stock: e.target.value })}
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Physical stock currently on warehouse shelves</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Min Stock Alert Threshold</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.min_stock_quantity}
+                          onChange={(e) => setFormData({ ...formData, min_stock_quantity: e.target.value })}
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Trigger low stock amber/red alert</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Reorder Point (Trigger Qty)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.order_threshold_qty !== null ? formData.order_threshold_qty : ""}
+                          onChange={(e) => setFormData({ ...formData, order_threshold_qty: e.target.value })}
+                          placeholder="e.g. 150"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Automated PO reorder notification</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Safety Stock Cushion</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.threshold_qty !== null ? formData.threshold_qty : ""}
+                          onChange={(e) => setFormData({ ...formData, threshold_qty: e.target.value })}
+                          placeholder="e.g. 50"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Buffer stock for supply spikes</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Maximum Stock Capacity</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData?.max_stock_quantity !== null ? formData.max_stock_quantity : ""}
+                          onChange={(e) => setFormData({ ...formData, max_stock_quantity: e.target.value })}
+                          placeholder="e.g. 2000"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Overstock prevention limit</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Internal Handling Lead Time (Days)</label>
+                        <input
+                          type="number"
+                          value={formData?.lead_time_days !== null ? formData.lead_time_days : ""}
+                          onChange={(e) => setFormData({ ...formData, lead_time_days: e.target.value })}
+                          placeholder="e.g. 5"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Pick, pack & staging turnaround</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Default Preferred Supplier</label>
-                    <select
-                      value={formData?.default_supplier_id || ""}
-                      onChange={(e) => setFormData({ ...formData, default_supplier_id: e.target.value })}
-                      className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
-                      }`}
-                    >
-                      <option value="">No Default Supplier</option>
-                      {suppliers.map((s) => (
-                        <option key={s.supplier_id || s.id} value={s.supplier_id || s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                  {/* WMS Coordinates & Storage Facility */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+                  }`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                        Warehouse Facility & Bin Location (WMS Coordinates)
+                      </h4>
+                      <span className="text-[11px] font-medium text-indigo-500">Preparing for Multi-Warehouse WMS</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Primary Warehouse Facility</label>
+                        <input
+                          type="text"
+                          value={formData?.warehouse_location || ""}
+                          onChange={(e) => setFormData({ ...formData, warehouse_location: e.target.value })}
+                          placeholder="e.g. Main Distribution Center — Mahé"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Primary holding site or depot</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Default Bay / Rack / Bin Coordinate</label>
+                        <input
+                          type="text"
+                          value={formData?.default_bin || ""}
+                          onChange={(e) => setFormData({ ...formData, default_bin: e.target.value })}
+                          placeholder="e.g. Aisle 04 — Rack B — Bin 12"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-amber-300" : "bg-slate-50 border-slate-200 text-amber-700"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Default pick bin coordinate for warehouse staff</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Material Handling & Storage Conditions */}
+                  <div className={`p-5 rounded-2xl border space-y-4 ${
+                    isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200 shadow-xs"
+                  }`}>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                      Material Handling, Safety & Storage Flags
+                    </h4>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <label className="flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(formData?.is_hazardous)}
+                          onChange={(e) => setFormData({ ...formData, is_hazardous: e.target.checked })}
+                          className="w-4 h-4 text-red-600 rounded"
+                        />
+                        <span className="text-xs font-bold text-red-600 dark:text-red-400">Hazardous (HAZMAT)</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(formData?.is_perishable)}
+                          onChange={(e) => setFormData({ ...formData, is_perishable: e.target.checked })}
+                          className="w-4 h-4 text-amber-600 rounded"
+                        />
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Perishable Goods</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(formData?.is_consumable)}
+                          onChange={(e) => setFormData({ ...formData, is_consumable: e.target.checked })}
+                          className="w-4 h-4 text-indigo-600 rounded"
+                        />
+                        <span className="text-xs font-bold">Consumable Material</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(formData?.is_returnable)}
+                          onChange={(e) => setFormData({ ...formData, is_returnable: e.target.checked })}
+                          className="w-4 h-4 text-emerald-600 rounded"
+                        />
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Returnable</span>
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Shelf Life / Expiry Days (if perishable)</label>
+                        <input
+                          type="number"
+                          value={formData?.expiry_days !== null ? formData.expiry_days : ""}
+                          onChange={(e) => setFormData({ ...formData, expiry_days: e.target.value })}
+                          placeholder="e.g. 180"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold mb-1">Warranty Period (Days)</label>
+                        <input
+                          type="number"
+                          value={formData?.warranty_days !== null ? formData.warranty_days : ""}
+                          onChange={(e) => setFormData({ ...formData, warranty_days: e.target.value })}
+                          placeholder="e.g. 365"
+                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: SOURCING & SUPPLIER LINKAGES */}
+              {(activeProductTab === "sourcing" || activeProductTab === "vendors") && canViewVendor && (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
+                    <Building size={16} className="text-indigo-500" />
+                    <span>Commercial Sourcing & Authorized Vendors</span>
+                  </div>
+
+                  {/* Sourcing Summary Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className={`p-4 rounded-xl border ${isDark ? "bg-slate-800/40 border-slate-700" : "bg-indigo-50/40 border-indigo-100"}`}>
+                      <div className="text-[11px] font-bold uppercase text-slate-400">Default Supplier</div>
+                      <div className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400 mt-1 truncate">
+                        {suppliers.find((s) => Number(s.supplier_id || s.id) === Number(formData?.default_supplier_id))?.name ||
+                          (formData?.suppliers && formData.suppliers.find((s) => s.is_default)?.supplier_name) ||
+                          "None Selected"}
+                      </div>
+                    </div>
+
+                    <div className={`p-4 rounded-xl border ${isDark ? "bg-slate-800/40 border-slate-700" : "bg-purple-50/40 border-purple-100"}`}>
+                      <div className="text-[11px] font-bold uppercase text-slate-400">Active Vendor Linkages</div>
+                      <div className="text-sm font-extrabold text-purple-600 dark:text-purple-400 mt-1">
+                        {formData?.suppliers?.length || 0} Authorized Suppliers
+                      </div>
+                    </div>
+
+                    <div className={`p-4 rounded-xl border ${isDark ? "bg-slate-800/40 border-slate-700" : "bg-emerald-50/40 border-emerald-100"}`}>
+                      <div className="text-[11px] font-bold uppercase text-slate-400">Factory Article Code</div>
+                      <div className="text-sm font-extrabold font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+                        {(() => {
+                          const def = formData?.suppliers?.find((s) => s.is_default) || formData?.suppliers?.[0];
+                          return def?.factory_code || formData?.factory_code || "—";
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MULTI-VENDOR / FACTORY CODES MANAGEMENT TABLE */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-sm font-bold flex items-center gap-2">
+                          <Building size={16} className="text-indigo-500" />
+                          <span>Suppliers, Factories & Vendor Codes</span>
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          Link authorized manufacturers or factories to this product. Enter factory codes (vendor SKUs) and click the star ⭐ to designate the default preferred supplier.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddSupplierRow}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition self-start sm:self-auto cursor-pointer"
+                      >
+                        <Plus size={13} />
+                        <span>Add Supplier</span>
+                      </button>
+                    </div>
+
+                    {(!formData?.suppliers || formData.suppliers.length === 0) ? (
+                      <div className="p-8 rounded-xl border border-dashed text-center text-xs text-slate-400 dark:border-slate-800">
+                        No suppliers or factories linked yet. Click "Add Supplier" above to attach authorized vendors and factory codes.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className={`border-b text-[11px] font-bold uppercase tracking-wider ${
+                              isDark ? "bg-slate-800/60 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500"
+                            }`}>
+                              <th className="py-2.5 px-3 w-12 text-center" title="Default Preferred Supplier">Default</th>
+                              <th className="py-2.5 px-3">Supplier / Factory</th>
+                              <th className="py-2.5 px-3">Factory Code (Vendor SKU)</th>
+                              <th className="py-2.5 px-3">Vendor Product Name</th>
+                              {isAccountsUser && <th className="py-2.5 px-3 w-28">Quoted Cost</th>}
+                              <th className="py-2.5 px-3 w-24">Lead Time</th>
+                              <th className="py-2.5 px-3 w-12 text-center">Remove</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-medium">
+                            {formData.suppliers.map((suppRow, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
+                                <td className="py-2 px-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateSupplierRow(idx, "is_default", true)}
+                                    title={suppRow.is_default ? "Default Supplier" : "Set as Default Supplier"}
+                                    className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                      suppRow.is_default
+                                        ? "text-amber-500 bg-amber-50 dark:bg-amber-950/40"
+                                        : "text-slate-300 dark:text-slate-600 hover:text-amber-500"
+                                    }`}
+                                  >
+                                    <Star size={15} className={suppRow.is_default ? "fill-amber-400" : ""} />
+                                  </button>
+                                </td>
+                                <td className="py-2 px-3">
+                                  <select
+                                    value={suppRow.supplier_id || ""}
+                                    onChange={(e) => handleUpdateSupplierRow(idx, "supplier_id", parseInt(e.target.value, 10))}
+                                    className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                                      isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                                    }`}
+                                  >
+                                    {suppliers.map((s) => (
+                                      <option key={s.supplier_id || s.id} value={s.supplier_id || s.id}>
+                                        {s.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="py-2 px-3">
+                                  <input
+                                    type="text"
+                                    value={suppRow.factory_code || ""}
+                                    onChange={(e) => handleUpdateSupplierRow(idx, "factory_code", e.target.value)}
+                                    placeholder="e.g. FC-W60-01"
+                                    className={`w-full px-2.5 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                                      isDark ? "bg-slate-800 border-slate-700 text-amber-300" : "bg-white border-slate-200 text-amber-700"
+                                    }`}
+                                  />
+                                </td>
+                                <td className="py-2 px-3">
+                                  <input
+                                    type="text"
+                                    value={suppRow.vendor_product_name || ""}
+                                    onChange={(e) => handleUpdateSupplierRow(idx, "vendor_product_name", e.target.value)}
+                                    placeholder="Vendor catalog name..."
+                                    className={`w-full px-2.5 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                                      isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                                    }`}
+                                  />
+                                </td>
+                                {isAccountsUser && (
+                                  <td className="py-2 px-3">
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={suppRow.unit_cost !== null && suppRow.unit_cost !== undefined ? suppRow.unit_cost : ""}
+                                        onChange={(e) => handleUpdateSupplierRow(idx, "unit_cost", e.target.value)}
+                                        placeholder="0.00"
+                                        className={`w-20 px-2 py-1.5 border rounded-lg text-xs font-mono font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                                          isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                                        }`}
+                                      />
+                                      <span className="text-[10px] font-mono text-slate-400">{suppRow.currency || "USD"}</span>
+                                    </div>
+                                  </td>
+                                )}
+                                <td className="py-2 px-3">
+                                  <input
+                                    type="number"
+                                    value={suppRow.lead_time_days !== null && suppRow.lead_time_days !== undefined ? suppRow.lead_time_days : ""}
+                                    onChange={(e) => handleUpdateSupplierRow(idx, "lead_time_days", e.target.value)}
+                                    placeholder="Days"
+                                    className={`w-16 px-2 py-1.5 border rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                                      isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                                    }`}
+                                  />
+                                </td>
+                                <td className="py-2 px-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSupplierRow(idx)}
+                                    title="Remove supplier from product"
+                                    className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   {isAccountsUser && (
-                    <div>
-                      <label className="block text-xs font-bold mb-1">Standard Unit Cost (Confidential)</label>
+                    <div className="pt-2">
+                      <label className="block text-xs font-bold mb-1">Standard Default Unit Cost (Confidential)</label>
                       <div className="flex gap-2">
                         <select
                           value={formData?.currency || "USD"}
@@ -1746,9 +3310,13 @@ export default function ProductMasterPage() {
                 </div>
               )}
 
-              {/* TAB 6: LINKED ITEMS */}
-              {activeProductTab === "links" && (
+              {/* PIPELINE / LINKED ITEMS */}
+              {(activeProductTab === "pipeline" || activeProductTab === "links") && (
                 <div className="space-y-6">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
+                    <Link2 size={16} className="text-indigo-500" />
+                    <span>Linked Catalog Items, Variants & Bill of Materials (BOM)</span>
+                  </div>
                   {!activeProduct ? (
                     <div className="p-8 text-center text-slate-400 text-xs border rounded-xl border-dashed">
                       Please register this product first before linking variants, related accessories, or assembly components.
@@ -2011,9 +3579,13 @@ export default function ProductMasterPage() {
                 </div>
               )}
 
-              {/* TAB 7: COMPLIANCE & HANDLING */}
-              {activeProductTab === "flags" && (
-                <div className="space-y-5">
+              {/* COMPLIANCE & SPECIAL HANDLING */}
+              {(activeProductTab === "trade" || activeProductTab === "flags") && (
+                <div className="space-y-5 pt-6 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
+                    <ShieldCheck size={16} className="text-indigo-500" />
+                    <span>Compliance, Special Handling & Hazardous Material Attributes</span>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <label className="flex items-center gap-3.5 p-4 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer">
                       <input
@@ -2386,7 +3958,7 @@ export default function ProductMasterPage() {
   // ══════════════════════════════════════════════════════════════════════════
   if (currentView === "categories") {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      <div className="space-y-6 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         {/* Top Header */}
         <div
           className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${
@@ -2466,7 +4038,6 @@ export default function ProductMasterPage() {
 
           {/* Right Panel: Products List in Selected Category Branch (8 Cols) - Height Constrained */}
           <div className="lg:col-span-8">
-            {/* Products Table for this category */}
             <div
               className={`rounded-2xl border shadow-xs overflow-hidden flex flex-col max-h-[calc(100vh-160px)] ${
                 isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
@@ -2493,26 +4064,24 @@ export default function ProductMasterPage() {
                     }`}
                   >
                     <tr>
-                      <th className="py-3 px-4">Code / SKU</th>
-                      <th className="py-3 px-4">Product Details</th>
-                      <th className="py-3 px-4">Category Path</th>
-                      <th className="py-3 px-4">UoM</th>
-                      <th className="py-3 px-4">On-Hand</th>
-                      <th className="py-3 px-4">On-Order</th>
-                      <th className="py-3 px-4 text-center">Status</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 w-72">Product Specifications</th>
+                      <th className="py-3 px-4 w-40">SKU & Factory Code</th>
+                      <th className="py-3 px-4 w-44">Category Path</th>
+                      <th className="py-3 px-4 w-40">Stock & Pipeline</th>
+                      <th className="py-3 px-4 w-24 text-center">Status</th>
+                      <th className="py-3 px-4 w-28 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                     {categoryProductsLoading ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
                           Loading products in this category branch...
                         </td>
                       </tr>
                     ) : categoryProducts.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <td colSpan={6} className="py-12 text-center text-slate-400">
                           <Package className="mx-auto text-slate-300 dark:text-slate-600 mb-2" size={32} />
                           No products found in this category branch.
                         </td>
@@ -2521,55 +4090,113 @@ export default function ProductMasterPage() {
                       categoryProducts.map((p) => (
                         <tr
                           key={p.id}
+                          onClick={() => handleOpenProductDetail(p, "categories")}
                           className={`transition cursor-pointer ${
                             isDark ? "hover:bg-slate-800/50" : "hover:bg-indigo-50/40"
                           }`}
                         >
-                          <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
-                            {p.sku}
+                          <td className="py-3 px-4">
+                            <div className="flex items-start gap-3">
+                              <div
+                                onClick={(e) => {
+                                  if (p.images && p.images.length > 0) {
+                                    e.stopPropagation();
+                                    setPreviewMediaModal({
+                                      name: p.name,
+                                      images: p.images || [],
+                                      videos: p.videos || []
+                                    });
+                                  }
+                                }}
+                                className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-800 flex items-center justify-center group"
+                              >
+                                {p.images && p.images.length > 0 ? (
+                                  <img
+                                    src={
+                                      p.images[0].file_url?.startsWith("http") || p.images[0].file_url?.startsWith("blob:")
+                                        ? p.images[0].file_url
+                                        : `${process.env.REACT_APP_NETWORK}/blobs/${p.images[0].file_url}`
+                                    }
+                                    alt={p.name}
+                                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <Boxes size={18} className="text-slate-400 opacity-60" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-bold text-xs text-slate-900 dark:text-white leading-snug">
+                                  {p.name}
+                                </div>
+                                {(p.description_quick || p.description) && (
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                                    {p.description_quick || p.description}
+                                  </p>
+                                )}
+                                {formatDimensions(p) && (
+                                  <div className="mt-1">
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                      <Ruler size={10} className="text-indigo-500" />
+                                      <span>{formatDimensions(p)}</span>
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </td>
-                          <td className="py-3.5 px-4">
-                            <div className="font-semibold">{p.name}</div>
-                            {p.brand && <span className="text-[10px] text-slate-400">{p.brand}</span>}
-                          </td>
-                          <td className="py-3.5 px-4 text-purple-600 dark:text-purple-400 font-medium">
-                            {p.category_path || p.category_name || "—"}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono">{p.unit || "PCS"}</td>
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            <span className="font-bold">{p.qty_on_hand ?? 0}</span> {p.unit || "PCS"}
-                          </td>
-                          <td className="py-3.5 px-4 whitespace-nowrap">
-                            {p.qty_on_order > 0 ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-lg border border-blue-200 dark:border-blue-800">
-                                <Package size={12} />
-                                {p.qty_on_order?.toLocaleString()}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 font-mono text-[11px]">0</span>
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400">
+                              {p.sku}
+                            </div>
+                            {p.factory_code && (
+                              <div className="text-[10px] font-mono text-amber-600 dark:text-amber-400 mt-0.5">
+                                🏭 {p.factory_code}
+                              </div>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <td className="py-3 px-4 text-purple-600 dark:text-purple-400 text-xs font-medium">
+                            <span className="truncate block max-w-xs" title={p.category_path || p.category_name}>
+                              {p.category_path || p.category_name || "—"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="flex items-baseline gap-1 text-xs font-bold font-mono">
+                              <span>{p.qty_on_hand ?? p.current_stock ?? 0}</span>
+                              <span className="text-[10px] font-semibold text-slate-400 font-sans">{p.unit || "PCS"}</span>
+                            </div>
+                            {p.qty_on_order > 0 && (
+                              <div className="mt-1">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                                  <Package size={10} />
+                                  +{p.qty_on_order?.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
                             <span
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                 p.status === "active"
-                                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
-                                    : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700"
                               }`}
                             >
                               {p.status || "ACTIVE"}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenProductDetail(p, "categories");
                               }}
-                              className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold transition flex items-center gap-1 ml-auto"
+                              className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold transition flex items-center gap-1 ml-auto border border-indigo-100 dark:border-indigo-900"
                             >
-                              <span>Open</span>
+                              <span>Edit</span>
                               <ChevronRight size={13} />
                             </button>
                           </td>
@@ -2751,26 +4378,26 @@ export default function ProductMasterPage() {
   // SCREEN 1: MAIN PRODUCTS SCREEN (CLEAN, NO KPIS, FULL-WIDTH LIST)
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-5 max-w-7xl mx-auto pb-16">
-      {/* ── Clean Top Header (No KPIs) ──────────────────────────────────────── */}
+    <div className="space-y-6 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+      {/* ── Executive Top Header ────────────────────────────────────────────── */}
       <div
-        className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${
+        className={`p-5 rounded-2xl border shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition ${
           isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
         }`}
       >
         <div className="flex items-center gap-3.5">
           <div
-            className={`p-3 rounded-2xl ${
+            className={`p-3.5 rounded-2xl ${
               isDark
                 ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner"
                 : "bg-indigo-600 text-white shadow-md shadow-indigo-500/20"
             }`}
           >
-            <Boxes size={24} />
+            <Boxes size={26} />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight">Product Master & Inventory</h1>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl font-extrabold tracking-tight">Product Master & Inventory</h1>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                   isDark
@@ -2782,45 +4409,78 @@ export default function ProductMasterPage() {
               </span>
             </div>
             <p className={`text-xs mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-              Standard master catalog for purchase orders, trade customs, and procurement follow-up.
+              Central master catalog for specifications, dimensions, purchase orders, and stock clearance.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setCurrentView("categories")}
-            className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
-              isDark
-                ? "bg-slate-800 border-slate-700 text-purple-300 hover:bg-slate-700"
-                : "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-            }`}
-          >
-            <Network size={15} />
-            <span>Category Taxonomy</span>
-          </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {canViewCategories && (
+            <button
+              type="button"
+              onClick={() => setCurrentView("categories")}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+                isDark
+                  ? "bg-slate-800 border-slate-700 text-purple-300 hover:bg-slate-700"
+                  : "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+              }`}
+            >
+              <Network size={15} />
+              <span>Category Taxonomy</span>
+            </button>
+          )}
+
+          {canExport && (
+            <button
+              type="button"
+              onClick={handleExportCatalog}
+              title="Export filtered catalog to CSV"
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+                isDark
+                  ? "bg-slate-800 border-slate-700 text-emerald-400 hover:bg-slate-700"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+              }`}
+            >
+              <Download size={15} />
+              <span>Export CSV</span>
+            </button>
+          )}
 
           <button
             type="button"
-            onClick={() => handleOpenCreateProduct("products")}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20 active:scale-95 cursor-pointer"
+            onClick={() => fetchProducts()}
+            title="Refresh product list"
+            className={`p-2.5 rounded-xl text-xs font-bold border transition flex items-center justify-center cursor-pointer ${
+              isDark
+                ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
+                : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+            }`}
           >
-            <Plus size={16} />
-            <span>Register Product</span>
+            <RefreshCw size={15} className={loading ? "animate-spin text-indigo-600" : ""} />
           </button>
+
+          {canAddProduct && (
+            <button
+              type="button"
+              onClick={() => handleOpenCreateProduct("products")}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20 active:scale-95 cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>Register Product</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── Filter Bar ────────────────────────────────────────────────────────── */}
+      {/* ── Sleek Filter & Search Bar ────────────────────────────────────────── */}
       <div
         className={`p-4 rounded-2xl border shadow-xs space-y-3 ${
           isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         }`}
       >
-        <div className="flex flex-col md:flex-row items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1 w-full">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -2829,8 +4489,8 @@ export default function ProductMasterPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search by SKU, Internal Code, Name, Brand, Barcode, or HS Code..."
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-medium border transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              placeholder="Search products by SKU, name, code, or factory code..."
+              className={`w-full pl-10 pr-9 py-2.5 rounded-xl text-xs font-medium border transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 isDark
                   ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-400"
                   : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
@@ -2847,8 +4507,8 @@ export default function ProductMasterPage() {
             )}
           </div>
 
-          {/* Category Dropdown (Indented hierarchy, no base suffixes) */}
-          <div className="w-full md:w-56">
+          {/* Category Dropdown */}
+          <div className="w-full lg:w-56">
             <select
               value={selectedCategoryFilter}
               onChange={(e) => {
@@ -2869,7 +4529,7 @@ export default function ProductMasterPage() {
           </div>
 
           {/* Supplier Dropdown */}
-          <div className="w-full md:w-52">
+          <div className="w-full lg:w-48">
             <select
               value={selectedSupplier}
               onChange={(e) => {
@@ -2889,8 +4549,8 @@ export default function ProductMasterPage() {
             </select>
           </div>
 
-          {/* Status Filter */}
-          <div className="w-full md:w-36">
+          {/* Status Dropdown */}
+          <div className="w-full lg:w-36">
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -2907,16 +4567,16 @@ export default function ProductMasterPage() {
             </select>
           </div>
 
-          {/* Low Stock Toggle */}
+          {/* Low Stock Toggle Button */}
           <button
             type="button"
             onClick={() => {
               setLowStockOnly((prev) => !prev);
               setPage(1);
             }}
-            className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
               lowStockOnly
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                ? "bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-400"
                 : isDark
                 ? "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200"
                 : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900"
@@ -2925,6 +4585,25 @@ export default function ProductMasterPage() {
             <AlertTriangle size={14} />
             <span>Low Stock</span>
           </button>
+
+          {/* Clear Filters Button if any filter is active */}
+          {(search || selectedCategoryFilter || selectedSupplier || statusFilter || lowStockOnly) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setSelectedCategoryFilter("");
+                setSelectedSupplier("");
+                setStatusFilter("");
+                setLowStockOnly(false);
+                setPage(1);
+              }}
+              className="px-3 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-rose-500 transition flex items-center justify-center gap-1"
+            >
+              <X size={14} />
+              <span>Reset</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -2934,43 +4613,48 @@ export default function ProductMasterPage() {
           isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         }`}
       >
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-h-[420px]">
           <table className="w-full text-left text-xs">
             <thead
-              className={`text-[11px] font-bold uppercase tracking-wider border-b ${
+              className={`sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider border-b ${
                 isDark
-                  ? "bg-slate-800/60 border-slate-800 text-slate-400"
-                  : "bg-slate-50 border-slate-200 text-slate-500"
+                  ? "bg-slate-800/95 border-slate-800 text-slate-400 backdrop-blur-md"
+                  : "bg-slate-50/95 border-slate-200 text-slate-500 backdrop-blur-md"
               }`}
             >
               <tr>
-                <th className="py-3.5 px-4">Code / SKU</th>
-                <th className="py-3.5 px-4">Product Details</th>
-                <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">UoM</th>
-                <th className="py-3.5 px-4">On-Hand</th>
-                <th className="py-3.5 px-4">On-Order Pipeline</th>
-                {isAccountsUser && <th className="py-3.5 px-4">Unit Cost</th>}
-                <th className="py-3.5 px-4">Preferred Supplier</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedProductIds.length === products.length && products.length > 0}
+                    onChange={handleToggleSelectAll}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </th>
+                <th className="py-3.5 px-4 w-80 lg:w-96">Product Specifications</th>
+                <th className="py-3.5 px-4 w-44">SKU & Factory Code</th>
+                <th className="py-3.5 px-4 w-40">Category</th>
+                <th className="py-3.5 px-4 w-52">Stock Health & Pipeline</th>
+                {isAccountsUser && <th className="py-3.5 px-4 w-36">Quoted Price</th>}
+                <th className="py-3.5 px-4 w-28 text-center">Status</th>
+                <th className="py-3.5 px-4 w-36 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-14 text-center text-slate-400">
-                    <div className="inline-block animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600 mb-2.5" />
-                    <div>Loading Product Master catalog...</div>
+                  <td colSpan={isAccountsUser ? 8 : 7} className="py-16 text-center text-slate-400">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-2.5" />
+                    <div className="font-semibold text-xs">Loading Product Master catalog...</div>
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-14 text-center text-slate-400">
-                    <Boxes size={34} className="mx-auto mb-2 opacity-30 text-indigo-500" />
-                    <p className="font-semibold text-sm">No products found matching criteria</p>
-                    <p className="text-xs mt-0.5">
-                      Register your first product to enable PO autocompletion and order tracking.
+                  <td colSpan={isAccountsUser ? 8 : 7} className="py-16 text-center text-slate-400">
+                    <Boxes size={36} className="mx-auto mb-2 opacity-30 text-indigo-500" />
+                    <p className="font-bold text-sm text-slate-700 dark:text-slate-300">No products match criteria</p>
+                    <p className="text-xs mt-0.5 text-slate-400">
+                      Try adjusting filters or register a new product to start tracking.
                     </p>
                   </td>
                 </tr>
@@ -2980,169 +4664,332 @@ export default function ProductMasterPage() {
                     key={p.id}
                     onClick={() => handleOpenProductDetail(p, "products")}
                     className={`transition cursor-pointer ${
-                      isDark ? "hover:bg-slate-800/40" : "hover:bg-slate-50/70"
+                      selectedProductIds.includes(p.id)
+                        ? isDark
+                          ? "bg-indigo-950/30 hover:bg-indigo-950/50"
+                          : "bg-indigo-50/70 hover:bg-indigo-50"
+                        : isDark
+                        ? "hover:bg-slate-800/50"
+                        : "hover:bg-indigo-50/30"
                     }`}
                   >
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{p.sku}</div>
-                      {p.code && <div className="text-[10px] font-mono text-slate-400">Int: {p.code}</div>}
+                    {/* Checkbox Column */}
+                    <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.includes(p.id)}
+                        onChange={() => handleToggleSelectProduct(p.id)}
+                        className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
                     </td>
 
+                    {/* Column 1: Image, Name, Description & Dimensions (No Origin, No Manufacturer) */}
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        {/* Primary Image Thumbnail with Play Badge for Video */}
-                        <div className="relative w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <div className="flex items-start gap-3.5">
+                        {/* 56x56 High-Quality Image Thumbnail with Lightbox trigger */}
+                        <div
+                          onClick={(e) => {
+                            if (p.images && p.images.length > 0) {
+                              e.stopPropagation();
+                              setActiveMediaIdx(0);
+                              setPreviewMediaModal({
+                                name: p.name,
+                                images: p.images || [],
+                                videos: p.videos || []
+                              });
+                            }
+                          }}
+                          className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700/80 bg-slate-100 dark:bg-slate-800 flex items-center justify-center group shadow-2xs"
+                          title="Click to preview full-size images"
+                        >
                           {p.images && p.images.length > 0 ? (
-                            <img
-                              src={
-                                p.images[0].file_url?.startsWith("http") || p.images[0].file_url?.startsWith("blob:")
-                                  ? p.images[0].file_url
-                                  : `${process.env.REACT_APP_NETWORK}/blobs/${p.images[0].file_url}`
-                              }
-                              alt={p.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = "none";
-                              }}
-                            />
+                            <>
+                              <img
+                                src={
+                                  p.images[0].file_url?.startsWith("http") || p.images[0].file_url?.startsWith("blob:")
+                                    ? p.images[0].file_url
+                                    : `${process.env.REACT_APP_NETWORK}/blobs/${p.images[0].file_url}`
+                                }
+                                alt={p.name}
+                                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <Maximize2 size={13} />
+                              </div>
+                            </>
                           ) : (
-                            <Boxes size={18} className="text-slate-400 opacity-60" />
+                            <Boxes size={22} className="text-slate-400 opacity-50" />
+                          )}
+                          {p.images && p.images.length > 1 && (
+                            <span className="absolute top-1 left-1 px-1 py-0.2 rounded text-[9px] font-bold bg-black/60 text-white backdrop-blur-xs">
+                              +{p.images.length - 1}
+                            </span>
                           )}
                           {p.videos && p.videos.length > 0 && (
                             <span
-                              className="absolute bottom-0.5 right-0.5 p-0.5 rounded-full bg-rose-600 text-white shadow-xs"
-                              title={`${p.videos.length} video(s) available`}
+                              className="absolute bottom-1 right-1 p-0.5 rounded-full bg-rose-600 text-white shadow-xs"
+                              title={`${p.videos.length} video(s)`}
                             >
                               <Play size={8} className="fill-white" />
                             </span>
                           )}
                         </div>
 
-                        {/* Name & Metadata */}
-                        <div className="min-w-0">
-                          <div className="font-bold text-slate-900 dark:text-white truncate max-w-sm">{p.name}</div>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            {p.country_of_origin && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                                <span>{getCountryFlag(p.country_of_origin)}</span>
-                                <span>{p.country_of_origin}</span>
-                              </span>
-                            )}
-                            {p.brand && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                {p.brand}
-                              </span>
-                            )}
-                            {p.model_number && (
-                              <span className="text-[10px] font-mono text-slate-400">Mod: {p.model_number}</span>
-                            )}
-                            {p.hs_code && (
-                              <span className="text-[10px] font-mono text-slate-400">HS: {p.hs_code}</span>
-                            )}
-                            {p.videos && p.videos.length > 0 && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center gap-1">
-                                <Film size={10} />
-                                <span>{p.videos.length}</span>
-                              </span>
-                            )}
+                        {/* Title, Clean Description & Dimensions Badge */}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-sm text-slate-900 dark:text-white leading-snug hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                            {p.name}
                           </div>
-                          {p.description_quick && (
-                            <div className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
-                              {p.description_quick}
+
+                          {(p.description_quick || p.description) && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5 leading-relaxed">
+                              {p.description_quick || p.description}
+                            </p>
+                          )}
+
+                          {formatDimensions(p) && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80">
+                                <Ruler size={11} className="text-indigo-500" />
+                                <span>{formatDimensions(p)}</span>
+                              </span>
                             </div>
                           )}
                         </div>
                       </div>
                     </td>
 
-                    {/* Clean Category Column */}
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap">
-                        {p.category_name || "Uncategorized"}
-                      </span>
-                      {p.category_path && (
-                        <div className="text-[10px] text-slate-400 truncate max-w-xs mt-0.5" title={p.category_path}>
-                          {p.category_path}
+                    {/* Column 2: SKU & Factory Code */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="font-mono font-extrabold text-xs text-indigo-600 dark:text-indigo-400">
+                        {p.sku}
+                      </div>
+                      {p.code && (
+                        <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                          Ref: {p.code}
+                        </div>
+                      )}
+                      {p.factory_code && canViewVendor && (
+                        <div className="mt-1">
+                          <span
+                            title={`Vendor Factory Code: ${p.factory_code}`}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25"
+                          >
+                            <span>🏭 {p.factory_code}</span>
+                          </span>
                         </div>
                       )}
                     </td>
 
-                    <td className="py-3.5 px-4 font-mono font-semibold text-slate-500 whitespace-nowrap">
-                      {p.unit}
+                    {/* Column 3: Category */}
+                    <td className="py-3.5 px-4">
+                      <span
+                        className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 max-w-[170px] truncate"
+                        title={p.category_path || p.category_name}
+                      >
+                        {p.category_name || "Uncategorized"}
+                      </span>
                     </td>
 
+                    {/* Column 4: Stock Health & Pipeline */}
                     <td className="py-3.5 px-4 whitespace-nowrap">
-                      <div className="font-mono font-bold">
-                        {p.current_stock?.toLocaleString()} {p.unit}
-                      </div>
-                      {p.is_low_stock && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-1 rounded border border-amber-200 dark:border-amber-800 mt-0.5">
-                          <AlertTriangle size={9} />
-                          Low Stock
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      {p.qty_on_order > 0 ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                          <Package size={13} className="text-blue-500" />
-                          <span>
-                            {p.qty_on_order?.toLocaleString()} {p.unit}
+                      <StockGaugeBar
+                        currentStock={p.current_stock}
+                        minStock={p.min_stock_quantity}
+                        maxStock={p.max_stock_quantity}
+                        unit={p.unit || "PCS"}
+                        isDark={isDark}
+                        onClick={(e) => {
+                          if (canAdjustStock) {
+                            e.stopPropagation();
+                            setStockAdjustProduct(p);
+                          }
+                        }}
+                      />
+                      {p.qty_on_order > 0 && (
+                        <div className="mt-1">
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                            title="Units currently in active purchase orders"
+                          >
+                            <Package size={10} />
+                            <span>+{p.qty_on_order?.toLocaleString()} on order</span>
                           </span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] font-mono">0 on order</span>
+                        </div>
                       )}
                     </td>
 
+                    {/* Column 5: Unit Cost (Accounts Only) */}
                     {isAccountsUser && (
-                      <td className="py-3.5 px-4 font-mono font-medium whitespace-nowrap">
+                      <td className="py-3.5 px-4 whitespace-nowrap font-mono">
                         {p.unit_cost !== null && p.unit_cost !== undefined ? (
-                          <span className="text-slate-700 dark:text-slate-300">
-                            {p.currency} {parseFloat(p.unit_cost).toFixed(2)}
-                          </span>
+                          <div>
+                            <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                              {p.currency} {parseFloat(p.unit_cost).toFixed(2)}
+                            </span>
+                            <span className="text-[10px] text-slate-400 ml-1">/{p.unit}</span>
+                          </div>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className="text-slate-400 text-xs">—</span>
                         )}
                       </td>
                     )}
 
-                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-600 dark:text-slate-300">
-                      {p.supplier_name ? (
-                        <div className="flex items-center gap-1">
-                          <Building size={12} className="text-slate-400" />
-                          <span>{p.supplier_name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-
+                    {/* Column 6: Status */}
                     <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       {p.status === "active" ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                           ACTIVE
                         </span>
                       ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
                           INACTIVE
                         </span>
                       )}
                     </td>
 
+                    {/* Column 7: Actions */}
                     <td
                       className="py-3.5 px-4 text-right whitespace-nowrap"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleOpenProductDetail(p, "products")}
-                        className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold transition flex items-center gap-1 ml-auto"
-                      >
-                        <span>Open Screen</span>
-                        <ChevronRight size={14} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1 relative">
+                        {/* Quick View Button */}
+                        <button
+                          type="button"
+                          onClick={() => setQuickViewProduct(p)}
+                          title="Quick View specifications"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          <Eye size={15} />
+                        </button>
+
+                        {/* Quick Stock Adjust Button */}
+                        {canAdjustStock && (
+                          <button
+                            type="button"
+                            onClick={() => setStockAdjustProduct(p)}
+                            title="Quick Adjust Stock"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          >
+                            <SlidersHorizontal size={15} />
+                          </button>
+                        )}
+
+                        {/* Edit Specs Direct Link */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenProductDetail(p, "products")}
+                          className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border border-indigo-100 dark:border-indigo-900/60 shadow-2xs cursor-pointer group"
+                        >
+                          <span>Edit</span>
+                          <ChevronRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                        </button>
+
+                        {/* Row More Actions Dropdown */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setOpenRowMenuId(openRowMenuId === p.id ? null : p.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          >
+                            <MoreVertical size={15} />
+                          </button>
+
+                          {openRowMenuId === p.id && (
+                            <div
+                              className={`absolute right-0 top-8 z-30 w-44 rounded-xl shadow-xl border py-1 animate-in fade-in zoom-in-95 duration-150 ${
+                                isDark
+                                  ? "bg-slate-800 border-slate-700 text-slate-200"
+                                  : "bg-white border-slate-200 text-slate-700"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenRowMenuId(null);
+                                  setQuickViewProduct(p);
+                                }}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                              >
+                                <Eye size={13} />
+                                <span>Quick View</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenRowMenuId(null);
+                                  handleOpenProductDetail(p, "products");
+                                }}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                              >
+                                <Pencil size={13} />
+                                <span>Edit Specs</span>
+                              </button>
+
+                              {canAddProduct && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenRowMenuId(null);
+                                    handleDuplicateProduct(p);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Copy size={13} />
+                                  <span>Duplicate</span>
+                                </button>
+                              )}
+
+                              {canAdjustStock && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenRowMenuId(null);
+                                    setStockAdjustProduct(p);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                  <SlidersHorizontal size={13} />
+                                  <span>Adjust Stock</span>
+                                </button>
+                              )}
+
+                              {canEditProduct && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenRowMenuId(null);
+                                    handleToggleProductStatus(p);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                                >
+                                  <RefreshCw size={13} />
+                                  <span>Mark {p.status === "active" ? "Inactive" : "Active"}</span>
+                                </button>
+                              )}
+
+                              {canDeleteProduct && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenRowMenuId(null);
+                                    handleDeleteProduct(p.id, p.sku);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Trash2 size={13} />
+                                  <span>Delete</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -3152,39 +4999,230 @@ export default function ProductMasterPage() {
         </div>
 
         {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div
-            className={`p-3.5 border-t flex items-center justify-between text-xs ${
-              isDark ? "bg-slate-800/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
-            }`}
-          >
-            <div>
-              Showing {products.length} of {totalCount} products
+        <div
+          className={`p-3.5 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs ${
+            isDark ? "bg-slate-800/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span>
+              Showing <span className="font-bold text-slate-900 dark:text-white">{totalCount > 0 ? (page - 1) * pageSize + 1 : 0}</span> to{" "}
+              <span className="font-bold text-slate-900 dark:text-white">{Math.min(page * pageSize, totalCount)}</span> of{" "}
+              <span className="font-bold text-slate-900 dark:text-white">{totalCount}</span> products
+            </span>
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="text-[11px] text-slate-400">Rows:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className={`px-2 py-1 rounded-lg border text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer ${
+                  isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                }`}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
             </div>
-            <div className="flex items-center gap-1.5">
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+                title="First Page"
+                className="px-2 py-1 rounded-lg border text-xs font-semibold disabled:opacity-30 hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
+              >
+                « First
+              </button>
               <button
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                className="px-2.5 py-1 rounded border text-xs font-semibold disabled:opacity-40"
+                className="px-2.5 py-1 rounded-lg border text-xs font-semibold disabled:opacity-30 hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
               >
-                Previous
+                ‹ Prev
               </button>
-              <span className="px-2 font-mono font-bold">
-                {page} / {totalPages}
+              <span className="px-2 font-mono font-bold text-slate-900 dark:text-white">
+                {page} / {totalPages || 1}
               </span>
               <button
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                className="px-2.5 py-1 rounded border text-xs font-semibold disabled:opacity-40"
+                className="px-2.5 py-1 rounded-lg border text-xs font-semibold disabled:opacity-30 hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
               >
-                Next
+                Next ›
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+                title="Last Page"
+                className="px-2 py-1 rounded-lg border text-xs font-semibold disabled:opacity-30 hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
+              >
+                Last »
               </button>
             </div>
+
+            {totalPages > 2 && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const target = parseInt(jumpPageInput, 10);
+                  if (!isNaN(target) && target >= 1 && target <= totalPages) {
+                    setPage(target);
+                    setJumpPageInput("");
+                  }
+                }}
+                className="flex items-center gap-1 pl-2 border-l border-slate-200 dark:border-slate-700"
+              >
+                <span className="text-[11px] text-slate-400">Go:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  value={jumpPageInput}
+                  onChange={(e) => setJumpPageInput(e.target.value)}
+                  placeholder="#"
+                  className={`w-12 px-1.5 py-1 border rounded-lg text-xs font-mono text-center focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                    isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                  }`}
+                />
+              </form>
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* ── HIGH-RESOLUTION MEDIA LIGHTBOX MODAL ────────────────────────────── */}
+      {previewMediaModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in"
+          onClick={() => setPreviewMediaModal(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <ImageIcon size={18} className="text-indigo-400" />
+                  <span>{previewMediaModal.name}</span>
+                </h3>
+                <p className="text-xs text-slate-400">High-Resolution Visual Media Gallery</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewMediaModal(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Main Stage Display */}
+            <div className="w-full h-96 rounded-2xl bg-black flex items-center justify-center overflow-hidden border border-slate-800 relative">
+              {previewMediaModal.images && previewMediaModal.images.length > 0 ? (
+                <img
+                  src={
+                    previewMediaModal.images[activeMediaIdx]?.file_url?.startsWith("http") ||
+                    previewMediaModal.images[activeMediaIdx]?.file_url?.startsWith("blob:")
+                      ? previewMediaModal.images[activeMediaIdx].file_url
+                      : `${process.env.REACT_APP_NETWORK}/blobs/${previewMediaModal.images[activeMediaIdx]?.file_url}`
+                  }
+                  alt={previewMediaModal.name}
+                  className="max-h-full max-w-full object-contain"
+                />
+              ) : (
+                <div className="text-slate-500 text-xs">No media preview available</div>
+              )}
+            </div>
+
+            {/* Thumbnail Navigation Carousel if Multiple Images */}
+            {previewMediaModal.images && previewMediaModal.images.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto py-2">
+                {previewMediaModal.images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveMediaIdx(idx)}
+                    className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition shrink-0 ${
+                      activeMediaIdx === idx ? "border-indigo-500 scale-105" : "border-slate-800 opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <img
+                      src={
+                        img.file_url?.startsWith("http") || img.file_url?.startsWith("blob:")
+                          ? img.file_url
+                          : `${process.env.REACT_APP_NETWORK}/blobs/${img.file_url}`
+                      }
+                      alt={`Thumb ${idx}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Bulk Action Toolbar */}
+      <BulkActionToolbar
+        selectedCount={selectedProductIds.length}
+        categories={categoriesFlat}
+        isDark={isDark}
+        canEdit={canEditProduct}
+        canDelete={canDeleteProduct}
+        canExport={canExport}
+        onClearSelection={() => setSelectedProductIds([])}
+        onBulkCategoryMove={handleBulkCategoryMove}
+        onBulkExport={handleBulkExportSelected}
+        onBulkDelete={handleBulkDelete}
+      />
+
+      {/* Stock Adjust Modal */}
+      {stockAdjustProduct && (
+        <StockAdjustModal
+          product={stockAdjustProduct}
+          isDark={isDark}
+          onClose={() => setStockAdjustProduct(null)}
+          onSuccess={() => fetchProducts()}
+        />
+      )}
+
+      {/* Product Quick View Slide-over Drawer */}
+      {quickViewProduct && (
+        <ProductQuickView
+          product={quickViewProduct}
+          isDark={isDark}
+          canViewVendor={canViewVendor}
+          canViewFinancials={canViewFinancials}
+          canEdit={canEditProduct}
+          canAdjustStock={canAdjustStock}
+          onClose={() => setQuickViewProduct(null)}
+          onOpenDetail={(prod) => {
+            setQuickViewProduct(null);
+            handleOpenProductDetail(prod, "products");
+          }}
+          onAdjustStock={(prod) => {
+            setQuickViewProduct(null);
+            setStockAdjustProduct(prod);
+          }}
+          onDuplicate={(prod) => {
+            setQuickViewProduct(null);
+            handleDuplicateProduct(prod);
+          }}
+        />
+      )}
     </div>
   );
 }

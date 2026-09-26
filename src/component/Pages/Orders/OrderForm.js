@@ -410,11 +410,7 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
     if (targetStage === "PAID" && !formData.balance_payment_date) {
       stageDates.balance_payment_date = todayStr;
     }
-    if (targetStage === "SHIPPED" && !formData.eta_date) {
-      const etaDate = new Date();
-      etaDate.setDate(etaDate.getDate() + 21);
-      stageDates.eta_date = etaDate.toISOString().split("T")[0];
-    }
+    // Note: eta_date is not auto-updated here; shipping schedule is determined manually or via BL/vessel tracking
 
     onSave({ ...formData, ...stageDates });
   };
@@ -776,11 +772,7 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
                     if (["PAID"].includes(stageUpper) && !formData.balance_payment_date) {
                       updatedDates.balance_payment_date = today;
                     }
-                    if (stageUpper === "SHIPPED" && !formData.eta_date) {
-                      const etaD = new Date();
-                      etaD.setDate(etaD.getDate() + 21);
-                      updatedDates.eta_date = etaD.toISOString().split("T")[0];
-                    }
+                    // Note: eta_date is not auto-updated here; shipping schedule is determined manually or via BL/vessel tracking
                     setFormData((prev) => ({
                       ...prev,
                       status: nextStatus,

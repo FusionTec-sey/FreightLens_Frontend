@@ -21,10 +21,62 @@ import { useTheme } from "../../../context/ThemeContext";
 import { toast } from "react-toastify";
 
 export default function ContainerContextPanel({ containerId, containerNo }) {
-  const { hasModule, isRoot } = useAuth();
+  const { hasModule, isRoot, permissions } = useAuth();
   const { theme, isDark } = useTheme();
 
-  const [activeTab, setActiveTab] = useState("orders");
+  // ── Granular Permissions ──────────────────────────────────────────────────
+  const userPerms = Array.isArray(permissions) ? permissions : [];
+  const hasPerm = (p) => isRoot || userPerms.includes(p);
+
+  const canViewOrders = hasModule("ORDERS") && (
+    hasPerm("View_Order") ||
+    hasPerm("Order") ||
+    hasPerm("Add_Order") ||
+    hasPerm("Edit_Order")
+  );
+
+  const canLinkOrder = canViewOrders && (
+    hasPerm("Edit_Container") ||
+    hasPerm("Add_PackingList") ||
+    hasPerm("Administrator")
+  );
+
+  const canUnlinkOrder = canViewOrders && (
+    hasPerm("Edit_Container") ||
+    hasPerm("Delete_PackingList") ||
+    hasPerm("Administrator")
+  );
+
+  const canViewReceipts = hasModule("ORDERS") && (
+    hasPerm("View_GoodsReceipt") ||
+    hasPerm("Verify_Receipt") ||
+    hasPerm("Edit_Receipt")
+  );
+
+  const canViewDefects = hasModule("ORDERS") && (
+    hasPerm("View_Defect") ||
+    hasPerm("Defect") ||
+    hasPerm("Add_Defect") ||
+    hasPerm("Edit_Defect")
+  );
+
+  const canViewDocuments = (
+    hasPerm("View_Document") ||
+    hasPerm("Upload_Document") ||
+    hasPerm("Edit_Document") ||
+    hasPerm("Delete_Document") ||
+    hasPerm("View_OrderDocument") ||
+    hasPerm("Document")
+  );
+
+  const availableTabs = [
+    canViewOrders && { id: "orders", label: "Orders", count: null, icon: ShoppingBag },
+    canViewReceipts && { id: "receipts", label: "Goods Receipts", count: null, icon: PackageCheck },
+    canViewDefects && { id: "defects", label: "Damage & Defects", count: null, icon: AlertTriangle },
+    canViewDocuments && { id: "documents", label: "Documents", count: null, icon: FileText },
+  ].filter(Boolean);
+
+  const [activeTab, setActiveTab] = useState(() => availableTabs[0]?.id || "orders");
   const [contextData, setContextData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -39,10 +91,15 @@ export default function ContainerContextPanel({ containerId, containerNo }) {
   // Expanded POs state
   const [expandedPOs, setExpandedPOs] = useState({});
 
-  const canViewOrders = hasModule("ORDERS");
+  // Auto-switch tab if current activeTab becomes unauthorized
+  useEffect(() => {
+    if (availableTabs.length > 0 && !availableTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(availableTabs[0].id);
+    }
+  }, [availableTabs, activeTab]);
 
   const fetchContext = useCallback(async () => {
-    if (!containerId) return;
+    if (!containerId || availableTabs.length === 0) return;
     try {
       setLoading(true);
       setError(null);
@@ -56,13 +113,14 @@ export default function ContainerContextPanel({ containerId, containerNo }) {
     } finally {
       setLoading(false);
     }
-  }, [containerId]);
+  }, [containerId, availableTabs.length]);
 
   useEffect(() => {
     fetchContext();
   }, [fetchContext]);
 
   const fetchLinkableOrders = async (query = "") => {
+    if (!canLinkOrder) return;
     try {
       setLoadingLinkable(true);
       const res = await axios.get(
@@ -121,6 +179,10 @@ export default function ContainerContextPanel({ containerId, containerNo }) {
     setExpandedPOs((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  if (availableTabs.length === 0) {
+    return null;
+  }
+
   const summary = contextData?.summary || {
     total_orders: 0,
     total_receipts: 0,
@@ -160,7 +222,7 @@ export default function ContainerContextPanel({ containerId, containerNo }) {
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           </button>
-          {canViewOrders && (
+          {canLinkOrder && (
             <button
               type="button"
               onClick={handleOpenLinkModal}
@@ -174,76 +236,66 @@ export default function ContainerContextPanel({ containerId, containerNo }) {
 
       {/* Quick Summary Pill Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-gray-100/50 dark:bg-gray-900/30 border-b border-inherit text-xs">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
-          <ShoppingBag size={15} className="text-blue-500" />
-          <span className="text-gray-500 dark:text-gray-400">Linked Orders:</span>
-          <span className="font-bold ml-auto">{summary.total_orders}</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
-          <PackageCheck size={15} className="text-emerald-500" />
-          <span className="text-gray-500 dark:text-gray-400">Goods Receipts:</span>
-          <span className="font-bold ml-auto">{summary.total_receipts}</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
-          <AlertTriangle size={15} className={summary.open_defects > 0 ? "text-amber-500" : "text-gray-400"} />
-          <span className="text-gray-500 dark:text-gray-400">Defects / Damage:</span>
-          <span className={`font-bold ml-auto ${summary.open_defects > 0 ? "text-amber-600 font-extrabold" : ""}`}>
-            {summary.open_defects} open ({summary.total_defects} total)
-          </span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
-          <FileText size={15} className="text-indigo-500" />
-          <span className="text-gray-500 dark:text-gray-400">All Documents:</span>
-          <span className="font-bold ml-auto">{contextData?.documents?.length || 0}</span>
-        </div>
+        {canViewOrders && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
+            <ShoppingBag size={15} className="text-blue-500" />
+            <span className="text-gray-500 dark:text-gray-400">Linked Orders:</span>
+            <span className="font-bold ml-auto">{summary.total_orders}</span>
+          </div>
+        )}
+        {canViewReceipts && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
+            <PackageCheck size={15} className="text-emerald-500" />
+            <span className="text-gray-500 dark:text-gray-400">Goods Receipts:</span>
+            <span className="font-bold ml-auto">{summary.total_receipts}</span>
+          </div>
+        )}
+        {canViewDefects && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
+            <AlertTriangle size={15} className={summary.open_defects > 0 ? "text-amber-500" : "text-gray-400"} />
+            <span className="text-gray-500 dark:text-gray-400">Defects / Damage:</span>
+            <span className={`font-bold ml-auto ${summary.open_defects > 0 ? "text-amber-600 font-extrabold" : ""}`}>
+              {summary.open_defects} open ({summary.total_defects} total)
+            </span>
+          </div>
+        )}
+        {canViewDocuments && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-inherit">
+            <FileText size={15} className="text-indigo-500" />
+            <span className="text-gray-500 dark:text-gray-400">All Documents:</span>
+            <span className="font-bold ml-auto">{contextData?.documents?.length || 0}</span>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-inherit px-3 gap-1 bg-gray-50/50 dark:bg-gray-800/40">
-        <button
-          type="button"
-          onClick={() => setActiveTab("orders")}
-          className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition ${
-            activeTab === "orders"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-          }`}
-        >
-          <ShoppingBag size={14} /> Orders ({contextData?.orders?.length || 0})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("receipts")}
-          className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition ${
-            activeTab === "receipts"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-          }`}
-        >
-          <PackageCheck size={14} /> Goods Receipts ({contextData?.receipts?.length || 0})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("defects")}
-          className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition ${
-            activeTab === "defects"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-          }`}
-        >
-          <AlertTriangle size={14} /> Damage & Defects ({contextData?.defects?.length || 0})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("documents")}
-          className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition ${
-            activeTab === "documents"
-              ? "border-blue-600 text-blue-600 dark:text-blue-400"
-              : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-          }`}
-        >
-          <FileText size={14} /> Documents ({contextData?.documents?.length || 0})
-        </button>
+        {availableTabs.map((t) => {
+          const Icon = t.icon;
+          const count =
+            t.id === "orders"
+              ? contextData?.orders?.length || 0
+              : t.id === "receipts"
+              ? contextData?.receipts?.length || 0
+              : t.id === "defects"
+              ? contextData?.defects?.length || 0
+              : contextData?.documents?.length || 0;
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition ${
+                isActive
+                  ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                  : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+              }`}
+            >
+              <Icon size={14} /> {t.label} ({count})
+            </button>
+          );
+        })}
       </div>
 
       {/* Content Area */}
@@ -308,14 +360,16 @@ export default function ContainerContextPanel({ containerId, containerNo }) {
                                   {po.currency} {po.total_amount.toLocaleString()}
                                 </span>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => handleUnlinkOrder(po.id, po.po_number)}
-                                className="p-1 text-gray-400 hover:text-rose-600 transition"
-                                title="Unlink PO"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              {canUnlinkOrder && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnlinkOrder(po.id, po.po_number)}
+                                  className="p-1 text-gray-400 hover:text-rose-600 transition"
+                                  title="Unlink PO"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                           </div>
 

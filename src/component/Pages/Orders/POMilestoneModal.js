@@ -50,11 +50,7 @@ export default function POMilestoneModal({
     if (["PAID"].includes(stageUpper) && !formData.balance_payment_date) {
       onChange("balance_payment_date", today);
     }
-    if (stageUpper === "SHIPPED" && !formData.eta_date) {
-      const etaD = new Date();
-      etaD.setDate(etaD.getDate() + 21);
-      onChange("eta_date", etaD.toISOString().split("T")[0]);
-    }
+    // Note: eta_date is not auto-updated here; shipping schedule is determined manually or via BL/vessel tracking
   };
 
   const isPaymentStage = !isRFQ && (

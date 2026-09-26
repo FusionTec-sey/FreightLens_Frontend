@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShoppingBag,
@@ -22,6 +22,7 @@ import OrderForm from "./OrderForm";
 import OrderTemplatesPage from "./OrderTemplatesPage";
 import TemplatePickerModal from "./TemplatePickerModal";
 import POVersionHistoryDrawer from "./POVersionHistoryDrawer";
+import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useOptions } from "../../../hooks/useOptions";
@@ -102,8 +103,15 @@ export default function OrdersPage() {
   const [templateForOrder, setTemplateForOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("ALL");
+  const [selectedPaymentFilter, setSelectedPaymentFilter] = useState("ALL");
   const [onlyUrgentFilter, setOnlyUrgentFilter] = useState(false);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState(null);
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
@@ -114,10 +122,20 @@ export default function OrdersPage() {
     navigate("/orders/new", { state: { fromTemplate: template } });
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
+      const params = {
+        page,
+        limit: pageSize,
+        doc_type: "PO",
+      };
+      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
+      if (selectedStatusFilter && selectedStatusFilter !== "ALL") params.status = selectedStatusFilter;
+      if (onlyUrgentFilter) params.urgent_only = true;
+
       const res = await axios.get(`${process.env.REACT_APP_NETWORK}/orders`, {
+        params,
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
@@ -125,12 +143,22 @@ export default function OrdersPage() {
       });
       let data = res.data;
       if (typeof data === "string") data = JSON.parse(data);
-      if (Array.isArray(data)) {
+      if (data && data.items && Array.isArray(data.items)) {
+        setOrders(data.items);
+        setTotalCount(data.total || 0);
+        setTotalPages(data.pages || 1);
+      } else if (Array.isArray(data)) {
         setOrders(data);
+        setTotalCount(data.length);
+        setTotalPages(1);
       } else if (data && Array.isArray(data.data)) {
         setOrders(data.data);
+        setTotalCount(data.data.length);
+        setTotalPages(1);
       } else {
         setOrders([]);
+        setTotalCount(0);
+        setTotalPages(1);
       }
     } catch (err) {
       console.error("Could not fetch orders from DB:", err);
@@ -138,11 +166,11 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, searchQuery, selectedStatusFilter, onlyUrgentFilter]);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   const poOrders = useMemo(() => {
     return orders.filter((o) => o.doc_type === "PO" || !o.doc_type);
@@ -163,20 +191,30 @@ export default function OrdersPage() {
       o.status === selectedStatusFilter ||
       o.status_label === selectedStatusFilter;
 
+    const rawPayment = (o.payment_status || "NONE").toUpperCase();
+    const matchesPayment =
+      selectedPaymentFilter === "ALL" ||
+      (selectedPaymentFilter === "UNPAID" && rawPayment === "NONE") ||
+      (selectedPaymentFilter === "PART_PAID" && (rawPayment === "PART_PAID" || rawPayment === "ADVANCE_PAID")) ||
+      (selectedPaymentFilter === "FULLY_PAID" && (rawPayment === "FULLY_PAID" || rawPayment === "PAID"));
+
     const matchesUrgent = !onlyUrgentFilter || o.urgent_action === true;
 
-    return matchesSearch && matchesStatus && matchesUrgent;
+    return matchesSearch && matchesStatus && matchesPayment && matchesUrgent;
   });
 
   const activeFilterCount =
     (selectedStatusFilter !== "ALL" ? 1 : 0) +
+    (selectedPaymentFilter !== "ALL" ? 1 : 0) +
     (onlyUrgentFilter ? 1 : 0) +
     (searchQuery ? 1 : 0);
 
   const resetFilters = () => {
     setSearchQuery("");
     setSelectedStatusFilter("ALL");
+    setSelectedPaymentFilter("ALL");
     setOnlyUrgentFilter(false);
+    setPage(1);
   };
 
   const handleSaveOrder = async (newOrUpdatedOrder) => {
@@ -360,7 +398,10 @@ export default function OrdersPage() {
                 type="text"
                 placeholder="Search PO#, Supplier, Material..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className={`w-full pl-8 pr-3 py-1.5 border rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark
                     ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
                     : "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400"
@@ -371,7 +412,10 @@ export default function OrdersPage() {
             {/* Urgent Filter Toggle */}
             <button
               type="button"
-              onClick={() => setOnlyUrgentFilter(!onlyUrgentFilter)}
+              onClick={() => {
+                setOnlyUrgentFilter(!onlyUrgentFilter);
+                setPage(1);
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition ${onlyUrgentFilter
                   ? "bg-rose-500 text-white border-rose-500 shadow-xs"
                   : isDark
@@ -382,6 +426,28 @@ export default function OrdersPage() {
               <AlertTriangle size={13} className={onlyUrgentFilter ? "text-white" : "text-rose-500"} />
               <span>Urgent Only</span>
             </button>
+
+            {/* Independent Financial / Payment Status Filter */}
+            <select
+              value={selectedPaymentFilter}
+              onChange={(e) => {
+                setSelectedPaymentFilter(e.target.value);
+                setPage(1);
+              }}
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-xl border transition focus:outline-none cursor-pointer ${
+                selectedPaymentFilter !== "ALL"
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                  : isDark
+                    ? "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700"
+                    : "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100"
+              }`}
+              title="Filter by Financial / Payment Status"
+            >
+              <option value="ALL">Payment: All</option>
+              <option value="UNPAID">Payment: Unpaid</option>
+              <option value="PART_PAID">Payment: Part Paid</option>
+              <option value="FULLY_PAID">Payment: Fully Paid</option>
+            </select>
 
             {/* Reset Filters */}
             {activeFilterCount > 0 && (
@@ -434,7 +500,10 @@ export default function OrdersPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           <button
             type="button"
-            onClick={() => setSelectedStatusFilter("ALL")}
+            onClick={() => {
+              setSelectedStatusFilter("ALL");
+              setPage(1);
+            }}
             className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-bold whitespace-nowrap transition ${selectedStatusFilter === "ALL"
                 ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                 : isDark
@@ -467,7 +536,10 @@ export default function OrdersPage() {
               <button
                 key={stage.id || stageKey}
                 type="button"
-                onClick={() => setSelectedStatusFilter(stageKey)}
+                onClick={() => {
+                  setSelectedStatusFilter(stageKey);
+                  setPage(1);
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-semibold whitespace-nowrap transition ${isSelected
                     ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                     : isDark
@@ -517,6 +589,22 @@ export default function OrdersPage() {
             onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
           />
         )}
+
+        {/* Server-Side Pagination Bar */}
+        <div className="pt-2">
+          <PaginationToolbar
+            page={page}
+            pageSize={pageSize}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={(newPage) => setPage(newPage)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            isDark={isDark}
+          />
+        </div>
       </div>
 
       {/* DRAWER FORM */}

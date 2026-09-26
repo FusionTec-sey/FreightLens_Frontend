@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   GitCompare,
@@ -17,6 +17,7 @@ import OrderCardGrid from "./OrderCardGrid";
 import OrderTable from "./OrderTable";
 import TemplatePickerModal from "./TemplatePickerModal";
 import POVersionHistoryDrawer from "./POVersionHistoryDrawer";
+import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -26,7 +27,7 @@ const SOURCING_LIFECYCLE_STAGES = [
   { code: "CONFIRMED", label: "Confirmed" },
   { code: "RFQ_SENT", label: "RFQ Sent" },
   { code: "QUOTE_RECEIVED", label: "Quotes In" },
-  { code: "QUOTE_APPROVED", label: "Awarded" }
+  { code: "QUOTE_APPROVED", label: "Awarded / In Fulfillment" }
 ];
 
 export default function SourcingPage() {
@@ -53,9 +54,16 @@ export default function SourcingPage() {
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   useEffect(() => {
     if (urlLifecycle) {
       setSelectedLifecycleFilter(urlLifecycle);
+      setPage(1);
     }
   }, [urlLifecycle]);
 
@@ -63,10 +71,22 @@ export default function SourcingPage() {
     navigate("/sourcing/new", { state: { fromTemplate: template } });
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/orders?doc_type=RFQ`, {
+      const params = {
+        page,
+        limit: pageSize,
+        doc_type: "RFQ",
+      };
+      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
+      if (selectedLifecycleFilter && selectedLifecycleFilter !== "ALL") {
+        params.lifecycle_stage = selectedLifecycleFilter;
+      }
+      if (onlyUrgentFilter) params.urgent_only = true;
+
+      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/orders`, {
+        params,
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
@@ -74,12 +94,22 @@ export default function SourcingPage() {
       });
       let data = res.data;
       if (typeof data === "string") data = JSON.parse(data);
-      if (Array.isArray(data)) {
+      if (data && data.items && Array.isArray(data.items)) {
+        setOrders(data.items);
+        setTotalCount(data.total || 0);
+        setTotalPages(data.pages || 1);
+      } else if (Array.isArray(data)) {
         setOrders(data);
+        setTotalCount(data.length);
+        setTotalPages(1);
       } else if (data && Array.isArray(data.data)) {
         setOrders(data.data);
+        setTotalCount(data.data.length);
+        setTotalPages(1);
       } else {
         setOrders([]);
+        setTotalCount(0);
+        setTotalPages(1);
       }
     } catch (err) {
       console.error("Could not fetch sourcing RFQs from DB:", err);
@@ -87,51 +117,11 @@ export default function SourcingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, searchQuery, selectedLifecycleFilter, onlyUrgentFilter]);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
-
-  const sourcingOrders = useMemo(() => {
-    return orders.filter(
-      (o) =>
-        o.doc_type === "RFQ" ||
-        (o.po_number && o.po_number.startsWith("RFQ")) ||
-        ["DRAFT", "CONFIRMED", "RFQ_SENT", "QUOTE_RECEIVED", "QUOTE_APPROVED"].includes((o.lifecycle_stage || "").toUpperCase())
-    );
-  }, [orders]);
-
-  const filteredOrders = useMemo(() => {
-    return sourcingOrders.filter((order) => {
-      // Urgent filter
-      if (onlyUrgentFilter && !order.urgent_action) {
-        return false;
-      }
-
-      // Lifecycle stage filter
-      if (selectedLifecycleFilter !== "ALL") {
-        const orderStage = (order.lifecycle_stage || "DRAFT").toUpperCase();
-        if (orderStage !== selectedLifecycleFilter.toUpperCase()) {
-          return false;
-        }
-      }
-
-      // Text search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchPo = order.po_number?.toLowerCase().includes(q);
-        const matchComp = order.company?.toLowerCase().includes(q);
-        const matchDesc = order.goods_description?.toLowerCase().includes(q);
-        const matchReq = order.request_number?.toLowerCase().includes(q);
-        if (!matchPo && !matchComp && !matchDesc && !matchReq) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [sourcingOrders, selectedLifecycleFilter, onlyUrgentFilter, searchQuery]);
+  }, [fetchOrders]);
 
   const handleEditOrder = (order) => {
     navigate(`/sourcing/${order.id}/edit`, { state: { order } });
@@ -178,7 +168,7 @@ export default function SourcingPage() {
           "skip_zrok_interstitial": "true",
         },
       });
-      setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id));
+      fetchOrders();
       setOrderToDelete(null);
     } catch (err) {
       console.error("Failed to delete sourcing RFQ:", err);
@@ -216,7 +206,7 @@ export default function SourcingPage() {
                   Sourcing & Requisitions
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800">
-                  {filteredOrders.length} RFQs
+                  {totalCount} RFQs
                 </span>
               </div>
               <p
@@ -284,9 +274,12 @@ export default function SourcingPage() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Search RFQ #, specs, items..."
-                className={`w-full pl-8.5 pr-3 py-1.5 text-xs rounded-xl border outline-hidden transition ${
+                className={`w-full pl-9 pr-8 py-1.5 text-xs rounded-xl border outline-hidden transition ${
                   isDark
                     ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500 focus:border-amber-500"
                     : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500"
@@ -295,7 +288,10 @@ export default function SourcingPage() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPage(1);
+                  }}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   ✕
@@ -306,7 +302,10 @@ export default function SourcingPage() {
             {/* Urgent Filter Toggle */}
             <button
               type="button"
-              onClick={() => setOnlyUrgentFilter(!onlyUrgentFilter)}
+              onClick={() => {
+                setOnlyUrgentFilter(!onlyUrgentFilter);
+                setPage(1);
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition flex-none ${
                 onlyUrgentFilter
                   ? "bg-rose-500 text-white border-rose-500 shadow-xs"
@@ -326,6 +325,7 @@ export default function SourcingPage() {
                   setSearchQuery("");
                   setOnlyUrgentFilter(false);
                   setSelectedLifecycleFilter("ALL");
+                  setPage(1);
                 }}
                 className={`p-1.5 rounded-lg border text-xs transition flex items-center gap-1 ${
                   isDark ? "border-slate-800 text-slate-400 hover:bg-slate-800" : "border-slate-200 text-slate-600 hover:bg-slate-100"
@@ -376,15 +376,20 @@ export default function SourcingPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin pt-0.5">
           {SOURCING_LIFECYCLE_STAGES.map((st) => {
             const isSelected = selectedLifecycleFilter === st.code;
-            const count = st.code === "ALL"
-              ? sourcingOrders.length
-              : sourcingOrders.filter((o) => (o.lifecycle_stage || "DRAFT").toUpperCase() === st.code).length;
+            const count = isSelected
+              ? totalCount
+              : st.code === "ALL"
+                ? totalCount
+                : orders.filter((o) => (o.lifecycle_stage || "DRAFT").toUpperCase() === st.code).length;
 
             return (
               <button
                 key={st.code}
                 type="button"
-                onClick={() => setSelectedLifecycleFilter(st.code)}
+                onClick={() => {
+                  setSelectedLifecycleFilter(st.code);
+                  setPage(1);
+                }}
                 className={`flex items-center gap-1 px-2.5 py-0.5 rounded-lg border text-[11px] font-bold whitespace-nowrap transition ${
                   isSelected
                     ? "bg-amber-600 text-white border-amber-600 shadow-xs"
@@ -412,29 +417,47 @@ export default function SourcingPage() {
       </div>
 
       {/* CONTENT REGION: Table or Grid View */}
-      <div className="flex-1 overflow-auto p-3.5 md:p-4">
-        {viewMode === "table" ? (
-          <OrderTable
-            orders={filteredOrders}
-            orderStatuses={SOURCING_LIFECYCLE_STAGES}
-            activeTab="sourcing"
-            loading={loading}
-            onEditOrder={handleEditOrder}
-            onDeleteOrder={canDeleteRFQ ? (order) => setOrderToDelete(order) : undefined}
-            onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+      <div className="flex-1 min-h-0 p-3.5 md:p-4 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-auto">
+          {viewMode === "table" ? (
+            <OrderTable
+              orders={orders}
+              orderStatuses={SOURCING_LIFECYCLE_STAGES}
+              activeTab="sourcing"
+              loading={loading}
+              onEditOrder={handleEditOrder}
+              onDeleteOrder={canDeleteRFQ ? (order) => setOrderToDelete(order) : undefined}
+              onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+            />
+          ) : (
+            <OrderCardGrid
+              orders={orders}
+              orderStatuses={SOURCING_LIFECYCLE_STAGES}
+              activeTab="sourcing"
+              loading={loading}
+              onEditOrder={handleEditOrder}
+              onStatusChange={handleStatusChange}
+              onDeleteOrder={canDeleteRFQ ? (order) => setOrderToDelete(order) : undefined}
+              onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+            />
+          )}
+        </div>
+
+        {/* Server-Side Pagination Bar - Always visible at bottom without scrolling */}
+        <div className="pt-2 flex-none">
+          <PaginationToolbar
+            page={page}
+            pageSize={pageSize}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={(newPage) => setPage(newPage)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            isDark={isDark}
           />
-        ) : (
-          <OrderCardGrid
-            orders={filteredOrders}
-            orderStatuses={SOURCING_LIFECYCLE_STAGES}
-            activeTab="sourcing"
-            loading={loading}
-            onEditOrder={handleEditOrder}
-            onStatusChange={handleStatusChange}
-            onDeleteOrder={canDeleteRFQ ? (order) => setOrderToDelete(order) : undefined}
-            onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
-          />
-        )}
+        </div>
       </div>
 
       {/* TEMPLATE PICKER MODAL */}

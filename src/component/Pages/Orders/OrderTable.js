@@ -104,6 +104,27 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                             URGENT
                           </span>
                         )}
+                        {/* Independent Payment Status Pill for Purchase Orders */}
+                        {o.doc_type !== "RFQ" && (
+                          <span
+                            className={`ml-1.5 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold border ${o.payment_badge_color || (
+                              o.payment_status === "FULLY_PAID"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700"
+                                : o.payment_status === "PART_PAID"
+                                  ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700"
+                                  : "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+                            )}`}
+                            title="Financial / Payment Status"
+                          >
+                            {o.payment_label || (
+                              o.payment_status === "FULLY_PAID"
+                                ? "Paid"
+                                : o.payment_status === "PART_PAID"
+                                  ? "Part Paid"
+                                  : "Unpaid"
+                            )}
+                          </span>
+                        )}
                       </div>
 
                       {/* Origin RFQ link badge */}
@@ -205,8 +226,8 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                     {/* Workflow Stage */}
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       {activeTab === "sourcing" || o.doc_type === "RFQ" ? (
-                        <div className="space-y-1 w-44">
-                          <div className="flex items-center gap-1.5">
+                        <div className="space-y-1.5 w-52">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {(() => {
                               const lcCode = (o.lifecycle_stage || "DRAFT").toUpperCase();
                               const lcCfg = LIFECYCLE_CONFIG[lcCode] || LIFECYCLE_CONFIG.DRAFT;
@@ -217,6 +238,18 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                                 </span>
                               );
                             })()}
+
+                            {/* Live Operational Fulfillment Badge */}
+                            {o.fulfillment_summary && (
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 ${o.fulfillment_summary.primary_badge_color}`}
+                                title={`Fulfillment Status: ${o.fulfillment_summary.summary_desc || o.fulfillment_summary.primary_status_label}`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${o.fulfillment_summary.primary_status_color}`} />
+                                <span>{o.fulfillment_summary.primary_status_label}</span>
+                              </span>
+                            )}
+
                             <button
                               type="button"
                               onClick={(e) => {
@@ -230,8 +263,32 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                               <span>v{o.stage_version || 1}</span>
                             </button>
                           </div>
+
+                          {/* Live Child PO Fulfillment Links with Status */}
+                          {o.child_pos && o.child_pos.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                              {o.child_pos.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/orders/${c.id}/edit`);
+                                  }}
+                                  title={`Open ${c.po_number}: ${c.status_label || c.status}${c.eta_date ? ` (ETA: ${c.eta_date})` : ''}`}
+                                  className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border bg-slate-50 dark:bg-slate-800/90 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300 transition flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>{c.po_number}</span>
+                                  <span className="font-sans font-semibold text-[8px] text-indigo-600 dark:text-indigo-400">
+                                    • {c.status_label || c.status}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
                           {o.origin_rfq_number && (
-                            <span className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400">
+                            <span className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 block">
                               From {o.origin_rfq_number}
                             </span>
                           )}
@@ -276,7 +333,7 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                     <td
                       className="py-3.5 px-4 whitespace-nowrap font-mono font-semibold text-indigo-700 dark:text-indigo-400"
                     >
-                      {o.eta_date || o.pi_confirmed_date || "TBD"}
+                      {o.eta_date || o.fulfillment_summary?.eta_date || o.pi_confirmed_date || "TBD"}
                     </td>
 
                     {/* Actions: Soft Delete */}
@@ -338,10 +395,30 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                   }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-xs text-blue-600">
                       {o.po_number}
                     </span>
+                    {/* Payment badge for POs */}
+                    {o.doc_type !== "RFQ" && (
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold border ${o.payment_badge_color || (
+                          o.payment_status === "FULLY_PAID"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700"
+                            : o.payment_status === "PART_PAID"
+                              ? "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700"
+                              : "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+                        )}`}
+                      >
+                        {o.payment_label || (
+                          o.payment_status === "FULLY_PAID"
+                            ? "Paid"
+                            : o.payment_status === "PART_PAID"
+                              ? "Part Paid"
+                              : "Unpaid"
+                        )}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -353,15 +430,19 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                       <span>v{o.stage_version || 1}</span>
                     </button>
                   </div>
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    {activeTab === "sourcing" || o.doc_type === "RFQ" ? lcCfg.label : stageLabel}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {activeTab === "sourcing" || o.doc_type === "RFQ"
+                        ? (o.fulfillment_summary ? `${lcCfg.label} • ${o.fulfillment_summary.primary_status_label}` : lcCfg.label)
+                        : stageLabel}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                   <div
-                    className={`h-full rounded-full ${stageObj.color}`}
-                    style={{ width: `${progress}%` }}
+                    className={`h-full rounded-full ${o.fulfillment_summary ? o.fulfillment_summary.primary_status_color : stageObj.color}`}
+                    style={{ width: `${o.fulfillment_summary ? o.fulfillment_summary.primary_progress : progress}%` }}
                   />
                 </div>
 

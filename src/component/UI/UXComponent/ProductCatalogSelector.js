@@ -29,6 +29,8 @@ export default function ProductCatalogSelector({
   suppliers = [],
   currency = "USD",
   currencySymbol = "$",
+  inputRef,
+  inputId,
 }) {
   const { isDark } = useTheme();
   const canShowPrices = !isRFQ && (showFinancials || isAccountsOrAdmin);
@@ -247,6 +249,8 @@ export default function ProductCatalogSelector({
             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
           />
           <input
+            ref={inputRef}
+            id={inputId}
             type="text"
             value={searchTerm}
             onChange={(e) => {
@@ -408,13 +412,44 @@ export default function ProductCatalogSelector({
                       isDark ? "hover:bg-slate-800/70" : "hover:bg-blue-50/50"
                     }`}
                   >
-                    {/* Left: Product Identity & Metadata */}
+                    {/* Far Left: Product Image Thumbnail */}
+                    <div className="w-11 h-11 rounded-lg overflow-hidden flex-none border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-xs">
+                      {prod.image_url ? (
+                        <img
+                          src={
+                            prod.image_url.startsWith("http") || prod.image_url.startsWith("blob:")
+                              ? prod.image_url
+                              : `${process.env.REACT_APP_NETWORK}/blobs/${prod.image_url}`
+                          }
+                          alt={prod.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <Package size={18} className="text-slate-400 opacity-60" />
+                      )}
+                    </div>
+
+                    {/* Middle: Product Identity & Metadata */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
                         {/* Code / SKU Badge */}
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                           {prod.sku || prod.code || "SKU"}
                         </span>
+
+                        {/* Factory Code / Vendor Code Badge */}
+                        {prod.factory_code && (
+                          <span
+                            title={`Factory / Vendor Article Code: ${prod.factory_code}`}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 flex items-center gap-1"
+                          >
+                            <span>🏭 {prod.factory_code}</span>
+                          </span>
+                        )}
 
                         {/* Category (Optional) */}
                         {prod.category_name && (
@@ -429,8 +464,23 @@ export default function ProductCatalogSelector({
                           </span>
                         )}
 
+                        {/* Preferred Supplier & Multi-vendor indicator */}
+                        {prod.supplier_name && canShowVendor && (
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                            • {prod.supplier_name}
+                            {Array.isArray(prod.suppliers) && prod.suppliers.length > 1 && (
+                              <span
+                                title={`${prod.suppliers.length} vendors available for this item`}
+                                className="ml-1 text-[9px] px-1 py-0.2 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold"
+                              >
+                                +{prod.suppliers.length - 1} vendors
+                              </span>
+                            )}
+                          </span>
+                        )}
+
                         {/* Brand (Optional) */}
-                        {prod.brand && canShowVendor && (
+                        {prod.brand && canShowVendor && !prod.supplier_name && (
                           <span className="text-[10px] text-slate-400 font-medium">
                             • {prod.brand}
                           </span>

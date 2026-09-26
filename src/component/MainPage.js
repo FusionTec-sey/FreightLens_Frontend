@@ -6,6 +6,7 @@ import CompleteContainer from './Pages/DataEntry/CompleteContainers.js';
 import LoginPage from './Pages/Login/Login';
 import PrivateRoute from './PrivateRoute';
 import Dashboard from './Pages/Dashboard/dashboard';
+import DashboardTemplateManager from './Pages/Dashboard/DashboardTemplateManager';
 import ContainerForReport from './Pages/Report/Report.js';
 import ContainerForReport1 from "./Pages/Report/Report1.js";
 import Unauthorized from "./Pages/Unauthorized/Unauthorized.js";
@@ -35,6 +36,7 @@ import ProductMasterPage from "./Pages/Inventory/ProductMasterPage.js";
 import CurrenciesPage from "./Pages/MasterData/CurrenciesPage.js";
 import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
 import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
+import DocumentTypesMasterPage from "./Pages/MasterData/DocumentTypesMasterPage.js";
 
 import { useTheme } from "../context/ThemeContext.js";
 
@@ -50,14 +52,25 @@ export default function MainPage() {
   const { theme } = useTheme();
   const isFullBleedPage =
     isLoginPage ||
+    location.pathname === "/orders" ||
     location.pathname === "/orders/new" ||
+    location.pathname.startsWith("/inventory") ||
+    location.pathname === "/sourcing" ||
+    location.pathname === "/sourcing/new" ||
+    location.pathname === "/viewContainer" ||
+    location.pathname === "/ConatinerEntry" ||
+    location.pathname === "/BillOfLanding" ||
+    location.pathname === "/billOfLanding" ||
+    location.pathname === "/Complete" ||
     (location.pathname.startsWith("/orders/") &&
       !location.pathname.includes("/quotes") &&
       !location.pathname.includes("/issues") &&
       !location.pathname.includes("/daily-operations") &&
       !location.pathname.includes("/store-requests") &&
       !location.pathname.includes("/packing-lists") &&
-      !location.pathname.includes("/goods-receiving"));
+      !location.pathname.includes("/goods-receiving")) ||
+    (location.pathname.startsWith("/sourcing/") &&
+      !location.pathname.includes("/quotes"));
 
   return (
     <div className={`flex min-h-screen relative ${theme.background}`}>
@@ -101,6 +114,8 @@ export default function MainPage() {
             <Route path="/" element={<LoginPage />} />
             
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+            <Route path="/dashboard/templates" element={<PrivateRoute requiredPermissions={["Manage_DashboardTemplate", "Administrator"]}><DashboardTemplateManager /></PrivateRoute>} />
+            <Route path="/dashboard-templates" element={<PrivateRoute requiredPermissions={["Manage_DashboardTemplate", "Administrator"]}><DashboardTemplateManager /></PrivateRoute>} />
             <Route path="/viewContainer" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_Container", "Container"]}><ContainerEntry /></PrivateRoute>} />
             <Route path="/ConatinerEntry" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_Container", "Container"]}><ContainerEntry /></PrivateRoute>} />
             <Route path="/Complete" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_Container", "Container"]}><CompleteContainer /></PrivateRoute>} />
@@ -112,7 +127,7 @@ export default function MainPage() {
             
             {/* Setting routes */}
             <Route path="/settings-overview" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><SettingsOverview /></PrivateRoute>} />
-            <Route path="/organization-settings" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><OrganizationSettings /></PrivateRoute>} />
+            <Route path="/organization-settings" element={<PrivateRoute requiredPermissions={["View_TenantConsole", "Manage_TenantConsole", "Administrator"]}><OrganizationSettings /></PrivateRoute>} />
             <Route path="/order-settings" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><OrderSettings /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Setting /></PrivateRoute>} />
             <Route path="/setting" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Setting /></PrivateRoute>} />
@@ -120,12 +135,12 @@ export default function MainPage() {
             <Route path="/reference-data" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><ReferenceData /></PrivateRoute>} />
             <Route path="/reference" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><ReferenceData /></PrivateRoute>} />
 
-            <Route path="/BillOfLanding" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BillOfLanding", "BillOfLanding", "View_BL"]}><BillOfLanding /></PrivateRoute>} />
-            <Route path="/billOfLanding" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BillOfLanding", "BillOfLanding", "View_BL"]}><BillOfLanding /></PrivateRoute>} />
-            <Route path="/bill-of-landing-info" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BillOfLanding", "BillOfLanding", "View_BL"]}><BillOfLandingInfo /></PrivateRoute>} />
+            <Route path="/BillOfLanding" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BL", "BillOfLanding"]}><BillOfLanding /></PrivateRoute>} />
+            <Route path="/billOfLanding" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BL", "BillOfLanding"]}><BillOfLanding /></PrivateRoute>} />
+            <Route path="/bill-of-landing-info" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BL", "BillOfLanding"]}><BillOfLandingInfo /></PrivateRoute>} />
 
             {/* Tenant Admin & Sourcing & Purchase Orders Routes */}
-            <Route path="/admin" element={<PrivateRoute><AdminOverview /></PrivateRoute>} />
+            <Route path="/admin" element={<PrivateRoute requiredPermissions={["View_TenantConsole", "Manage_TenantConsole", "Administrator"]}><AdminOverview /></PrivateRoute>} />
             
             {/* Dedicated Sourcing Requisitions Module */}
             <Route path="/sourcing" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_RFQ", "View_Order", "Order"]}><SourcingPage /></PrivateRoute>} />
@@ -157,6 +172,7 @@ export default function MainPage() {
             <Route path="/master-data/currencies" element={<PrivateRoute><CurrenciesPage /></PrivateRoute>} />
             <Route path="/master-data/payment-terms" element={<PrivateRoute><PaymentTermsPage /></PrivateRoute>} />
             <Route path="/master-data/suppliers" element={<PrivateRoute><SuppliersMasterPage /></PrivateRoute>} />
+            <Route path="/master-data/document-types" element={<PrivateRoute><DocumentTypesMasterPage /></PrivateRoute>} />
 
             <Route path="/unauthorized" element={<Unauthorized />} />
           </Routes>

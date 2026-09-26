@@ -46,7 +46,9 @@ export default function VendorQuotesPage() {
       });
       let data = res.data;
       if (typeof data === "string") data = JSON.parse(data);
-      const allList = Array.isArray(data) ? data : (data?.data || []);
+      const allList = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.items) ? data.items : (data?.data || []));
       setOrders(allList);
     } catch (err) {
       console.error("Could not fetch quotation orders:", err);

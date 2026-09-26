@@ -6,18 +6,31 @@ import {
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
-  Calendar,
   Plus,
   Trash2,
   Receipt,
   Check,
   Loader2,
-  DollarSign,
-  Edit3
+  Edit3,
+  Paperclip,
+  Download,
+  FileUp
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
-import CurrencyInput, { CurrencyDisplay, formatCurrency } from "../../UI/UXComponent/CurrencyInput";
+import { ordersApi } from "../../../services/ordersApi";
+import CurrencyInput, { CurrencyDisplay } from "../../UI/UXComponent/CurrencyInput";
+
+const downloadBlob = (blob, name) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = name;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+};
 
 export default function POPaymentModal({
   isOpen,
@@ -63,6 +76,47 @@ export default function POPaymentModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [allowOverpayment, setAllowOverpayment] = useState(false);
+  const [uploadingProofId, setUploadingProofId] = useState(null);
+  const [recordProofFile, setRecordProofFile] = useState(null);
+
+  const handleRowProofUpload = async (paymentId, file) => {
+    if (!file || !paymentId) return;
+    setUploadingProofId(paymentId);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("document_type", "payment_proof");
+    formData.append("payment_id", paymentId);
+    try {
+      await ordersApi.uploadDocument(formData);
+      toast.success(`Proof '${file.name}' attached successfully!`);
+      if (orderId && !String(orderId).startsWith("temp-")) {
+        const refreshed = await axios.get(`${process.env.REACT_APP_NETWORK}/orders/${orderId}/payments`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            skip_zrok_interstitial: "true",
+          },
+        });
+        if (refreshed.data?.payments) {
+          setPaymentsList(refreshed.data.payments);
+        }
+      }
+    } catch (err) {
+      console.error("Proof upload failed:", err);
+      toast.error("Failed to upload payment proof document.");
+    } finally {
+      setUploadingProofId(null);
+    }
+  };
+
+  const handleDownloadProof = async (docId, fileName) => {
+    try {
+      const blob = await ordersApi.downloadDocument(docId);
+      downloadBlob(blob, fileName || `payment_proof_${docId}.pdf`);
+    } catch (err) {
+      console.error("Download failed:", err);
+      toast.error("Could not download payment proof.");
+    }
+  };
 
   useEffect(() => {
     setPaymentsList(existingPayments || []);
@@ -129,6 +183,7 @@ export default function POPaymentModal({
     setReferenceNumber("");
     setNotes("");
     setAllowOverpayment(false);
+    setRecordProofFile(null);
     setPaymentType(totalPaid <= 0 ? "ADVANCE" : "PROGRESS");
     setPaidDate(new Date().toISOString().slice(0, 10));
     setShowRecordModal(true);
@@ -145,6 +200,7 @@ export default function POPaymentModal({
     setReferenceNumber(p.reference_number || "");
     setNotes(p.notes || "");
     setAllowOverpayment(false);
+    setRecordProofFile(null);
     setShowRecordModal(true);
   };
 
@@ -237,6 +293,37 @@ export default function POPaymentModal({
           toast.success(successText);
         }
 
+        const savedPaymentId = res.data?.payment?.id;
+        if (recordProofFile && savedPaymentId) {
+          const formData = new FormData();
+          formData.append("file", recordProofFile);
+          formData.append("document_type", "payment_proof");
+          formData.append("payment_id", savedPaymentId);
+          try {
+            await ordersApi.uploadDocument(formData);
+            toast.success("Payment proof attached successfully!");
+          } catch (docErr) {
+            console.error("Failed to upload payment proof:", docErr);
+            toast.warning("Payment recorded, but proof upload failed.");
+          }
+        }
+
+        // Re-fetch authoritative payments list with documents
+        let updatedList;
+        try {
+          const refreshed = await axios.get(`${process.env.REACT_APP_NETWORK}/orders/${orderId}/payments`, {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              skip_zrok_interstitial: "true",
+            },
+          });
+          if (refreshed.data?.payments) {
+            updatedList = refreshed.data.payments;
+          }
+        } catch {
+          // fallback
+        }
+
         const savedPayment = res.data?.payment || {
           id: editingPayment ? editingPayment.id : Date.now(),
           ...paymentPayload,
@@ -244,11 +331,13 @@ export default function POPaymentModal({
           created_at: new Date().toISOString(),
         };
 
-        const updatedList = res.data?.payments || (
-          editingPayment
-            ? paymentsList.map((p) => (p.id === editingPayment.id ? savedPayment : p))
-            : [savedPayment, ...paymentsList]
-        );
+        if (!updatedList) {
+          updatedList = res.data?.payments || (
+            editingPayment
+              ? paymentsList.map((p) => (p.id === editingPayment.id ? savedPayment : p))
+              : [savedPayment, ...paymentsList]
+          );
+        }
         setPaymentsList(updatedList);
 
         const newTotalPaid = res.data?.advance_amount !== undefined
@@ -607,6 +696,7 @@ export default function POPaymentModal({
                       <th className="py-2.5 px-3">Notes</th>
                       <th className="py-2.5 px-3 text-right">Amount</th>
                       <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Proof / Attachment</th>
                       {isAccountsOrAdmin && <th className="py-2.5 px-3 text-center">Action</th>}
                     </tr>
                   </thead>
@@ -669,6 +759,78 @@ export default function POPaymentModal({
                               {isReturn ? "RETURNED" : (p.status || "CLEARED")}
                             </span>
                           </td>
+                          {/* Proof / Attachment Column */}
+                          <td className="py-2.5 px-3 text-center">
+                            {(() => {
+                              const proofDoc = p.evidence_doc || (p.documents && p.documents.length > 0 ? p.documents[0] : null);
+                              const isUploading = uploadingProofId === p.id;
+
+                              if (isUploading) {
+                                return (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                    <Loader2 size={12} className="animate-spin" />
+                                    <span>Uploading...</span>
+                                  </span>
+                                );
+                              }
+
+                              if (proofDoc) {
+                                return (
+                                  <div className="inline-flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadProof(proofDoc.id, proofDoc.file_name || proofDoc.title)}
+                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition shadow-2xs group"
+                                      title={`Download ${proofDoc.file_name || "Payment Proof"}`}
+                                    >
+                                      <Paperclip size={11} className="group-hover:scale-110 transition-transform text-emerald-600 dark:text-emerald-400" />
+                                      <span className="max-w-[90px] truncate">{proofDoc.file_name || "Proof"}</span>
+                                      <Download size={10} className="opacity-60" />
+                                    </button>
+                                    {isAccountsOrAdmin && (
+                                      <label
+                                        className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition"
+                                        title="Replace proof"
+                                      >
+                                        <FileUp size={12} />
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                          onChange={(e) => {
+                                            if (e.target.files?.[0]) {
+                                              handleRowProofUpload(p.id, e.target.files[0]);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              if (isAccountsOrAdmin && !isReturn) {
+                                return (
+                                  <label className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500/50 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-emerald-50/20 cursor-pointer transition">
+                                    <Paperclip size={10} />
+                                    <span>+ Attach Proof</span>
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                      onChange={(e) => {
+                                        if (e.target.files?.[0]) {
+                                          handleRowProofUpload(p.id, e.target.files[0]);
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                );
+                              }
+
+                              return <span className="text-[11px] text-slate-400">—</span>;
+                            })()}
+                          </td>
                           {isAccountsOrAdmin && (
                             <td className="py-2.5 px-3 text-center">
                               <div className="flex items-center justify-center gap-1.5">
@@ -712,7 +874,7 @@ export default function POPaymentModal({
                       <td className="py-2 px-3 text-right font-mono text-xs text-emerald-600 dark:text-emerald-400 font-black">
                         {currency} {totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
-                      <td colSpan={isAccountsOrAdmin ? 2 : 1}></td>
+                      <td colSpan={isAccountsOrAdmin ? 3 : 2}></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -983,6 +1145,56 @@ export default function POPaymentModal({
                     }`}
                   />
                 </div>
+
+                {/* Payment Proof / Swift Slip Attachment Dropzone */}
+                {!editingPayment && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Payment Proof / Swift Slip (Optional)
+                    </label>
+                    {recordProofFile ? (
+                      <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                        isDark ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
+                      }`}>
+                        <div className="flex items-center gap-2 truncate">
+                          <Paperclip size={14} className="text-emerald-500 flex-none" />
+                          <span className="font-medium text-slate-700 dark:text-slate-200 truncate">{recordProofFile.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            ({(recordProofFile.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setRecordProofFile(null)}
+                          className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition"
+                          title="Remove file"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className={`flex flex-col items-center justify-center p-3 rounded-xl border border-dashed cursor-pointer transition ${
+                        isDark ? "border-slate-700 hover:border-emerald-500 bg-slate-800/40 hover:bg-slate-800/80" : "border-slate-300 hover:border-emerald-500 bg-slate-50/50 hover:bg-emerald-50/20"
+                      }`}>
+                        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                          <FileUp size={15} className="text-emerald-500" />
+                          <span className="text-xs font-semibold">Click to attach Bank Transfer Swift slip / TT slip</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5">PDF, PNG, JPG up to 10MB</span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                              setRecordProofFile(e.target.files[0]);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}

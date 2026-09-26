@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   FileText, Plus, Search, CheckCircle2, Clock, 
   Trash2, Edit3, Send, Undo2, AlertCircle, X, ChevronRight 
@@ -7,6 +7,7 @@ import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
+import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
 
 export default function StoreRequestsPage() {
   const { theme, isDark } = useTheme();
@@ -19,6 +20,12 @@ export default function StoreRequestsPage() {
   const [showModal, setShowModal] = useState(false);
   const [viewingRequest, setViewingRequest] = useState(null);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Form State
   const [formData, setFormData] = useState({
     title: "",
@@ -29,23 +36,49 @@ export default function StoreRequestsPage() {
     items: [{ description: "", quantity_requested: 1, unit: "PCS", notes: "" }]
   });
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
+      const params = {
+        page,
+        limit: pageSize,
+      };
+      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
+      if (statusFilter && statusFilter !== "ALL") params.status = statusFilter;
+
       const res = await axios.get(`${process.env.REACT_APP_NETWORK}/store-requests`, {
+        params,
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      setRequests(res.data || []);
+      let data = res.data;
+      if (typeof data === "string") data = JSON.parse(data);
+      if (data && data.items && Array.isArray(data.items)) {
+        setRequests(data.items);
+        setTotalCount(data.total || 0);
+        setTotalPages(data.pages || 1);
+      } else if (Array.isArray(data)) {
+        setRequests(data);
+        setTotalCount(data.length);
+        setTotalPages(1);
+      } else if (data && Array.isArray(data.data)) {
+        setRequests(data.data);
+        setTotalCount(data.data.length);
+        setTotalPages(1);
+      } else {
+        setRequests([]);
+        setTotalCount(0);
+        setTotalPages(1);
+      }
     } catch (err) {
       toast.error("Failed to fetch store requests");
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, searchQuery, statusFilter]);
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [fetchRequests]);
 
   const handleAddItem = () => {
     setFormData({
@@ -155,7 +188,10 @@ export default function StoreRequestsPage() {
             type="text"
             placeholder="Search request #, title, dept..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
@@ -163,7 +199,10 @@ export default function StoreRequestsPage() {
           {["ALL", "DRAFT", "SUBMITTED", "ORDERED", "WITHDRAWN"].map((st) => (
             <button
               key={st}
-              onClick={() => setStatusFilter(st)}
+              onClick={() => {
+                setStatusFilter(st);
+                setPage(1);
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition ${
                 statusFilter === st
                   ? "bg-blue-600 text-white shadow-sm"
@@ -258,6 +297,22 @@ export default function StoreRequestsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Pagination Toolbar */}
+      {!loading && requests.length > 0 && (
+        <PaginationToolbar
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          onPageChange={(newPage) => setPage(newPage)}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+          isDark={isDark}
+        />
       )}
 
       {/* Create Request Modal */}
