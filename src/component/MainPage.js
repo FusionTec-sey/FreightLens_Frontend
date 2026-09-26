@@ -180,8 +180,8 @@ export default function MainPage() {
             {/* Customer-Configurable Report & Print Templates */}
             <Route path="/reports" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage /></PrivateRoute>} />
             <Route path="/reports/templates" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage /></PrivateRoute>} />
-            <Route path="/reports/editor/:id" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin"]}><ReportTemplateEditorPage /></PrivateRoute>} />
-            <Route path="/reports/editor/new" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin"]}><ReportTemplateEditorPage /></PrivateRoute>} />
+            <Route path="/reports/editor/:id" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin", "View_Report", "Report"]}><ReportTemplateEditorPage /></PrivateRoute>} />
+            <Route path="/reports/editor/new" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin", "View_Report", "Report"]}><ReportTemplateEditorPage /></PrivateRoute>} />
 
             <Route path="/unauthorized" element={<Unauthorized />} />
           </Routes>

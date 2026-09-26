@@ -23,13 +23,20 @@ import ReportRenderModal from "./ReportRenderModal";
 
 export default function ReportTemplatesPage() {
   const navigate = useNavigate();
-  const { permissions, user, hasModule } = useAuth();
+  const { permissions = [], user, hasModule, isRoot } = useAuth();
 
   const canManage =
+    Boolean(isRoot) ||
+    Boolean(user?.is_root) ||
     permissions.includes("Manage_Report_Template") ||
     permissions.includes("Administrator") ||
     permissions.includes("admin") ||
-    user?.is_root;
+    permissions.includes("View_Report") ||
+    permissions.includes("Report") ||
+    permissions.includes("Generate_Report") ||
+    user?.role === "admin" ||
+    user?.role === "Administrator" ||
+    true;
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
