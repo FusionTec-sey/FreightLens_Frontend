@@ -296,7 +296,7 @@ export default function DatasetReportView({
                                 {grp.group_label}
                               </span>
                               <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-200/70 text-indigo-800 font-mono font-medium">
-                                {grp.record_count} items
+                                {grp.count || grp.records?.length || 0} items
                               </span>
                             </div>
                             <span className="text-[11px] text-indigo-700/80 font-normal">
