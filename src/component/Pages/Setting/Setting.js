@@ -151,11 +151,11 @@ const PERMISSION_SECTIONS = [
     },
     {
         id: 'reports_analytics',
-        title: 'Dashboard, Operations & Reports',
-        description: 'KPI dashboard metrics, daily operations queue, and End-of-Day management reports',
+        title: 'Reporting, Document Templates & Operational Registers',
+        description: 'Configure access to print layouts, HTML/CSS templates, parametric operational registers, and transactional screen printing',
         icon: BarChart3,
         badgeColor: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800',
-        match: (n) => /Dashboard|Report|DailyWork/i.test(n)
+        match: (n) => /Dashboard|Report|DailyWork|Operational|Print_/i.test(n)
     },
     {
         id: 'tenant_console',

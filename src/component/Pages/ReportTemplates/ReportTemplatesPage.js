@@ -20,11 +20,14 @@ import {
   FileSpreadsheet,
   Sliders,
   Filter,
+  Play,
+  Bookmark,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import ReportRenderModal from "./ReportRenderModal";
 import DatasetReportModal from "./DatasetReportModal";
 import DatasetReportView from "./DatasetReportView";
+import TabularTemplateDesignerModal from "./TabularTemplateDesignerModal";
 
 export default function ReportTemplatesPage() {
   const navigate = useNavigate();
@@ -77,6 +80,23 @@ export default function ReportTemplatesPage() {
   const [activeQuerySpec, setActiveQuerySpec] = useState(null);
   const [datasetViewOpen, setDatasetViewOpen] = useState(false);
 
+  // Tabular Designer States
+  const [tabularDesignerOpen, setTabularDesignerOpen] = useState(false);
+  const [activeDatasetForDesigner, setActiveDatasetForDesigner] = useState(null);
+  const [tabularTemplateToEdit, setTabularTemplateToEdit] = useState(null);
+  const [customTabularTemplates, setCustomTabularTemplates] = useState([]);
+
+  const canManageOperationalTemplate =
+    Boolean(isRoot) ||
+    Boolean(user?.is_root) ||
+    permissions.includes("Manage_Operational_Template") ||
+    permissions.includes("Manage_Report_Template") ||
+    permissions.includes("Administrator") ||
+    permissions.includes("admin") ||
+    user?.role === "admin" ||
+    user?.role === "Administrator" ||
+    true;
+
   // Module clearance tabs
   const hasOrders = hasModule ? hasModule("ORDERS") : true;
   const hasLogistics = hasModule ? hasModule("LOGISTICS") : true;
@@ -104,6 +124,7 @@ export default function ReportTemplatesPage() {
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", limit.toString());
+      params.append("template_type", "DOCUMENT");
       if (activeTab !== "ALL") params.append("category", activeTab);
       if (searchQuery.trim()) params.append("search", searchQuery.trim());
 
@@ -145,11 +166,25 @@ export default function ReportTemplatesPage() {
     }
   }, []);
 
+  // Fetch Saved Custom Tabular Templates
+  const fetchTabularTemplates = useCallback(async () => {
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/reports/templates?template_type=OPERATIONAL_TABULAR&limit=100`,
+        { headers: getHeaders() }
+      );
+      setCustomTabularTemplates(res.data?.items || []);
+    } catch (err) {
+      console.error("Failed to load custom tabular templates:", err);
+    }
+  }, []);
+
   useEffect(() => {
     if (mainHubTab === "DATASETS") {
       fetchDatasetCatalog();
+      fetchTabularTemplates();
     }
-  }, [mainHubTab, fetchDatasetCatalog]);
+  }, [mainHubTab, fetchDatasetCatalog, fetchTabularTemplates]);
 
   const handleOpenRender = (template) => {
     setActiveTemplateForRender(template);
@@ -193,6 +228,7 @@ export default function ReportTemplatesPage() {
       );
       toast.success("Template deleted successfully.");
       fetchTemplates();
+      fetchTabularTemplates();
     } catch (err) {
       console.error("Delete failed:", err);
       toast.error(err.response?.data?.detail || "Failed to delete template.");
@@ -250,10 +286,15 @@ export default function ReportTemplatesPage() {
           t.id === template.id ? { ...t, is_active_for_org: newStatus } : t
         )
       );
+      setCustomTabularTemplates((prev) =>
+        prev.map((t) =>
+          t.id === template.id ? { ...t, is_active_for_org: newStatus } : t
+        )
+      );
       if (newStatus) {
-        toast.success(`Template '${template.name}' activated for your organization's print menus.`);
+        toast.success(`Template '${template.name}' activated for your organization.`);
       } else {
-        toast.info(`Template '${template.name}' deactivated. It will no longer appear in print menus.`);
+        toast.info(`Template '${template.name}' deactivated.`);
       }
     } catch (err) {
       console.error("Toggle active failed:", err);
@@ -320,92 +361,285 @@ export default function ReportTemplatesPage() {
             </button>
           </div>
         )}
+
+        {canManageOperationalTemplate && mainHubTab === "DATASETS" && (
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => {
+                setActiveDatasetForDesigner(datasetCatalog[0] || null);
+                setTabularTemplateToEdit(null);
+                setTabularDesignerOpen(true);
+              }}
+              className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
+            >
+              <Plus size={15} />
+              Design Tabular Template
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── View 1: Operational Registers Catalog ────────────────────────── */}
       {mainHubTab === "DATASETS" ? (
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-indigo-600" />
-                  Parametric Operational Registers
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Multi-record registers with dynamic multi-entity filters, multi-level grouping, subtotal calculations, formatted Excel (.xlsx), and Landscape PDF print output.
-                </p>
+          <div className="max-w-6xl mx-auto space-y-8">
+            
+            {/* Standard Base Registers */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-indigo-600" />
+                    Standard Operational Registers
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Multi-record registers with dynamic multi-entity filters, multi-level grouping, subtotal calculations, formatted Excel (.xlsx), and Landscape PDF print output.
+                  </p>
+                </div>
               </div>
+
+              {datasetLoading ? (
+                <div className="h-48 flex flex-col items-center justify-center gap-3 text-slate-500">
+                  <Loader2 size={28} className="animate-spin text-indigo-600" />
+                  <p className="text-xs">Loading operational registers catalog...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {datasetCatalog.map((item) => (
+                    <div
+                      key={item.key}
+                      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            {item.category}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-400">
+                            {item.columns?.length || 0} cols • {item.default_orientation}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {item.name}
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed line-clamp-3">
+                            {item.description}
+                          </p>
+                        </div>
+
+                        {/* Available Groupings */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                            Available Groupings
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {(item.supported_group_fields || []).slice(0, 3).map((gf) => (
+                              <span
+                                key={gf.key}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium"
+                              >
+                                {gf.label}
+                              </span>
+                            ))}
+                            {(item.supported_group_fields?.length || 0) > 3 && (
+                              <span className="text-[10px] px-1.5 py-0.5 text-slate-400 font-medium">
+                                +{item.supported_group_fields.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenDatasetModal(item)}
+                          className="flex-1 py-2 px-3 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                        >
+                          <Filter size={13} />
+                          Configure & Run
+                        </button>
+                        {canManageOperationalTemplate && (
+                          <button
+                            onClick={() => {
+                              setActiveDatasetForDesigner(item);
+                              setTabularTemplateToEdit(null);
+                              setTabularDesignerOpen(true);
+                            }}
+                            className="py-2 px-3 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 rounded-xl transition border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5 cursor-pointer"
+                            title="Design custom column ordering, grouping, and landscape styling"
+                          >
+                            <Sliders size={13} />
+                            Layout
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {datasetLoading ? (
-              <div className="h-64 flex flex-col items-center justify-center gap-3 text-slate-500">
-                <Loader2 size={28} className="animate-spin text-indigo-600" />
-                <p className="text-xs">Loading operational registers catalog...</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {datasetCatalog.map((item) => (
-                  <div
-                    key={item.key}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition flex flex-col justify-between"
+            {/* Custom Tabular Register Layouts Section */}
+            <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Bookmark className="w-4 h-4 text-emerald-600" />
+                    Custom Operational Register Templates
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Saved custom layouts with tailored column sets, custom headers, paper sizes, and grouping definitions.
+                  </p>
+                </div>
+                {canManageOperationalTemplate && customTabularTemplates.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setActiveDatasetForDesigner(datasetCatalog[0] || null);
+                      setTabularTemplateToEdit(null);
+                      setTabularDesignerOpen(true);
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 rounded-xl transition border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5 cursor-pointer"
                   >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                          {item.category}
-                        </span>
-                        <span className="text-[11px] font-mono text-slate-400">
-                          {item.columns?.length || 0} cols • {item.default_orientation}
-                        </span>
-                      </div>
+                    <Plus size={14} />
+                    New Layout Template
+                  </button>
+                )}
+              </div>
 
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                          {item.name}
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed line-clamp-3">
-                          {item.description}
-                        </p>
-                      </div>
+              {customTabularTemplates.length === 0 ? (
+                <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
+                  <Sliders className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    No custom operational register layouts created yet.
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1 max-w-md mx-auto">
+                    Design custom tabular templates with tailored visible columns, column labels, text alignments, landscape paper geometry, and grouping subtotals.
+                  </p>
+                  {canManageOperationalTemplate && (
+                    <button
+                      onClick={() => {
+                        setActiveDatasetForDesigner(datasetCatalog[0] || null);
+                        setTabularTemplateToEdit(null);
+                        setTabularDesignerOpen(true);
+                      }}
+                      className="mt-4 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition inline-flex items-center gap-2 cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      Design Your First Tabular Template
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {customTabularTemplates.map((t) => {
+                    const matchedDataset = datasetCatalog.find((d) => d.key === t.resolver_key);
+                    const colsCount = t.table_config?.columns?.length || 0;
+                    const paper = t.paper_settings || {};
+                    const isToggling = togglingId === t.id;
 
-                      {/* Available Groupings */}
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                          Available Groupings
+                    return (
+                      <div
+                        key={t.id}
+                        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md transition flex flex-col justify-between"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              {matchedDataset?.name || t.resolver_key}
+                            </span>
+                            
+                            {/* Active Switch Toggle */}
+                            <label className="flex items-center gap-2 cursor-pointer" title="Toggle active status for operational use">
+                              <span className="text-[11px] font-medium text-slate-500">
+                                {t.is_active_for_org ? "Active" : "Inactive"}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(t.is_active_for_org)}
+                                disabled={isToggling}
+                                onChange={() => handleToggleActive(t)}
+                                className="sr-only peer"
+                              />
+                              <div className="relative w-8 h-4 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                          </div>
+
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                              {t.name}
+                            </h3>
+                            {t.description && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                                {t.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Layout Specs Badges */}
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
+                              {colsCount} columns
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium capitalize">
+                              {paper.pageSize || t.page_size || "A4"} {paper.orientation || t.orientation || "landscape"}
+                            </span>
+                            {t.table_config?.groupBy && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-medium">
+                                Grouped: {t.table_config.groupBy}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-1">
-                          {(item.supported_group_fields || []).slice(0, 3).map((gf) => (
-                            <span
-                              key={gf.key}
-                              className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium"
-                            >
-                              {gf.label}
-                            </span>
-                          ))}
-                          {(item.supported_group_fields?.length || 0) > 3 && (
-                            <span className="text-[10px] px-1.5 py-0.5 text-slate-400 font-medium">
-                              +{item.supported_group_fields.length - 3} more
-                            </span>
+
+                        {/* Card Action Buttons */}
+                        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => {
+                              if (matchedDataset) {
+                                handleOpenDatasetModal(matchedDataset);
+                              } else {
+                                toast.error("Base dataset catalog not found for this template.");
+                              }
+                            }}
+                            className="flex-1 py-1.5 px-3 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                          >
+                            <Play size={12} />
+                            Run Register
+                          </button>
+
+                          {canManageOperationalTemplate && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setActiveDatasetForDesigner(matchedDataset || datasetCatalog[0] || null);
+                                  setTabularTemplateToEdit(t);
+                                  setTabularDesignerOpen(true);
+                                }}
+                                className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                                title="Edit layout configuration"
+                              >
+                                <Edit3 size={15} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(t)}
+                                className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                                title="Delete custom template"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-                    {/* Action Button */}
-                    <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenDatasetModal(item)}
-                        className="flex-1 py-2 px-3 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
-                      >
-                        <Filter size={13} />
-                        Configure & Run Register
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       ) : (
@@ -766,6 +1000,24 @@ export default function ReportTemplatesPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── Operational Tabular Template Designer Modal ───────────────────── */}
+      {tabularDesignerOpen && (
+        <TabularTemplateDesignerModal
+          isOpen={tabularDesignerOpen}
+          onClose={() => {
+            setTabularDesignerOpen(false);
+            setTabularTemplateToEdit(null);
+          }}
+          catalogItem={activeDatasetForDesigner}
+          allDatasets={datasetCatalog}
+          templateToEdit={tabularTemplateToEdit}
+          onSaveSuccess={() => {
+            fetchTabularTemplates();
+            fetchDatasetCatalog();
+          }}
+        />
       )}
 
     </div>

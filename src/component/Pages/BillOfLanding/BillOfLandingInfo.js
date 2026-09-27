@@ -81,6 +81,14 @@ export default function BillOfLandingInfo() {
     ));
   }, [permissions, isRoot]);
 
+  const canPrintContainer = useMemo(() => {
+    return isRoot || (Array.isArray(permissions) && (
+      permissions.includes("Print_Container") ||
+      permissions.includes("View_Container") ||
+      permissions.includes("Administrator")
+    ));
+  }, [permissions, isRoot]);
+
   // ── Form State ─────────────────────────────────────────────────────────────
   const [formData, setFormData] = useState({
     billOfLadingNumber: "",
@@ -1515,14 +1523,16 @@ export default function BillOfLandingInfo() {
                         {/* Actions */}
                         <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setPrintContainer(row)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition cursor-pointer"
-                              title="Print Container Documents"
-                            >
-                              <Printer size={14} />
-                            </button>
+                            {canPrintContainer && (
+                              <button
+                                type="button"
+                                onClick={() => setPrintContainer(row)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                                title="Print Container Documents"
+                              >
+                                <Printer size={14} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleEdit(row)}

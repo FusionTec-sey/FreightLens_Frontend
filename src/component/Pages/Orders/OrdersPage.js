@@ -68,6 +68,7 @@ export default function OrdersPage() {
   const canAddRFQ = hasPermission("Add_RFQ") || hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
   const canAddPO = hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
   const canAddTemplate = hasPermission("Add_OrderTemplate") || hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
+  const canPrintPO = hasPermission("Print_PurchaseOrder") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
 
   const isAccountsOrAdmin = userInfo?.roles?.some((r) => {
     const lower = (r || "").toLowerCase();
@@ -589,7 +590,7 @@ export default function OrdersPage() {
             }}
             onDeleteOrder={(order) => setOrderToDelete(order)}
             onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
-            onPrintOrder={(order) => setPrintOrder(order)}
+            onPrintOrder={canPrintPO ? (order) => setPrintOrder(order) : undefined}
           />
         )}
 
