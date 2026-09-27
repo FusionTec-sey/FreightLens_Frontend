@@ -232,22 +232,7 @@ export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = 
 
               {/* Action Menu (⋮) & Quick Print */}
               <div className="flex items-center gap-1 relative">
-                {onPrintOrder && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPrintOrder(order);
-                    }}
-                    className={`p-1.5 rounded-lg transition ${isDark
-                        ? "hover:bg-slate-800 text-slate-400 hover:text-indigo-400"
-                        : "hover:bg-slate-100 text-slate-500 hover:text-indigo-600"
-                      }`}
-                    title="Print Document"
-                  >
-                    <Printer size={15} />
-                  </button>
-                )}
+
 
                 <button
                   type="button"

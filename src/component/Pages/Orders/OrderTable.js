@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Trash2, AlertTriangle, Building2, Package, GitCompare, Lock, History, Printer } from "lucide-react";
+import { Trash2, AlertTriangle, Building2, Package, GitCompare, Lock, History } from "lucide-react";
 import { STATUS_PIPELINE } from "./mockOrders";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -339,17 +339,7 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                     {/* Actions: Print & Soft Delete */}
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        {onPrintOrder && (
-                          <button
-                            type="button"
-                            onClick={() => onPrintOrder(o)}
-                            className="px-2.5 py-1 rounded-lg border text-xs font-semibold transition inline-flex items-center gap-1 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 shadow-2xs cursor-pointer"
-                            title="Print / Export PDF"
-                          >
-                            <Printer size={12} className="text-indigo-600 dark:text-indigo-400" />
-                            <span>Print</span>
-                          </button>
-                        )}
+
                         {canDelete && onDeleteOrder && (
                           <button
                             type="button"
@@ -463,17 +453,7 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                     <span className="truncate">{o.company || "Supplier TBD"}</span>
                   </div>
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {onPrintOrder && (
-                      <button
-                        type="button"
-                        onClick={() => onPrintOrder(o)}
-                        className="px-2.5 py-1 bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold rounded-lg hover:bg-indigo-600 hover:text-white transition flex items-center gap-1 cursor-pointer"
-                        title="Print / Export PDF"
-                      >
-                        <Printer size={12} />
-                        <span>Print</span>
-                      </button>
-                    )}
+
                     {canDelete && onDeleteOrder && (
                       <button
                         type="button"

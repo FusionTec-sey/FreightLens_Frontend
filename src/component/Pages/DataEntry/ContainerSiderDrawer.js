@@ -24,7 +24,8 @@ import {
   CheckCircle2,
   Loader2,
   FileCheck,
-  Mail
+  Mail,
+  Printer
 } from "lucide-react";
 
 import { useTheme } from "../../../context/ThemeContext";
@@ -34,6 +35,7 @@ import { useOptions } from "../../../hooks/useOptions";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput";
 import ContainerContextPanel from "./ContainerContextPanel";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { calculateDemurrage } from "../../../utils/DemurrageUtil";
 
 export default function ContainerSiderDrawer({
@@ -63,6 +65,7 @@ export default function ContainerSiderDrawer({
   const [activeTab, setActiveTab] = useState("container");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -175,6 +178,16 @@ export default function ContainerSiderDrawer({
       permissions.includes("Administrator")
     );
   }, [permissions]);
+
+  const canPrintContainer = Boolean(
+    isRoot ||
+    (Array.isArray(permissions) && (
+      permissions.includes("Print_Container") ||
+      permissions.includes("View_Container") ||
+      permissions.includes("Container") ||
+      permissions.includes("Administrator")
+    ))
+  );
 
   const canMail = useMemo(() => {
     return isRoot || (Array.isArray(permissions) && (
@@ -688,6 +701,22 @@ export default function ContainerSiderDrawer({
                 {demurrageBadge.isOverdue ? <AlertTriangle size={12} /> : <Clock size={12} />}
                 <span>{demurrageBadge.text}</span>
               </span>
+            )}
+
+            {canPrintContainer && (formData.container_id || formData.containerNo) && (
+              <button
+                type="button"
+                onClick={() => setIsPrintModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                  isDark
+                    ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20"
+                    : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                }`}
+                title="Print Container Document"
+              >
+                <Printer size={14} className="text-indigo-600 dark:text-indigo-400" />
+                <span>Print</span>
+              </button>
             )}
 
             <button
@@ -1424,6 +1453,18 @@ export default function ContainerSiderDrawer({
           </div>
         </div>
       </div>
+
+      {/* Contextual Entity Print Modal for Container */}
+      {isPrintModalOpen && (formData.container_id || formData.containerNo) && (
+        <EntityPrintModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          entityType="ContainerDetails"
+          entityId={formData.container_id || formData.containerNo}
+          entityIdentifier={formData.containerNo || "Container"}
+          title={`Print Container — ${formData.containerNo || ""}`}
+        />
+      )}
     </div>
   );
 }
