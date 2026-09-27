@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   FileText,
-  Printer,
   Edit3,
   Copy,
   Trash2,
@@ -24,7 +23,6 @@ import {
   Bookmark,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
-import ReportRenderModal from "./ReportRenderModal";
 import DatasetReportModal from "./DatasetReportModal";
 import DatasetReportView from "./DatasetReportView";
 import TabularTemplateDesignerModal from "./TabularTemplateDesignerModal";
@@ -61,9 +59,6 @@ export default function ReportTemplatesPage() {
   const [activeTab, setActiveTab] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Modal states for Document Templates
-  const [renderModalOpen, setRenderModalOpen] = useState(false);
-  const [activeTemplateForRender, setActiveTemplateForRender] = useState(null);
 
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [templateToClone, setTemplateToClone] = useState(null);
@@ -186,10 +181,6 @@ export default function ReportTemplatesPage() {
     }
   }, [mainHubTab, fetchDatasetCatalog, fetchTabularTemplates]);
 
-  const handleOpenRender = (template) => {
-    setActiveTemplateForRender(template);
-    setRenderModalOpen(true);
-  };
 
   const handleOpenCloneModal = (template) => {
     setTemplateToClone(template);
@@ -814,15 +805,6 @@ export default function ReportTemplatesPage() {
                           {/* Action Buttons */}
                           <td className="px-5 py-4 text-right">
                             <div className="inline-flex items-center gap-1">
-                              {/* Print / Render */}
-                              <button
-                                onClick={() => handleOpenRender(tmpl)}
-                                title="Render & Print"
-                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                              >
-                                <Printer size={15} />
-                              </button>
-
                               {/* AI Context Download */}
                               {canManage && (
                                 <button
@@ -907,14 +889,6 @@ export default function ReportTemplatesPage() {
         </>
       )}
 
-      {/* ── Render Modal (Document Templates) ────────────────────────────── */}
-      {renderModalOpen && activeTemplateForRender && (
-        <ReportRenderModal
-          template={activeTemplateForRender}
-          isOpen={renderModalOpen}
-          onClose={() => setRenderModalOpen(false)}
-        />
-      )}
 
       {/* ── Operational Dataset Query Modal ──────────────────────────────── */}
       {datasetModalOpen && activeDatasetForModal && (

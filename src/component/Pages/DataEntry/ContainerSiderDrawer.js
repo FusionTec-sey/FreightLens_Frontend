@@ -690,17 +690,6 @@ export default function ContainerSiderDrawer({
               </span>
             )}
 
-            {canMail && formData.containerNo && (
-              <button
-                type="button"
-                onClick={handleSendContainerEmail}
-                className="p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition cursor-pointer"
-                title="Send Container Notice Email"
-              >
-                <Mail size={16} />
-              </button>
-            )}
-
             <button
               type="button"
               onClick={onClose}

@@ -579,6 +579,7 @@ export default function OrdersPage() {
             }}
             onDeleteOrder={(order) => setOrderToDelete(order)}
             onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+            onPrintOrder={canPrintPO ? (order) => setPrintOrder(order) : undefined}
           />
         ) : (
           <OrderTable

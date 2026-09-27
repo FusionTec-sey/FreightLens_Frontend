@@ -8,11 +8,13 @@ import {
   Building2,
   List,
   LayoutGrid,
-  Send
+  Send,
+  Printer
 } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 
 const QUOTE_STAGES = [
   { code: "ALL", label: "All Bidding & Quotes" },
@@ -27,6 +29,7 @@ export default function VendorQuotesPage() {
   const { isDark } = useTheme();
   const { isRoot, permissions = [] } = useAuth();
   const canSendRFQ = isRoot || permissions.includes("Send_RFQ") || permissions.includes("Administrator");
+  const canPrint = isRoot || permissions.includes("Print_PurchaseOrder") || permissions.includes("View_Order") || permissions.includes("View_RFQ") || permissions.includes("Administrator");
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +37,7 @@ export default function VendorQuotesPage() {
   const [selectedStage, setSelectedStage] = useState("ALL");
   const [viewMode, setViewMode] = useState("table"); // "table" | "grid"
   const [sendingRfqId, setSendingRfqId] = useState(null);
+  const [printOrder, setPrintOrder] = useState(null);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -340,40 +344,53 @@ export default function VendorQuotesPage() {
                         {order.company || "Pending Vendor Bids"}
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        {stage === "CONFIRMED" ? (
-                          canSendRFQ ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {canPrint && (
                             <button
                               type="button"
-                              disabled={sendingRfqId === order.id}
-                              onClick={(e) => handleSendRFQ(order, e)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
-                              title="Dispatch / Send this RFQ to suppliers"
+                              onClick={() => setPrintOrder(order)}
+                              className="px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 shadow-2xs cursor-pointer"
+                              title="Print RFQ / Quote Specification"
                             >
-                              <Send size={13} className={sendingRfqId === order.id ? "animate-spin" : ""} />
-                              <span>{sendingRfqId === order.id ? "Sending..." : "Send RFQ to Vendors"}</span>
+                              <Printer size={13} className="text-indigo-600 dark:text-indigo-400" />
+                              <span>Print</span>
+                            </button>
+                          )}
+                          {stage === "CONFIRMED" ? (
+                            canSendRFQ ? (
+                              <button
+                                type="button"
+                                disabled={sendingRfqId === order.id}
+                                onClick={(e) => handleSendRFQ(order, e)}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+                                title="Dispatch / Send this RFQ to suppliers"
+                              >
+                                <Send size={13} className={sendingRfqId === order.id ? "animate-spin" : ""} />
+                                <span>{sendingRfqId === order.id ? "Sending..." : "Send RFQ to Vendors"}</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-amber-600 font-semibold italic">Ready to Send</span>
+                            )
+                          ) : stage === "QUOTE_APPROVED" ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
+                            >
+                              <Award size={13} />
+                              <span>View Awarded Quotes</span>
                             </button>
                           ) : (
-                            <span className="text-xs text-amber-600 font-semibold italic">Ready to Send</span>
-                          )
-                        ) : stage === "QUOTE_APPROVED" ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
-                          >
-                            <Award size={13} />
-                            <span>View Awarded Quotes</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
-                          >
-                            <GitCompare size={13} />
-                            <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
-                          </button>
-                        )}
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
+                            >
+                              <GitCompare size={13} />
+                              <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -414,42 +431,54 @@ export default function VendorQuotesPage() {
                     )}
                   </div>
                   <div
-                    className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end"
+                    className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {stage === "CONFIRMED" ? (
-                      canSendRFQ ? (
-                        <button
-                          type="button"
-                          disabled={sendingRfqId === order.id}
-                          onClick={(e) => handleSendRFQ(order, e)}
-                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        >
-                          <Send size={14} className={sendingRfqId === order.id ? "animate-spin" : ""} />
-                          <span>{sendingRfqId === order.id ? "Sending RFQ..." : "Send RFQ to Vendors"}</span>
-                        </button>
-                      ) : (
-                        <span className="text-xs text-amber-600 font-semibold italic">Ready to Dispatch</span>
-                      )
-                    ) : stage === "QUOTE_APPROVED" ? (
+                    {canPrint && (
                       <button
                         type="button"
-                        onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
+                        onClick={() => setPrintOrder(order)}
+                        className="p-2 rounded-xl border text-xs font-semibold transition bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 cursor-pointer shrink-0"
+                        title="Print RFQ / Quote Specification"
                       >
-                        <Award size={14} />
-                        <span>View Awarded Quotes</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                        className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
-                      >
-                        <GitCompare size={14} />
-                        <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
+                        <Printer size={14} className="text-indigo-600 dark:text-indigo-400" />
                       </button>
                     )}
+                    <div className="flex-1">
+                      {stage === "CONFIRMED" ? (
+                        canSendRFQ ? (
+                          <button
+                            type="button"
+                            disabled={sendingRfqId === order.id}
+                            onClick={(e) => handleSendRFQ(order, e)}
+                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            <Send size={14} className={sendingRfqId === order.id ? "animate-spin" : ""} />
+                            <span>{sendingRfqId === order.id ? "Sending RFQ..." : "Send RFQ to Vendors"}</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-amber-600 font-semibold italic text-center block">Ready to Dispatch</span>
+                        )
+                      ) : stage === "QUOTE_APPROVED" ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
+                        >
+                          <Award size={14} />
+                          <span>View Awarded Quotes</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                          className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
+                        >
+                          <GitCompare size={14} />
+                          <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -457,6 +486,18 @@ export default function VendorQuotesPage() {
           </div>
         )}
       </div>
+
+      {/* Contextual Print Modal for RFQ / Quotes */}
+      {printOrder && (
+        <EntityPrintModal
+          isOpen={Boolean(printOrder)}
+          onClose={() => setPrintOrder(null)}
+          entityType="PurchaseOrder"
+          entityId={printOrder.id}
+          entityIdentifier={printOrder.po_number || "RFQ"}
+          title={`Print RFQ / Quote Specification — ${printOrder.po_number || ""}`}
+        />
+      )}
     </div>
   );
 }

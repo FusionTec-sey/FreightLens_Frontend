@@ -33,11 +33,13 @@ import {
   Check,
   ArrowRight,
   Award,
-  Paperclip
+  Paperclip,
+  Printer
 } from "lucide-react";
 import { STATUS_PIPELINE } from "./mockOrders";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { useOptions } from "../../../hooks/useOptions";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import ProductCatalogSelector from "../../UI/UXComponent/ProductCatalogSelector";
@@ -212,6 +214,17 @@ export default function OrderEntryPage({
     permissions.includes("Administrator") ||
     isAccountsOrAdmin
   );
+
+  const canPrintPO = Boolean(
+    isRoot ||
+    permissions.includes("Print_PurchaseOrder") ||
+    permissions.includes("View_Order") ||
+    permissions.includes("View_RFQ") ||
+    permissions.includes("Administrator") ||
+    permissions.includes("admin")
+  );
+
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   const activeStages = useMemo(() => {
     if (contextOrderStatuses && contextOrderStatuses.length > 0) {
@@ -1699,6 +1712,21 @@ export default function OrderEntryPage({
               </button>
             )}
 
+            {isEdit && (orderId || formData.id) && canPrintPO && (
+              <button
+                type="button"
+                onClick={() => setIsPrintModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${isDark
+                    ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20"
+                    : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                  }`}
+                title={`Print / Export ${formData.doc_type === "RFQ" ? "RFQ Requisition" : "Purchase Order"} document`}
+              >
+                <Printer className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Print</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleBack}
@@ -2801,6 +2829,18 @@ export default function OrderEntryPage({
             />
           </div>
         </div>
+      )}
+
+      {/* ── CONTEXTUAL ENTITY PRINT MODAL ───────────────────────── */}
+      {isPrintModalOpen && (orderId || formData.id) && (
+        <EntityPrintModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          entityType="PurchaseOrder"
+          entityId={orderId || formData.id}
+          entityIdentifier={formData.po_number || "PO"}
+          title={`Print ${formData.doc_type === "RFQ" ? "Sourcing RFQ" : "Purchase Order"} — ${formData.po_number || ""}`}
+        />
       )}
     </div>
   );

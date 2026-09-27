@@ -404,16 +404,6 @@ export default function BillOfLanding() {
                     {/* Actions */}
                     <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        {canPrintBL && (
-                          <button
-                            type="button"
-                            onClick={() => setPrintBol(row)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition cursor-pointer"
-                            title="Print Documents"
-                          >
-                            <Printer size={14} />
-                          </button>
-                        )}
                         <button
                           type="button"
                           onClick={() => handleEdit(row)}

@@ -10,7 +10,8 @@ import {
   Edit3,
   Trash2,
   Lock,
-  GitCompare
+  GitCompare,
+  Printer
 } from "lucide-react";
 import { STATUS_PIPELINE } from "./mockOrders";
 import { useTheme } from "../../../context/ThemeContext";
@@ -34,7 +35,7 @@ function getUserInfo() {
   }
 }
 
-export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = "orders", onStatusChange, onEditOrder, onDeleteOrder, onOpenVersionHistory }) {
+export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = "orders", onStatusChange, onEditOrder, onDeleteOrder, onOpenVersionHistory, onPrintOrder }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { isRoot, permissions = [] } = useAuth();
@@ -229,8 +230,25 @@ export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = 
                 </div>
               </div>
 
-              {/* Action Menu (⋮) */}
-              <div className="relative">
+              {/* Action Menu (⋮) & Quick Print */}
+              <div className="flex items-center gap-1 relative">
+                {onPrintOrder && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPrintOrder(order);
+                    }}
+                    className={`p-1.5 rounded-lg transition ${isDark
+                        ? "hover:bg-slate-800 text-slate-400 hover:text-indigo-400"
+                        : "hover:bg-slate-100 text-slate-500 hover:text-indigo-600"
+                      }`}
+                    title="Print Document"
+                  >
+                    <Printer size={15} />
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={(e) => toggleMenu(order.id, e)}
@@ -252,6 +270,20 @@ export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = 
                         : "bg-white border-slate-200 text-slate-800"
                       }`}
                   >
+                    {onPrintOrder && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMenuId(null);
+                          onPrintOrder(order);
+                        }}
+                        className={`w-full text-left px-3 py-2 flex items-center gap-2 text-indigo-600 dark:text-indigo-400 transition ${isDark ? "hover:bg-slate-800" : "hover:bg-slate-50"
+                          }`}
+                      >
+                        <Printer size={13} />
+                        <span>Print Document</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {

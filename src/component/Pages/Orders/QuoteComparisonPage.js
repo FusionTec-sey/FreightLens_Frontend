@@ -28,7 +28,8 @@ import {
   ShieldAlert,
   Send,
   Paperclip,
-  Download
+  Download,
+  Printer
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -37,6 +38,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { ordersApi } from "../../../services/ordersApi";
 import { useOptions } from "../../../hooks/useOptions";
 import VendorQuoteEntryModal from "./VendorQuoteEntryModal";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 
 const downloadBlob = (blob, name) => {
   const url = URL.createObjectURL(blob);
@@ -104,6 +106,18 @@ export default function QuoteComparisonPage() {
     })
   );
 
+  const canPrint = Boolean(
+    isRoot ||
+    permissions.includes("Print_PurchaseOrder") ||
+    permissions.includes("View_PurchaseOrder") ||
+    permissions.includes("View_VendorQuote") ||
+    permissions.includes("Compare_Quote") ||
+    userInfo?.roles?.some((r) => {
+      const lower = (r || "").toLowerCase();
+      return lower.includes("admin") || lower.includes("procurement") || lower.includes("buyer");
+    })
+  );
+
   const [comparisonData, setComparisonData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sendingRfq, setSendingRfq] = useState(false);
@@ -120,6 +134,7 @@ export default function QuoteComparisonPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [showRevokeConfirmModal, setShowRevokeConfirmModal] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const handleDeleteQuote = async (quote) => {
     if (!quote) return;
@@ -580,6 +595,18 @@ export default function QuoteComparisonPage() {
               >
                 <Send size={14} className={sendingRfq ? "animate-spin" : ""} />
                 <span>{sendingRfq ? "Sending RFQ..." : "Send RFQ to Vendors"}</span>
+              </button>
+            )}
+
+            {canPrint && (
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 transition shadow-xs"
+                title="Print RFQ / Quote Comparison Document"
+              >
+                <Printer size={14} className="text-slate-500" />
+                <span>Print RFQ</span>
               </button>
             )}
 
@@ -1612,6 +1639,17 @@ export default function QuoteComparisonPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Entity Print Modal */}
+      {showPrintModal && (
+        <EntityPrintModal
+          isOpen={showPrintModal}
+          onClose={() => setShowPrintModal(false)}
+          entityType="PurchaseOrder"
+          entityId={orderId}
+          entityNumber={poInfo ? (poInfo.po_number || `RFQ #${orderId}`) : `#${orderId}`}
+        />
       )}
     </div>
   );

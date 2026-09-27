@@ -462,17 +462,29 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                     <Building2 size={13} className="text-slate-500 flex-shrink-0" />
                     <span className="truncate">{o.company || "Supplier TBD"}</span>
                   </div>
-                  {canDelete && onDeleteOrder && (
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {onPrintOrder && (
                       <button
+                        type="button"
+                        onClick={() => onPrintOrder(o)}
+                        className="px-2.5 py-1 bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold rounded-lg hover:bg-indigo-600 hover:text-white transition flex items-center gap-1 cursor-pointer"
+                        title="Print / Export PDF"
+                      >
+                        <Printer size={12} />
+                        <span>Print</span>
+                      </button>
+                    )}
+                    {canDelete && onDeleteOrder && (
+                      <button
+                        type="button"
                         onClick={() => onDeleteOrder(o)}
                         className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 text-[11px] font-semibold rounded-lg hover:bg-rose-600 hover:text-white transition flex items-center gap-1"
                       >
                         <Trash2 size={12} />
                         <span>Delete</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <div

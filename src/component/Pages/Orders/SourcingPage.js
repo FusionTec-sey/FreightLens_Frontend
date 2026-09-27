@@ -18,6 +18,7 @@ import OrderTable from "./OrderTable";
 import TemplatePickerModal from "./TemplatePickerModal";
 import POVersionHistoryDrawer from "./POVersionHistoryDrawer";
 import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 
@@ -40,6 +41,7 @@ export default function SourcingPage() {
   const canAddRFQ = hasPermission("Add_RFQ") || hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
   const canViewTemplates = hasPermission("View_OrderTemplate") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
   const canDeleteRFQ = hasPermission("Delete_RFQ") || hasPermission("Delete_Order") || isRoot || permissions.includes("Administrator");
+  const canPrintRFQ = hasPermission("Print_PurchaseOrder") || hasPermission("View_Order") || hasPermission("View_RFQ") || isRoot || permissions.includes("Administrator");
 
   const urlLifecycle = searchParams.get("lifecycle");
 
@@ -53,6 +55,7 @@ export default function SourcingPage() {
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState(null);
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [printOrder, setPrintOrder] = useState(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -428,6 +431,7 @@ export default function SourcingPage() {
               onEditOrder={handleEditOrder}
               onDeleteOrder={canDeleteRFQ ? (order) => setOrderToDelete(order) : undefined}
               onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+              onPrintOrder={canPrintRFQ ? (order) => setPrintOrder(order) : undefined}
             />
           ) : (
             <OrderCardGrid
@@ -439,6 +443,7 @@ export default function SourcingPage() {
               onStatusChange={handleStatusChange}
               onDeleteOrder={canDeleteRFQ ? (order) => setOrderToDelete(order) : undefined}
               onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+              onPrintOrder={canPrintRFQ ? (order) => setPrintOrder(order) : undefined}
             />
           )}
         </div>
@@ -541,6 +546,18 @@ export default function SourcingPage() {
         poId={selectedHistoryOrder?.id}
         poNumber={selectedHistoryOrder?.po_number}
       />
+
+      {/* Contextual Print Modal for Sourcing RFQ */}
+      {printOrder && (
+        <EntityPrintModal
+          isOpen={Boolean(printOrder)}
+          onClose={() => setPrintOrder(null)}
+          entityType="PurchaseOrder"
+          entityId={printOrder.id}
+          entityIdentifier={printOrder.po_number || printOrder.rfq_number || "RFQ"}
+          title={`Print Sourcing RFQ — ${printOrder.po_number || ""}`}
+        />
+      )}
     </div>
   );
 }
