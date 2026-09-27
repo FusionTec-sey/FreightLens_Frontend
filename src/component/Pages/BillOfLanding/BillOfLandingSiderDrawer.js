@@ -112,6 +112,7 @@ export default function BillOfLandingSiderDrawer({
         permissions.includes("View_BL") ||
         permissions.includes("BillOfLanding") ||
         permissions.includes("Administrator") ||
+        permissions.includes("Super_Admin") ||
         permissions.includes("admin")
       ))
     );

@@ -99,6 +99,7 @@ import React, {
   useEffect,
   useCallback,
   useRef,
+  useMemo,
 } from "react";
 import axios from "axios";
 
@@ -292,6 +293,12 @@ export const AuthProvider = ({ children }) => {
           setRefreshToken(newRefreshToken);
         }
 
+        const newPermissions = resp?.data?.permissions || null;
+        if (Array.isArray(newPermissions)) {
+          localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(newPermissions));
+          setPermissions(newPermissions);
+        }
+
         scheduleRefresh(newAccessToken);
         return newAccessToken;
       } catch (err) {
@@ -428,13 +435,59 @@ export const AuthProvider = ({ children }) => {
     };
   }, [refreshAccessToken, selectedOrgId]);
 
+  const roles = useMemo(() => {
+    const tok = token || localStorage.getItem(ACCESS_TOKEN_KEY);
+    const payload = decodeJwt(tok);
+    return payload?.roles || [];
+  }, [token]);
+
+  const isSuperAdmin = useMemo(() => {
+    return Boolean(
+      isRoot ||
+      roles.some((r) => {
+        const lower = String(r).toLowerCase();
+        return lower === "super_admin" || lower === "administrator" || lower === "admin";
+      })
+    );
+  }, [isRoot, roles]);
+
+  const effectivePermissions = useMemo(() => {
+    const list = Array.isArray(permissions) ? [...permissions] : [];
+    roles.forEach((r) => {
+      if (!list.includes(r)) list.push(r);
+    });
+    if (isSuperAdmin) {
+      const adminPerms = [
+        "Administrator",
+        "admin",
+        "Super_Admin",
+        "Print_PurchaseOrder",
+        "Print_BillOfLanding",
+        "Print_Container",
+        "View_Order",
+        "View_RFQ",
+        "View_BL",
+        "View_Container",
+        "View_VendorQuote",
+        "Compare_Quote"
+      ];
+      adminPerms.forEach((p) => {
+        if (!list.includes(p)) list.push(p);
+      });
+    }
+    return list;
+  }, [permissions, roles, isSuperAdmin]);
+
   const value = {
     token,
     refreshAccessToken,
     login,
     logout,
-    permissions,
+    permissions: effectivePermissions,
+    rawPermissions: permissions,
     user,
+    roles,
+    isSuperAdmin,
     orgId,
     orgName,
     selectedOrgId,

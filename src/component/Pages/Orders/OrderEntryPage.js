@@ -221,7 +221,9 @@ export default function OrderEntryPage({
     permissions.includes("View_Order") ||
     permissions.includes("View_RFQ") ||
     permissions.includes("Administrator") ||
-    permissions.includes("admin")
+    permissions.includes("Super_Admin") ||
+    permissions.includes("admin") ||
+    isAccountsOrAdmin
   );
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);

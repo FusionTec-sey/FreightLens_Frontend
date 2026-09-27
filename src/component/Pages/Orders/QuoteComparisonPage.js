@@ -112,6 +112,9 @@ export default function QuoteComparisonPage() {
     permissions.includes("View_PurchaseOrder") ||
     permissions.includes("View_VendorQuote") ||
     permissions.includes("Compare_Quote") ||
+    permissions.includes("Administrator") ||
+    permissions.includes("Super_Admin") ||
+    permissions.includes("admin") ||
     userInfo?.roles?.some((r) => {
       const lower = (r || "").toLowerCase();
       return lower.includes("admin") || lower.includes("procurement") || lower.includes("buyer");

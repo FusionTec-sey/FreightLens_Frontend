@@ -24,7 +24,6 @@ import {
   CheckCircle2,
   Loader2,
   FileCheck,
-  Mail,
   Printer
 } from "lucide-react";
 
@@ -185,18 +184,11 @@ export default function ContainerSiderDrawer({
       permissions.includes("Print_Container") ||
       permissions.includes("View_Container") ||
       permissions.includes("Container") ||
-      permissions.includes("Administrator")
+      permissions.includes("Administrator") ||
+      permissions.includes("Super_Admin") ||
+      permissions.includes("admin")
     ))
   );
-
-  const canMail = useMemo(() => {
-    return isRoot || (Array.isArray(permissions) && (
-      permissions.includes("Mail_Container") ||
-      permissions.includes("Mail") ||
-      permissions.includes("Container") ||
-      permissions.includes("Administrator")
-    ));
-  }, [permissions, isRoot]);
 
   const isEditMode = !!container;
 
@@ -423,26 +415,7 @@ export default function ContainerSiderDrawer({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSendContainerEmail = () => {
-    const cNo = formData.containerNo || "Container";
-    const statusObj = (statusOptions || []).find(s => String(s.id) === String(formData.status));
-    const statusName = statusObj?.name || "In Transit";
-    const subject = `Container Status Notice: ${cNo}`;
-    const body = `Dear Team,\n\nPlease see the operational status details for container ${cNo}:\n\n` +
-      `- Container Number: ${cNo}\n` +
-      `- Ocean B/L: ${formData.BillOfLanding || "N/A"}\n` +
-      `- Milestone Status: ${statusName}\n` +
-      `- Port Arrival: ${formData.arrival_on_port || "N/A"}\n` +
-      `- Demurrage / Free Days: ${demurrageBadge?.text || `${formData.freeDays || formData.blFreeDays || 10} Free Days`}\n` +
-      `- In-Bound Date: ${formData.in_bound || "N/A"}\n` +
-      `- Empty Date: ${formData.empty_date || "N/A"}\n` +
-      (formData.note ? `- Notes: ${formData.note}\n` : "") +
-      `\nBest regards,\nLogistics Operations`;
 
-    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
-    toast.info(`Drafted email notice for container ${cNo}.`);
-  };
 
   // ── Document and Image Pickers ─────────────────────────────────────────────
   const handleAddDocumentFile = (e) => {
