@@ -16,7 +16,8 @@ import {
   X,
   FileText,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Printer
 } from 'lucide-react';
 
 import { useAuth } from '../../../context/AuthContext';
@@ -25,6 +26,7 @@ import { useConfirm } from '../../../context/ConfirmContext';
 import { formatDateTime12hr } from '../../../utils/DateFormater';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import BillOfLandingSiderDrawer from './BillOfLandingSiderDrawer';
+import EntityPrintModal from '../ReportTemplates/EntityPrintModal';
 
 export default function BillOfLanding() {
   const navigate = useNavigate();
@@ -48,6 +50,7 @@ export default function BillOfLanding() {
   // Drawer State
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedBL, setSelectedBL] = useState(null);
+  const [printBol, setPrintBol] = useState(null);
 
   const canAdd = permissions.includes("Add_BillOfLanding") || permissions.includes("BillOfLanding") || permissions.includes("View_BL") || isRoot || permissions.includes("Administrator");
   const canDelete = permissions.includes("Delete_BillOfLanding") || permissions.includes("BillOfLanding") || isRoot || permissions.includes("Administrator");
@@ -402,6 +405,14 @@ export default function BillOfLanding() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
+                          onClick={() => setPrintBol(row)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                          title="Print Documents"
+                        >
+                          <Printer size={14} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleEdit(row)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition"
                           title="Edit Bill of Lading"
@@ -451,6 +462,18 @@ export default function BillOfLanding() {
         onSubmitSuccess={handleDrawerSuccess}
         onDelete={handleDelete}
       />
+
+      {/* ── Contextual Print Modal ─────────────────────────────────────────── */}
+      {printBol && (
+        <EntityPrintModal
+          isOpen={Boolean(printBol)}
+          onClose={() => setPrintBol(null)}
+          entityType="BillOfLanding"
+          entityId={printBol.id || printBol.BillOfLanding_ID || printBol.BillOfLanding}
+          entityIdentifier={printBol.BillOfLanding}
+          title={`Print Bill of Lading — ${printBol.BillOfLanding || ""}`}
+        />
+      )}
     </div>
   );
 }

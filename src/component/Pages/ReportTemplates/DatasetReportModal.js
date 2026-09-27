@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
@@ -15,6 +15,8 @@ import {
   Loader2,
   Filter,
   Search,
+  Save,
+  Bookmark,
 } from "lucide-react";
 
 export default function DatasetReportModal({
@@ -61,6 +63,149 @@ export default function DatasetReportModal({
   const [pageBreakPerGroup, setPageBreakPerGroup] = useState(false);
   const [avoidRowSplit, setAvoidRowSplit] = useState(true);
   const [sheetPerGroup, setSheetPerGroup] = useState(true);
+
+  // Tabular Report Layout Templates State
+  const [savedTemplates, setSavedTemplates] = useState([]);
+  const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState("default");
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDescription, setTemplateDescription] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Fetch saved tabular templates for this dataset resolver
+  const fetchSavedTemplates = useCallback(async () => {
+    if (!catalogItem?.key) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/reports/templates/by-entity?entity_type=${catalogItem.key}&template_type=OPERATIONAL_TABULAR`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSavedTemplates(res.data || []);
+    } catch (err) {
+      console.warn("Failed to load saved tabular templates:", err);
+    }
+  }, [catalogItem?.key]);
+
+  useEffect(() => {
+    if (isOpen && catalogItem?.key) {
+      fetchSavedTemplates();
+    }
+  }, [isOpen, catalogItem?.key, fetchSavedTemplates]);
+
+  // Handle selecting a saved template
+  const handleSelectTemplate = (templateId) => {
+    setSelectedSavedTemplateId(templateId);
+    if (templateId === "default") {
+      if (catalogItem?.supported_group_fields?.length > 0) {
+        setGroupBy(catalogItem.supported_group_fields[0].key);
+      } else {
+        setGroupBy("none");
+      }
+      if (catalogItem?.supported_sort_fields?.length > 0) {
+        setSortBy(catalogItem.supported_sort_fields[0].key);
+      }
+      setSortOrder("desc");
+      setPageSize(catalogItem?.default_page_size || "A4");
+      setOrientation(catalogItem?.default_orientation || "landscape");
+      setMarginPreset("normal");
+      setRepeatHeaderOnBreak(true);
+      setPageBreakPerGroup(false);
+      setSheetPerGroup(true);
+      return;
+    }
+
+    const tmpl = savedTemplates.find((t) => t.id === Number(templateId));
+    if (!tmpl) return;
+
+    if (tmpl.table_config) {
+      if (tmpl.table_config.groupBy) setGroupBy(tmpl.table_config.groupBy);
+      if (tmpl.table_config.sortBy) setSortBy(tmpl.table_config.sortBy);
+      if (tmpl.table_config.sortOrder) setSortOrder(tmpl.table_config.sortOrder);
+      if (tmpl.table_config.datePreset) applyDatePreset(tmpl.table_config.datePreset);
+      if (tmpl.table_config.selectedSuppliers) setSelectedSuppliers(tmpl.table_config.selectedSuppliers);
+      if (tmpl.table_config.selectedVessels) setSelectedVessels(tmpl.table_config.selectedVessels);
+      if (tmpl.table_config.selectedVenues) setSelectedVenues(tmpl.table_config.selectedVenues);
+      if (tmpl.table_config.searchTerm) setSearchTerm(tmpl.table_config.searchTerm);
+    }
+
+    if (tmpl.paper_settings) {
+      if (tmpl.paper_settings.pageSize) setPageSize(tmpl.paper_settings.pageSize);
+      if (tmpl.paper_settings.orientation) setOrientation(tmpl.paper_settings.orientation);
+      if (tmpl.paper_settings.marginPreset) setMarginPreset(tmpl.paper_settings.marginPreset);
+      if (tmpl.paper_settings.repeatHeaderOnBreak !== undefined)
+        setRepeatHeaderOnBreak(tmpl.paper_settings.repeatHeaderOnBreak);
+      if (tmpl.paper_settings.pageBreakPerGroup !== undefined)
+        setPageBreakPerGroup(tmpl.paper_settings.pageBreakPerGroup);
+      if (tmpl.paper_settings.sheetPerGroup !== undefined)
+        setSheetPerGroup(tmpl.paper_settings.sheetPerGroup);
+    }
+
+    toast.info(`Applied layout template '${tmpl.name}'`);
+  };
+
+  // Handle saving the current configuration as a template
+  const handleSaveAsTemplate = async (e) => {
+    e.preventDefault();
+    if (!templateName.trim()) {
+      toast.error("Template name is required.");
+      return;
+    }
+    setSavingTemplate(true);
+    try {
+      const token = localStorage.getItem("token");
+      const slug = `${catalogItem.key}_${templateName.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 25)}_${Date.now() % 10000}`;
+      const payload = {
+        name: templateName.trim(),
+        slug,
+        description: templateDescription.trim() || `Custom layout for ${catalogItem.name}`,
+        category: catalogItem.category,
+        resolver_key: catalogItem.key,
+        entity_type: catalogItem.key,
+        template_type: "OPERATIONAL_TABULAR",
+        page_size: pageSize,
+        orientation: orientation,
+        is_active: true,
+        table_config: {
+          groupBy,
+          sortBy,
+          sortOrder,
+          datePreset,
+          selectedSuppliers,
+          selectedVessels,
+          selectedVenues,
+          searchTerm,
+        },
+        paper_settings: {
+          pageSize,
+          orientation,
+          marginPreset,
+          repeatHeaderOnBreak,
+          pageBreakPerGroup,
+          avoidRowSplit,
+          sheetPerGroup,
+        },
+      };
+
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/reports/templates`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.success(`Template '${res.data.name}' saved to Template Library!`);
+      setShowSaveTemplateModal(false);
+      setTemplateName("");
+      setTemplateDescription("");
+      await fetchSavedTemplates();
+      setSelectedSavedTemplateId(res.data.id);
+    } catch (err) {
+      console.error("Save template failed:", err);
+      toast.error(err.response?.data?.detail || "Failed to save template.");
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   // Initialize dates based on preset
   useEffect(() => {
@@ -326,6 +471,42 @@ export default function DatasetReportModal({
           <p className="text-xs text-gray-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
             {catalogItem.description}
           </p>
+
+          {/* Template Layout Preset Selector Bar */}
+          <div className="bg-gradient-to-r from-indigo-50/80 to-slate-50 border border-indigo-200/80 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600">
+                <Bookmark className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-800">Saved Layout Template:</span>
+                <p className="text-[11px] text-slate-500">Apply or save customized column, grouping & paper setup</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={selectedSavedTemplateId}
+                onChange={(e) => handleSelectTemplate(e.target.value)}
+                className="text-xs font-medium py-1.5 px-3 bg-white border border-indigo-200 rounded-lg text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+              >
+                <option value="default">Default Standard Layout</option>
+                {savedTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.is_system ? "(System)" : "(Custom)"}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowSaveTemplateModal(true)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                title="Save current settings as a reusable template layout"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save Layout</span>
+              </button>
+            </div>
+          </div>
 
           {/* Section 1: Date Range & Quick Presets */}
           <div className="space-y-3">
@@ -692,6 +873,84 @@ export default function DatasetReportModal({
         </div>
 
       </div>
+
+      {/* Save Template Modal Dialog */}
+      {showSaveTemplateModal && (
+        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-100">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div className="px-5 py-4 bg-indigo-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bookmark className="w-4 h-4 text-indigo-300" />
+                <h3 className="text-sm font-bold">Save as Tabular Layout Template</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSaveTemplateModal(false)}
+                className="text-indigo-300 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAsTemplate} className="p-5 space-y-4 text-xs">
+              <p className="text-slate-600">
+                Saves the current column configuration, filters, grouping level, and paper geometry settings into your organization's template library.
+              </p>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Template Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Weekly Demurrage Summary by Port"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Notes on usage or intended operational audience..."
+                  value={templateDescription}
+                  onChange={(e) => setTemplateDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1 text-[11px] text-slate-600">
+                <div><strong>Group By:</strong> {groupBy}</div>
+                <div><strong>Sort By:</strong> {sortBy || "Default"} ({sortOrder})</div>
+                <div><strong>Paper:</strong> {pageSize} • {orientation}</div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSaveTemplateModal(false)}
+                  className="px-3.5 py-1.5 font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingTemplate}
+                  className="px-4 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  {savingTemplate ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>Save Template</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

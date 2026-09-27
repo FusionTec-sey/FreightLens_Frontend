@@ -22,11 +22,13 @@ import {
   Building,
   FilterX,
   Pencil,
-  FileText
+  FileText,
+  Printer
 } from 'lucide-react';
 
 import ContainerEntryForm from './EditContainerInfo';
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
+import EntityPrintModal from '../ReportTemplates/EntityPrintModal';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useConfirm } from '../../../context/ConfirmContext';
@@ -119,6 +121,7 @@ export default function BillOfLandingInfo() {
   const [isAddMode, setIsAddMode] = useState(false);
   const [editingContainer, setEditingContainer] = useState(null);
   const [pendingEditIndex, setPendingEditIndex] = useState(-1);
+  const [printContainer, setPrintContainer] = useState(null);
 
   // ── Free Days & Status Lock Detection ──────────────────────────────────────
   // Check if any containers have custom FreeDays that differ from BoL defaults
@@ -1514,6 +1517,14 @@ export default function BillOfLandingInfo() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
+                              onClick={() => setPrintContainer(row)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                              title="Print Container Documents"
+                            >
+                              <Printer size={14} />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => handleEdit(row)}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition"
                               title="Edit Container"
@@ -1643,6 +1654,31 @@ export default function BillOfLandingInfo() {
             />
           </div>
         </div>
+      )}
+
+      {/* ── Contextual Print Modal for Container ─────────────────────────── */}
+      {printContainer && (
+        <EntityPrintModal
+          isOpen={Boolean(printContainer)}
+          onClose={() => setPrintContainer(null)}
+          entityType="ContainerDetails"
+          entityId={
+            printContainer.Container_ID ||
+            printContainer.id ||
+            printContainer.container_id ||
+            printContainer.rawData?.Container_ID ||
+            printContainer.rawData?.id
+          }
+          entityIdentifier={
+            printContainer.container_no ||
+            printContainer.containerNo ||
+            printContainer.rawData?.container_no ||
+            ""
+          }
+          title={`Print Container — ${
+            printContainer.container_no || printContainer.containerNo || ""
+          }`}
+        />
       )}
     </div>
   );

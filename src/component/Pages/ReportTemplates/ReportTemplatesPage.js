@@ -81,6 +81,8 @@ export default function ReportTemplatesPage() {
   const hasOrders = hasModule ? hasModule("ORDERS") : true;
   const hasLogistics = hasModule ? hasModule("LOGISTICS") : true;
 
+  const [togglingId, setTogglingId] = useState(null);
+
   const tabs = [
     { id: "ALL", label: "All Templates" },
     ...(hasOrders ? [{ id: "ORDERS", label: "Orders & Procurement" }] : []),
@@ -232,6 +234,33 @@ export default function ReportTemplatesPage() {
     setActiveDatasetResult(result);
     setActiveQuerySpec(spec);
     setDatasetViewOpen(true);
+  };
+
+  const handleToggleActive = async (template) => {
+    setTogglingId(template.id);
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/reports/templates/${template.id}/toggle-active`,
+        {},
+        { headers: getHeaders() }
+      );
+      const newStatus = Boolean(res.data?.is_active_for_org);
+      setTemplates((prev) =>
+        prev.map((t) =>
+          t.id === template.id ? { ...t, is_active_for_org: newStatus } : t
+        )
+      );
+      if (newStatus) {
+        toast.success(`Template '${template.name}' activated for your organization's print menus.`);
+      } else {
+        toast.info(`Template '${template.name}' deactivated. It will no longer appear in print menus.`);
+      }
+    } catch (err) {
+      console.error("Toggle active failed:", err);
+      toast.error(err.response?.data?.detail || "Failed to toggle template activation status.");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   return (
@@ -451,6 +480,7 @@ export default function ReportTemplatesPage() {
                         <th className="px-4 py-3.5">Resolver & Entity</th>
                         <th className="px-4 py-3.5">Page Setup</th>
                         <th className="px-4 py-3.5">Type & Version</th>
+                        <th className="px-4 py-3.5 text-center">Print Menu Status</th>
                         <th className="px-5 py-3.5 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -515,6 +545,36 @@ export default function ReportTemplatesPage() {
                                 v{tmpl.active_version || 1}
                               </span>
                             </div>
+                          </td>
+
+                          {/* Print Menu Activation Status */}
+                          <td className="px-4 py-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleActive(tmpl)}
+                              disabled={togglingId === tmpl.id}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer ${
+                                tmpl.is_active_for_org
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
+                                  : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200"
+                              }`}
+                              title={
+                                tmpl.is_active_for_org
+                                  ? "Active in entity print menus. Click to deactivate."
+                                  : "Inactive in entity print menus. Click to activate."
+                              }
+                            >
+                              {togglingId === tmpl.id ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <span
+                                  className={`w-2 h-2 rounded-full ${
+                                    tmpl.is_active_for_org ? "bg-emerald-500" : "bg-slate-400"
+                                  }`}
+                                />
+                              )}
+                              <span>{tmpl.is_active_for_org ? "Active in Org" : "Inactive"}</span>
+                            </button>
                           </td>
 
                           {/* Action Buttons */}

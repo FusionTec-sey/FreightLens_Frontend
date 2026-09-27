@@ -22,7 +22,7 @@ import OrderForm from "./OrderForm";
 import OrderTemplatesPage from "./OrderTemplatesPage";
 import TemplatePickerModal from "./TemplatePickerModal";
 import POVersionHistoryDrawer from "./POVersionHistoryDrawer";
-import ReportRenderModal from "../ReportTemplates/ReportRenderModal";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -709,13 +709,15 @@ export default function OrdersPage() {
         poNumber={selectedHistoryOrder?.po_number}
       />
 
-      {/* REPORT & PRINT MODAL */}
+      {/* CONTEXTUAL ENTITY PRINT MODAL */}
       {printOrder && (
-        <ReportRenderModal
+        <EntityPrintModal
           isOpen={Boolean(printOrder)}
           onClose={() => setPrintOrder(null)}
-          resolverKey="purchase_order"
+          entityType="PurchaseOrder"
           entityId={printOrder.id}
+          entityIdentifier={printOrder.po_number}
+          title={`Print Purchase Order — ${printOrder.po_number || ""}`}
         />
       )}
     </div>
