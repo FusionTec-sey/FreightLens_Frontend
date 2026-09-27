@@ -45,11 +45,12 @@ export default function BillOfLandingInfo() {
   const { permissions, isRoot } = useAuth();
   const navigate = useNavigate();
 
-  const { Id } = useParams();
-  const decodedId = Id ? decodeURIComponent(Id) : "new";
-
   const location = useLocation();
   const editData = location.state?.data;
+  const { Id } = useParams();
+  const decodedId = Id
+    ? decodeURIComponent(Id)
+    : (editData?.BillOfLanding || location.state?.billOfLandingId || "");
 
   const {
     suppliers,
@@ -906,12 +907,15 @@ export default function BillOfLandingInfo() {
   };
 
   const handleDeleteBl = async () => {
-    const isConfirmed = await confirm(`Permanently delete Bill of Lading "${formData.billOfLadingNumber || decodedId}"? All container linkages will be affected.`);
+    const targetDeleteId = (decodedId && decodedId !== "new" && decodedId !== "undefined") ? decodedId : formData.billOfLadingNumber;
+    if (!targetDeleteId) return;
+
+    const isConfirmed = await confirm(`Permanently delete Bill of Lading "${targetDeleteId}"? All container linkages will be affected.`);
     if (!isConfirmed) return;
     
     try {
       await axios.delete(
-        `${process.env.REACT_APP_NETWORK}/bills-of-lading/${decodedId}`,
+        `${process.env.REACT_APP_NETWORK}/bills-of-lading/${targetDeleteId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -972,7 +976,9 @@ export default function BillOfLandingInfo() {
               </span>
               <span className="text-slate-300 dark:text-slate-700">•</span>
               <span className="text-xs text-slate-500 font-mono font-semibold">
-                {decodedId !== "new" && decodedId !== "undefined" ? `B/L #${formData.billOfLadingNumber || decodedId}` : "New Ocean B/L"}
+                {formData.billOfLadingNumber || (decodedId && decodedId !== "new" && decodedId !== "undefined")
+                  ? `B/L #${formData.billOfLadingNumber || decodedId}`
+                  : "New Ocean B/L"}
               </span>
               {hasUnsavedChanges && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
@@ -987,7 +993,7 @@ export default function BillOfLandingInfo() {
         </div>
 
         <div className="flex items-center gap-2">
-          {decodedId !== "new" && decodedId !== "undefined" && canPrintBL && (
+          {(formData.billOfLadingNumber || (decodedId && decodedId !== "new" && decodedId !== "undefined")) && canPrintBL && (
             <button
               onClick={() => setIsPrintBlOpen(true)}
               type="button"
@@ -999,7 +1005,7 @@ export default function BillOfLandingInfo() {
             </button>
           )}
 
-          {decodedId !== "new" && decodedId !== "undefined" && canDeleteBl && (
+          {(formData.billOfLadingNumber || (decodedId && decodedId !== "new" && decodedId !== "undefined")) && canDeleteBl && (
             <button
               onClick={handleDeleteBl}
               type="button"
