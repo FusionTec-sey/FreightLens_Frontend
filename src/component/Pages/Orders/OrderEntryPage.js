@@ -2838,7 +2838,7 @@ export default function OrderEntryPage({
         <EntityPrintModal
           isOpen={isPrintModalOpen}
           onClose={() => setIsPrintModalOpen(false)}
-          entityType="PurchaseOrder"
+          entityType={formData?.doc_type === "RFQ" ? "RFQ" : "PurchaseOrder"}
           entityId={orderId || formData.id}
           entityIdentifier={formData.po_number || "PO"}
           title={`Print ${formData.doc_type === "RFQ" ? "Sourcing RFQ" : "Purchase Order"} — ${formData.po_number || ""}`}

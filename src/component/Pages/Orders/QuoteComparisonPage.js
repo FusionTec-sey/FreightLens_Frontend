@@ -1649,9 +1649,10 @@ export default function QuoteComparisonPage() {
         <EntityPrintModal
           isOpen={showPrintModal}
           onClose={() => setShowPrintModal(false)}
-          entityType="PurchaseOrder"
+          entityType="QuoteComparison"
           entityId={orderId}
-          entityNumber={poInfo ? (poInfo.po_number || `RFQ #${orderId}`) : `#${orderId}`}
+          entityIdentifier={poInfo ? (poInfo.po_number || `RFQ #${orderId}`) : `#${orderId}`}
+          title={poInfo ? `Print Quote Comparison — ${poInfo.po_number || ""}` : "Print Quote Comparison"}
         />
       )}
     </div>

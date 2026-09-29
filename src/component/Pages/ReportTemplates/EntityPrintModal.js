@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -8,7 +8,6 @@ import {
   X,
   AlertCircle,
   Loader2,
-  RefreshCw,
   FileText,
   ShieldCheck,
   Lock,
@@ -16,6 +15,9 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 export default function EntityPrintModal({
@@ -35,7 +37,12 @@ export default function EntityPrintModal({
   const [previewHtml, setPreviewHtml] = useState(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
+  // Multi-page & Preview Geometry State
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [previewMode, setPreviewMode] = useState("continuous"); // 'continuous' | 'paged'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const iframeRef = useRef(null);
 
   const getHeaders = () => {
@@ -46,6 +53,26 @@ export default function EntityPrintModal({
     };
   };
 
+  const selectedTemplate = useMemo(() => {
+    return templates.find((t) => t.id === selectedTemplateId) || null;
+  }, [templates, selectedTemplateId]);
+
+  const isLandscape = selectedTemplate?.orientation?.toLowerCase() === "landscape";
+  const pageHeightPx = isLandscape ? 794 : 1123;
+  const pageWidthPx = isLandscape ? 1123 : 794;
+
+  // Listen to message from preview iframe about detected page count
+  useEffect(() => {
+    const handleMsg = (e) => {
+      if (e.data && e.data.type === "DOC_PREVIEW_PAGES") {
+        const pages = Math.max(1, e.data.pages || 1);
+        setTotalPages(pages);
+      }
+    };
+    window.addEventListener("message", handleMsg);
+    return () => window.removeEventListener("message", handleMsg);
+  }, []);
+
   // 1. Fetch active templates for this specific entity type
   useEffect(() => {
     if (!isOpen || !entityType) return;
@@ -54,6 +81,8 @@ export default function EntityPrintModal({
     setPreviewHtml(null);
     setTemplates([]);
     setSelectedTemplateId(null);
+    setCurrentPage(1);
+    setTotalPages(1);
 
     axios
       .get(
@@ -81,6 +110,7 @@ export default function EntityPrintModal({
     if (!isOpen || !selectedTemplateId || !entityId) return;
 
     setRenderingPreview(true);
+    setCurrentPage(1);
     axios
       .post(
         `${process.env.REACT_APP_NETWORK}/reports/render`,
@@ -108,9 +138,83 @@ export default function EntityPrintModal({
       });
   }, [isOpen, selectedTemplateId, entityId]);
 
-  if (!isOpen) return null;
+  // Inject page break indicators, sheet styling, and page detection into HTML
+  const enhancedHtml = useMemo(() => {
+    if (!previewHtml) return "";
 
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+    const injector = `
+      <style id="preview-page-break-styles">
+        @media screen {
+          html {
+            background-color: #f1f5f9 !important;
+            padding: 16px 0 !important;
+            min-height: 100% !important;
+            box-sizing: border-box !important;
+          }
+          body {
+            background: #ffffff !important;
+            width: ${pageWidthPx}px !important;
+            min-height: ${pageHeightPx}px !important;
+            margin: 0 auto !important;
+            padding: 15mm !important;
+            box-sizing: border-box !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+            position: relative !important;
+          }
+          .preview-page-break-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: repeating-linear-gradient(90deg, #94a3b8 0, #94a3b8 6px, transparent 6px, transparent 12px);
+            z-index: 9999;
+            pointer-events: none;
+          }
+          .preview-page-break-badge {
+            position: absolute;
+            right: 16px;
+            top: -10px;
+            background: #475569;
+            color: #ffffff;
+            font-size: 9px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            letter-spacing: 0.3px;
+          }
+        }
+      </style>
+      <script>
+        window.addEventListener('load', function() {
+          try {
+            var pageH = ${pageHeightPx};
+            var bodyH = document.body.scrollHeight;
+            var pages = Math.max(1, Math.ceil(bodyH / pageH));
+            for (var p = 1; p < pages; p++) {
+              var marker = document.createElement('div');
+              marker.className = 'preview-page-break-line';
+              marker.style.top = (p * pageH) + 'px';
+              var badge = document.createElement('span');
+              badge.className = 'preview-page-break-badge';
+              badge.innerText = 'Page ' + p + ' / Page ' + (p + 1) + ' Break';
+              marker.appendChild(badge);
+              document.body.appendChild(marker);
+            }
+            window.parent.postMessage({ type: 'DOC_PREVIEW_PAGES', pages: pages, pageHeight: pageH }, '*');
+          } catch(e) { console.error('Preview measurement failed', e); }
+        });
+      </script>
+    `;
+
+    if (previewHtml.includes("</head>")) {
+      return previewHtml.replace("</head>", `${injector}</head>`);
+    }
+    return injector + previewHtml;
+  }, [previewHtml, pageWidthPx, pageHeightPx]);
+
+  if (!isOpen) return null;
 
   // Direct Print via hidden iframe
   const handleDirectPrint = () => {
@@ -308,9 +412,9 @@ export default function EntityPrintModal({
           {/* ── Right Pane (70%): Live Interactive Preview ──────────────── */}
           <div className="flex-1 flex flex-col overflow-hidden bg-slate-200/60 dark:bg-slate-950">
             {/* Preview Toolbar */}
-            <div className="px-4 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
+            <div className="px-4 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-400 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">
                   {selectedTemplate?.name || "Document Preview"}
                 </span>
                 {selectedTemplate && (
@@ -318,14 +422,74 @@ export default function EntityPrintModal({
                     ({selectedTemplate.page_size} {selectedTemplate.orientation})
                   </span>
                 )}
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  {totalPages} {totalPages === 1 ? "Page" : "Pages"}
+                </span>
               </div>
+
+              {/* View Mode Switcher: Continuous Stacked vs Paged Navigation */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("continuous")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
+                    previewMode === "continuous"
+                      ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                  title="Continuous Sheets: Scroll through all pages with visible sheet boundaries"
+                >
+                  <Layers size={13} />
+                  <span>Continuous</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("paged")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
+                    previewMode === "paged"
+                      ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                  title="Paged View: View one page at a time with Prev / Next navigation"
+                >
+                  <FileText size={13} />
+                  <span>Paged</span>
+                </button>
+              </div>
+
+              {/* Paged Navigation Bar (Only visible in Paged mode) */}
+              {previewMode === "paged" && (
+                <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                    className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 cursor-pointer"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span className="text-[11px] font-mono font-semibold px-1 text-slate-700 dark:text-slate-300">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 cursor-pointer"
+                    title="Next Page"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
 
               {/* Zoom & Refresh Controls */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setZoomLevel((z) => Math.max(50, z - 15))}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500"
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500 cursor-pointer"
                   title="Zoom Out"
                 >
                   <ZoomOut size={14} />
@@ -336,7 +500,7 @@ export default function EntityPrintModal({
                 <button
                   type="button"
                   onClick={() => setZoomLevel((z) => Math.min(150, z + 15))}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500"
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500 cursor-pointer"
                   title="Zoom In"
                 >
                   <ZoomIn size={14} />
@@ -344,7 +508,7 @@ export default function EntityPrintModal({
                 <button
                   type="button"
                   onClick={() => setZoomLevel(100)}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500 ml-1"
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500 ml-1 cursor-pointer"
                   title="Reset Zoom"
                 >
                   <Maximize2 size={14} />
@@ -353,7 +517,7 @@ export default function EntityPrintModal({
             </div>
 
             {/* Preview Frame Area */}
-            <div className="flex-1 overflow-auto p-4 flex items-center justify-center relative">
+            <div className="flex-1 overflow-auto p-4 flex items-start justify-center relative">
               {renderingPreview ? (
                 <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xs flex flex-col items-center justify-center gap-2 z-10">
                   <Loader2 size={28} className="animate-spin text-indigo-600" />
@@ -369,18 +533,36 @@ export default function EntityPrintModal({
                     transform: `scale(${zoomLevel / 100})`,
                     transformOrigin: "top center",
                     transition: "transform 0.15s ease-out",
+                    width: `${pageWidthPx + 32}px`,
+                    ...(previewMode === "paged"
+                      ? {
+                          height: `${pageHeightPx}px`,
+                          overflow: "hidden",
+                        }
+                      : {}),
                   }}
-                  className="shadow-xl rounded-lg bg-white overflow-hidden border border-slate-300 dark:border-slate-700"
+                  className="shadow-2xl rounded-xl bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 my-2"
                 >
-                  <iframe
-                    ref={iframeRef}
-                    title="Live Document Preview"
-                    srcDoc={previewHtml}
-                    className="w-[210mm] min-h-[297mm] bg-white border-0"
-                  />
+                  <div
+                    style={{
+                      transform: previewMode === "paged" ? `translateY(-${(currentPage - 1) * pageHeightPx}px)` : "none",
+                      transition: "transform 0.2s ease-in-out",
+                    }}
+                  >
+                    <iframe
+                      ref={iframeRef}
+                      title="Live Document Preview"
+                      srcDoc={enhancedHtml}
+                      className="border-0 bg-white"
+                      style={{
+                        width: `${pageWidthPx + 32}px`,
+                        height: `${Math.max(pageHeightPx, totalPages * pageHeightPx + 40)}px`,
+                      }}
+                    />
+                  </div>
                 </div>
               ) : !renderingPreview && templates.length === 0 ? (
-                <div className="text-center text-slate-400 p-8">
+                <div className="text-center text-slate-400 p-8 my-auto">
                   <FileText size={36} className="mx-auto mb-2 text-slate-300" />
                   <p className="text-xs">No active template selected to preview.</p>
                 </div>

@@ -57,8 +57,18 @@ export default function ReportTemplatesPage() {
 
   // Filters for templates
   const [activeTab, setActiveTab] = useState("ALL");
+  const [entityFilter, setEntityFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const entityChips = [
+    { id: "ALL", label: "All Entities" },
+    { id: "PurchaseOrder", label: "Purchase Orders" },
+    { id: "RFQ", label: "Sourcing / RFQ" },
+    { id: "QuoteComparison", label: "Vendor Quotes" },
+    { id: "BillOfLading", label: "Bill of Lading" },
+    { id: "Container", label: "Containers" },
+    { id: "Defect", label: "Defects" },
+  ];
 
   const [cloneModalOpen, setCloneModalOpen] = useState(false);
   const [templateToClone, setTemplateToClone] = useState(null);
@@ -121,6 +131,7 @@ export default function ReportTemplatesPage() {
       params.append("limit", limit.toString());
       params.append("template_type", "DOCUMENT");
       if (activeTab !== "ALL") params.append("category", activeTab);
+      if (entityFilter !== "ALL") params.append("entity_type", entityFilter);
       if (searchQuery.trim()) params.append("search", searchQuery.trim());
 
       const res = await axios.get(
@@ -136,7 +147,7 @@ export default function ReportTemplatesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, activeTab, searchQuery]);
+  }, [page, limit, activeTab, entityFilter, searchQuery]);
 
   useEffect(() => {
     if (mainHubTab === "DOCUMENTS") {
@@ -677,6 +688,29 @@ export default function ReportTemplatesPage() {
             </div>
           </div>
 
+          {/* Sub-Filter: Entity Types Chips */}
+          <div className="px-6 py-2 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-900/40 flex items-center gap-2 overflow-x-auto">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+              Target Entity:
+            </span>
+            {entityChips.map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => {
+                  setEntityFilter(chip.id);
+                  setPage(1);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition cursor-pointer shrink-0 ${
+                  entityFilter === chip.id
+                    ? "bg-indigo-600 text-white shadow-2xs font-semibold"
+                    : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
           {/* Contained Main Table Area */}
           <div className="flex-1 overflow-y-auto p-6">
             {loading ? (
@@ -739,18 +773,46 @@ export default function ReportTemplatesPage() {
                             </span>
                           </td>
 
-                          {/* Resolver & Entity */}
+                          {/* Resolver & Entity with Distinct Semantic Badges */}
                           <td className="px-4 py-4">
-                            <div className="font-medium text-slate-700 dark:text-slate-300">
+                            <div className="font-medium text-slate-700 dark:text-slate-300 font-mono text-[11px]">
                               {tmpl.resolver_key}
                             </div>
-                            <div className="text-[10px] text-slate-400">
-                              {tmpl.entity_type || "Generic"}
+                            <div className="mt-1">
+                              {tmpl.entity_type === "RFQ" || tmpl.slug?.includes("rfq") ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                  RFQ Requisition
+                                </span>
+                              ) : tmpl.entity_type === "QuoteComparison" || tmpl.resolver_key === "quote_comparison" ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                  Quote Comparison
+                                </span>
+                              ) : tmpl.entity_type === "PurchaseOrder" || tmpl.resolver_key === "purchase_order" ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                  Purchase Order
+                                </span>
+                              ) : tmpl.entity_type === "BillOfLanding" || tmpl.resolver_key === "bill_of_lading" ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800">
+                                  Bill of Lading
+                                </span>
+                              ) : tmpl.entity_type === "Container" || tmpl.resolver_key === "container_details" ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                  Container
+                                </span>
+                              ) : tmpl.entity_type === "Defect" || tmpl.resolver_key === "defect_details" ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                                  Defect Sheet
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {tmpl.entity_type || "Generic"}
+                                </span>
+                              )}
                             </div>
                           </td>
 
                           {/* Page Setup */}
-                          <td className="px-4 py-4 text-slate-600 dark:text-slate-400">
+                          <td className="px-4 py-4 text-slate-600 dark:text-slate-400 font-medium">
                             {tmpl.page_size} • {tmpl.orientation}
                           </td>
 

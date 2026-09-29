@@ -552,7 +552,7 @@ export default function SourcingPage() {
         <EntityPrintModal
           isOpen={Boolean(printOrder)}
           onClose={() => setPrintOrder(null)}
-          entityType="PurchaseOrder"
+          entityType="RFQ"
           entityId={printOrder.id}
           entityIdentifier={printOrder.po_number || printOrder.rfq_number || "RFQ"}
           title={`Print Sourcing RFQ — ${printOrder.po_number || ""}`}

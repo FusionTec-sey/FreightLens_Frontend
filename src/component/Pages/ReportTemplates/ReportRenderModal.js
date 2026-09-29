@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
@@ -8,6 +8,13 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  FileText,
+  Layers,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from "lucide-react";
 
 export default function ReportRenderModal({
@@ -32,6 +39,12 @@ export default function ReportRenderModal({
   const [recentEntities, setRecentEntities] = useState([]);
   const [loadingEntities, setLoadingEntities] = useState(false);
 
+  // Multi-page & Preview Geometry State
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [previewMode, setPreviewMode] = useState("continuous"); // 'continuous' | 'paged'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const iframeRef = useRef(null);
 
   // Headers helper
@@ -43,6 +56,26 @@ export default function ReportRenderModal({
     };
   };
 
+  const selectedTemplate = useMemo(() => {
+    return templates.find((t) => t.id === selectedTemplateId) || null;
+  }, [templates, selectedTemplateId]);
+
+  const isLandscape = selectedTemplate?.orientation?.toLowerCase() === "landscape";
+  const pageHeightPx = isLandscape ? 794 : 1123;
+  const pageWidthPx = isLandscape ? 1123 : 794;
+
+  // Listen to message from preview iframe about detected page count
+  useEffect(() => {
+    const handleMsg = (e) => {
+      if (e.data && e.data.type === "DOC_PREVIEW_PAGES") {
+        const pages = Math.max(1, e.data.pages || 1);
+        setTotalPages(pages);
+      }
+    };
+    window.addEventListener("message", handleMsg);
+    return () => window.removeEventListener("message", handleMsg);
+  }, []);
+
   // 1. Fetch available templates if not locked to a specific template
   useEffect(() => {
     if (!isOpen) return;
@@ -50,7 +83,7 @@ export default function ReportRenderModal({
     const fetchTemplates = async () => {
       try {
         const res = await axios.get(
-          `${process.env.REACT_APP_NETWORK}/reports/templates?limit=100`,
+          `${process.env.REACT_APP_NETWORK}/reports/templates?limit=100&template_type=DOCUMENT`,
           { headers: getHeaders() }
         );
         const allTemplates = res.data?.items || [];
@@ -87,16 +120,16 @@ export default function ReportRenderModal({
     const fetchEntities = async () => {
       setLoadingEntities(true);
       try {
-        if (key === "purchase_order") {
+        if (key === "purchase_order" || key === "sourcing_rfq" || key === "quote_comparison") {
           const res = await axios.get(
-            `${process.env.REACT_APP_NETWORK}/orders?limit=25`,
+            `${process.env.REACT_APP_NETWORK}/orders?limit=30`,
             { headers: getHeaders() }
           );
           const orders = res.data?.orders || res.data?.items || [];
           setRecentEntities(
             orders.map((o) => ({
               id: o.id,
-              label: `${o.po_number || "PO #" + o.id} — ${o.status || ""} (${o.supplier_name || o.company || "Supplier"})`,
+              label: `${o.po_number || "Order #" + o.id} — ${o.status || ""} (${o.supplier_name || o.company || "Supplier"})`,
             }))
           );
           if (!selectedEntityId && orders.length > 0) {
@@ -132,6 +165,21 @@ export default function ReportRenderModal({
           if (!selectedEntityId && bls.length > 0) {
             setSelectedEntityId(bls[0].BillOfLanding || bls[0].id);
           }
+        } else if (key === "container_details") {
+          const res = await axios.get(
+            `${process.env.REACT_APP_NETWORK}/containers?limit=25`,
+            { headers: getHeaders() }
+          );
+          const cntrs = res.data?.items || res.data || [];
+          setRecentEntities(
+            cntrs.map((c) => ({
+              id: c.Container_ID || c.id || c.container_no,
+              label: `${c.Container_No || c.container_no} — B/L: ${c.BillOfLanding || "N/A"}`,
+            }))
+          );
+          if (!selectedEntityId && cntrs.length > 0) {
+            setSelectedEntityId(cntrs[0].Container_ID || cntrs[0].id || cntrs[0].container_no);
+          }
         }
       } catch (e) {
         console.warn("Could not auto-fetch entities for selector:", e);
@@ -153,6 +201,7 @@ export default function ReportRenderModal({
   const handleGeneratePreview = async () => {
     if (!selectedTemplateId) return;
     setLoading(true);
+    setCurrentPage(1);
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_NETWORK}/reports/render/preview`,
@@ -170,6 +219,82 @@ export default function ReportRenderModal({
       setLoading(false);
     }
   };
+
+  // Inject page break indicators, sheet styling, and page detection into HTML
+  const enhancedHtml = useMemo(() => {
+    if (!previewHtml) return "";
+
+    const injector = `
+      <style id="preview-page-break-styles">
+        @media screen {
+          html {
+            background-color: #f1f5f9 !important;
+            padding: 16px 0 !important;
+            min-height: 100% !important;
+            box-sizing: border-box !important;
+          }
+          body {
+            background: #ffffff !important;
+            width: ${pageWidthPx}px !important;
+            min-height: ${pageHeightPx}px !important;
+            margin: 0 auto !important;
+            padding: 15mm !important;
+            box-sizing: border-box !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+            position: relative !important;
+          }
+          .preview-page-break-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: repeating-linear-gradient(90deg, #94a3b8 0, #94a3b8 6px, transparent 6px, transparent 12px);
+            z-index: 9999;
+            pointer-events: none;
+          }
+          .preview-page-break-badge {
+            position: absolute;
+            right: 16px;
+            top: -10px;
+            background: #475569;
+            color: #ffffff;
+            font-size: 9px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            letter-spacing: 0.3px;
+          }
+        }
+      </style>
+      <script>
+        window.addEventListener('load', function() {
+          try {
+            var pageH = ${pageHeightPx};
+            var bodyH = document.body.scrollHeight;
+            var pages = Math.max(1, Math.ceil(bodyH / pageH));
+            for (var p = 1; p < pages; p++) {
+              var marker = document.createElement('div');
+              marker.className = 'preview-page-break-line';
+              marker.style.top = (p * pageH) + 'px';
+              var badge = document.createElement('span');
+              badge.className = 'preview-page-break-badge';
+              badge.innerText = 'Page ' + p + ' / Page ' + (p + 1) + ' Break';
+              marker.appendChild(badge);
+              document.body.appendChild(marker);
+            }
+            window.parent.postMessage({ type: 'DOC_PREVIEW_PAGES', pages: pages, pageHeight: pageH }, '*');
+          } catch(e) { console.error('Preview measurement failed', e); }
+        });
+      </script>
+    `;
+
+    if (previewHtml.includes("</head>")) {
+      return previewHtml.replace("</head>", `${injector}</head>`);
+    }
+    return injector + previewHtml;
+  }, [previewHtml, pageWidthPx, pageHeightPx]);
 
   // 4. Download PDF Stream
   const handleDownloadPdf = async () => {
@@ -234,20 +359,18 @@ export default function ReportRenderModal({
 
   if (!isOpen) return null;
 
-  const currentTmpl = templates.find((t) => t.id === selectedTemplateId);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-6xl h-[92vh] flex flex-col overflow-hidden">
         {/* Modal Top Bar */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
+        <div className="px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <Printer size={18} />
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                {currentTmpl?.name || "Report & Print Studio"}
+                {selectedTemplate?.name || "Report & Print Studio"}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Generate high-fidelity PDFs and print directly using WeasyPrint
@@ -256,36 +379,36 @@ export default function ReportRenderModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Control Toolbar */}
-        <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3 text-sm">
-          <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+        <div className="px-6 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3 text-sm shrink-0">
+          <div className="flex items-center gap-3 flex-1 min-w-[320px]">
             {/* Template Dropdown */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            <div className="flex flex-col gap-0.5">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                 Print Template
               </label>
               <select
                 value={selectedTemplateId || ""}
                 onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
-                className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-indigo-500"
+                className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium focus:ring-2 focus:ring-indigo-500 max-w-[240px]"
               >
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} ({t.category}) {t.is_system ? "• Default" : "• Custom"}
+                    {t.name} ({t.category})
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Entity Record Dropdown / Input */}
-            <div className="flex flex-col gap-1 flex-1">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="flex flex-col gap-0.5 flex-1 max-w-xs">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <span>Select Record</span>
                 {loadingEntities && <span className="text-[10px] text-indigo-500 font-normal lowercase">(loading...)</span>}
               </label>
@@ -317,14 +440,105 @@ export default function ReportRenderModal({
               onClick={handleGeneratePreview}
               disabled={loading}
               title="Refresh Preview"
-              className="mt-4 p-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition"
+              className="mt-3.5 p-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer"
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
 
+          {/* Center Mode Controls & Zoom */}
+          <div className="flex items-center gap-2">
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setPreviewMode("continuous")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
+                  previewMode === "continuous"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+                title="Continuous Sheets: Scroll through all pages with visible sheet boundaries"
+              >
+                <Layers size={13} />
+                <span>Continuous</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewMode("paged")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
+                  previewMode === "paged"
+                    ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs font-semibold"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+                title="Paged View: View one page at a time with Prev / Next navigation"
+              >
+                <FileText size={13} />
+                <span>Paged</span>
+              </button>
+            </div>
+
+            {/* Paged Navigation Bar */}
+            {previewMode === "paged" && (
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 cursor-pointer"
+                  title="Previous Page"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="text-[11px] font-mono font-semibold px-1 text-slate-700 dark:text-slate-300">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 cursor-pointer"
+                  title="Next Page"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setZoomLevel((z) => Math.max(50, z - 15))}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500 cursor-pointer"
+                title="Zoom Out"
+              >
+                <ZoomOut size={14} />
+              </button>
+              <span className="text-[11px] font-mono px-1 font-semibold text-slate-700 dark:text-slate-300">
+                {zoomLevel}%
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoomLevel((z) => Math.min(150, z + 15))}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500 cursor-pointer"
+                title="Zoom In"
+              >
+                <ZoomIn size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoomLevel(100)}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition text-slate-500 ml-0.5 cursor-pointer"
+                title="Reset Zoom"
+              >
+                <Maximize2 size={13} />
+              </button>
+            </div>
+          </div>
+
           {/* Action Buttons: Print & Download */}
-          <div className="flex items-center gap-2 mt-4 sm:mt-0">
+          <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
               disabled={loading || !previewHtml}
@@ -349,23 +563,48 @@ export default function ReportRenderModal({
         </div>
 
         {/* Live Preview Document Area */}
-        <div className="flex-1 bg-slate-200 dark:bg-slate-950 p-6 overflow-y-auto flex items-center justify-center">
+        <div className="flex-1 bg-slate-200/80 dark:bg-slate-950 p-4 overflow-auto flex items-start justify-center relative">
           {loading ? (
-            <div className="flex flex-col items-center gap-3 text-slate-500">
+            <div className="flex flex-col items-center justify-center gap-3 text-slate-500 my-auto">
               <Loader2 size={32} className="animate-spin text-indigo-500" />
               <p className="text-xs font-medium">Rendering document preview...</p>
             </div>
           ) : previewHtml ? (
-            <div className="w-full max-w-[850px] h-full bg-white shadow-xl rounded-lg overflow-hidden border border-slate-300 dark:border-slate-800 flex flex-col">
-              <iframe
-                ref={iframeRef}
-                title="Report Document Preview"
-                srcDoc={previewHtml}
-                className="w-full h-full border-none bg-white"
-              />
+            <div
+              style={{
+                transform: `scale(${zoomLevel / 100})`,
+                transformOrigin: "top center",
+                transition: "transform 0.15s ease-out",
+                width: `${pageWidthPx + 32}px`,
+                ...(previewMode === "paged"
+                  ? {
+                      height: `${pageHeightPx}px`,
+                      overflow: "hidden",
+                    }
+                  : {}),
+              }}
+              className="shadow-2xl rounded-xl bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 my-2"
+            >
+              <div
+                style={{
+                  transform: previewMode === "paged" ? `translateY(-${(currentPage - 1) * pageHeightPx}px)` : "none",
+                  transition: "transform 0.2s ease-in-out",
+                }}
+              >
+                <iframe
+                  ref={iframeRef}
+                  title="Report Document Preview"
+                  srcDoc={enhancedHtml}
+                  className="border-0 bg-white"
+                  style={{
+                    width: `${pageWidthPx + 32}px`,
+                    height: `${Math.max(pageHeightPx, totalPages * pageHeightPx + 40)}px`,
+                  }}
+                />
+              </div>
             </div>
           ) : (
-            <div className="text-center p-8 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 max-w-sm">
+            <div className="text-center p-8 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 max-w-sm my-auto">
               <AlertCircle size={32} className="mx-auto text-slate-400 mb-2" />
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                 No Preview Available
