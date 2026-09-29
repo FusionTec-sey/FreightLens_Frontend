@@ -168,19 +168,31 @@ export default function ProductMasterPage() {
   const canAddProduct = useMemo(() => {
     if (isRoot) return true;
     const perms = Array.isArray(permissions) ? permissions : [];
-    return perms.includes("Administrator") || perms.includes("Add_Product");
+    return (
+      perms.includes("Administrator") ||
+      perms.includes("Super_Admin") ||
+      perms.includes("Add_Product")
+    );
   }, [isRoot, permissions]);
 
   const canEditProduct = useMemo(() => {
     if (isRoot) return true;
     const perms = Array.isArray(permissions) ? permissions : [];
-    return perms.includes("Administrator") || perms.includes("Edit_Product");
+    return (
+      perms.includes("Administrator") ||
+      perms.includes("Super_Admin") ||
+      perms.includes("Edit_Product")
+    );
   }, [isRoot, permissions]);
 
   const canDeleteProduct = useMemo(() => {
     if (isRoot) return true;
     const perms = Array.isArray(permissions) ? permissions : [];
-    return perms.includes("Administrator") || perms.includes("Delete_Product");
+    return (
+      perms.includes("Administrator") ||
+      perms.includes("Super_Admin") ||
+      perms.includes("Delete_Product")
+    );
   }, [isRoot, permissions]);
 
   const canAdjustStock = useMemo(() => {
@@ -331,20 +343,6 @@ export default function ProductMasterPage() {
   const [categoriesFlat, setCategoriesFlat] = useState([]);
   const { suppliers: contextSuppliers = [] } = useOptions();
   const [fetchedSuppliers, setFetchedSuppliers] = useState([]);
-
-  useEffect(() => {
-    if (contextSuppliers && contextSuppliers.length > 0) return;
-    axios
-      .get(`${process.env.REACT_APP_NETWORK}/suppliers`, { headers: getAuthHeaders() })
-      .then((res) => {
-        let data = res.data;
-        if (typeof data === "string") data = JSON.parse(data);
-        const rows = data?.data || [];
-        const mapped = rows.map((r) => ({ id: r[0], name: r[1] }));
-        setFetchedSuppliers(mapped);
-      })
-      .catch((err) => console.error("Failed to fetch fallback suppliers:", err));
-  }, [contextSuppliers]);
 
   const suppliers = useMemo(() => {
     if (contextSuppliers && contextSuppliers.length > 0) return contextSuppliers;
@@ -610,14 +608,12 @@ export default function ProductMasterPage() {
         const root = flat.find((c) => c.name === "Products") || flat[0];
         // Expand root and level-1 children by default so user sees clean hierarchy
         setExpandedCatIds(new Set(flat.map((c) => c.id)));
-        if (!categoryScreenSelectedId) {
-          setCategoryScreenSelectedId(root.id);
-        }
+        setCategoryScreenSelectedId((prev) => prev || root.id);
       }
     } catch (err) {
       console.error("Failed to load categories:", err);
     }
-  }, [categoryScreenSelectedId]);
+  }, []);
 
   const fetchSuppliers = useCallback(async () => {
     try {
@@ -4651,11 +4647,29 @@ export default function ProductMasterPage() {
               ) : products.length === 0 ? (
                 <tr>
                   <td colSpan={isAccountsUser ? 8 : 7} className="py-16 text-center text-slate-400">
-                    <Boxes size={36} className="mx-auto mb-2 opacity-30 text-indigo-500" />
-                    <p className="font-bold text-sm text-slate-700 dark:text-slate-300">No products match criteria</p>
-                    <p className="text-xs mt-0.5 text-slate-400">
-                      Try adjusting filters or register a new product to start tracking.
+                    <Boxes size={40} className="mx-auto mb-2.5 opacity-30 text-indigo-500" />
+                    <p className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                      {search || selectedCategoryFilter || selectedSupplier || statusFilter || lowStockOnly
+                        ? "No products match criteria"
+                        : "No products in master catalog yet"}
                     </p>
+                    <p className="text-xs mt-1 text-slate-400 max-w-sm mx-auto">
+                      {search || selectedCategoryFilter || selectedSupplier || statusFilter || lowStockOnly
+                        ? "Try clearing your search query or adjusting applied filters."
+                        : "Start building your catalog by registering your first product with packaging, volume, and supplier details."}
+                    </p>
+                    {canAddProduct && !(search || selectedCategoryFilter || selectedSupplier || statusFilter || lowStockOnly) && (
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCreateProduct("products")}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-600/20 active:scale-95 cursor-pointer"
+                        >
+                          <Plus size={15} />
+                          <span>Register First Product</span>
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (

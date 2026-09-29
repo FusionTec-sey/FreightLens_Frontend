@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 
 // List of option paths
@@ -107,7 +107,7 @@ export const OptionsProvider = ({ children }) => {
   };
 
   // Refresh specific path
-  const refresh = async (key) => {
+  const refresh = useCallback(async (key) => {
     try {
       const updated = await fetchPath(key);
       setOptions((prev) => ({ ...prev, [key]: updated }));
@@ -115,15 +115,20 @@ export const OptionsProvider = ({ children }) => {
     } catch (err) {
       setErrors((prev) => ({ ...prev, [key]: true }));
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAllOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const value = useMemo(
+    () => ({ options, loading, errors, refresh }),
+    [options, loading, errors, refresh]
+  );
+
   return (
-    <OptionsContext.Provider value={{ options, loading, errors, refresh }}>
+    <OptionsContext.Provider value={value}>
       {children}
     </OptionsContext.Provider>
   );

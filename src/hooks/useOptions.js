@@ -1,48 +1,26 @@
 // src/hooks/useOptions.js
 import { useOptionsContext } from "../context/OptionsContext";
-import { useEffect } from "react";
+import { useMemo } from "react";
+
+const EMPTY_ARRAY = Object.freeze([]);
 
 export const useOptions = () => {
-  const { options, loading, errors, refresh } = useOptionsContext();
+  const { options = {}, loading = false, errors = {}, refresh } = useOptionsContext();
 
-  // List of all option keys we care about
-  const optionKeys = [
-    "suppliers",
-    "consignees",
-    "emptyLocations",
-    "status",
-    "orderStatuses",
-    "type",
-    "shipping",
-    "vessal",
-    "logistics",
-    "material",
-  ];
-
-  // On mount, refresh any missing or empty option arrays
-  useEffect(() => {
-    if (!loading) {
-      optionKeys.forEach((key) => {
-        if (!options[key] || options[key].length === 0) {
-          refresh(key);
-        }
-      });
-    }
-  }, [loading, options, refresh]);
-
-  return {
-    suppliers: options.suppliers || [],
-    consignees: options.consignees || [],
-    emptyLocations: options.emptyLocations || [],
-    status: options.status || [],
-    orderStatuses: options.orderStatuses || [],
-    type: options.type || [],
-    shipping: options.shipping || [],
-    vessal: options.vessal || [],
-    logistics: options.logistics || [],
-    material: options.material || [],
+  return useMemo(() => ({
+    suppliers: options?.suppliers || EMPTY_ARRAY,
+    consignees: options?.consignees || EMPTY_ARRAY,
+    emptyLocations: options?.emptyLocations || EMPTY_ARRAY,
+    status: options?.status || EMPTY_ARRAY,
+    orderStatuses: options?.orderStatuses || EMPTY_ARRAY,
+    type: options?.type || EMPTY_ARRAY,
+    shipping: options?.shipping || EMPTY_ARRAY,
+    vessal: options?.vessal || EMPTY_ARRAY,
+    logistics: options?.logistics || EMPTY_ARRAY,
+    material: options?.material || EMPTY_ARRAY,
     loading,
     errors,
     refresh,
-  };
+  }), [options, loading, errors, refresh]);
 };
+
