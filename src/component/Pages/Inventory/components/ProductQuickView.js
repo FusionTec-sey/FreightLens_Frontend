@@ -15,6 +15,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import StockGaugeBar from "./StockGaugeBar";
+import { mediaUrl } from "../../../../utils/mediaUrl";
 
 export default function ProductQuickView({
   product,
@@ -32,9 +33,9 @@ export default function ProductQuickView({
 
   const images = product.images || [];
   const primaryImg =
-    images.find((img) => img.is_primary)?.file_url ||
-    product.image_url ||
-    (images.length > 0 ? images[0].file_url || images[0].url : null);
+    mediaUrl(images.find((img) => img.is_primary)) ||
+    mediaUrl(product, "image_url") ||
+    (images.length > 0 ? mediaUrl(images[0]) : null);
 
   const formatDimensions = () => {
     const l = product.length;

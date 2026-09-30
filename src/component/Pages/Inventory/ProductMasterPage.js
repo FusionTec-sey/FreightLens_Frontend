@@ -54,6 +54,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
 import { useOptions } from "../../../hooks/useOptions";
 import { COUNTRIES, getCountryFlag, formatCountryDisplay } from "../../../utils/countries";
+import { mediaUrl } from "../../../utils/mediaUrl";
 
 const UOM_OPTIONS = [
   "PCS",
@@ -3708,11 +3709,7 @@ export default function ProductMasterPage() {
                           <video
                             controls
                             autoPlay
-                            src={
-                              activeVideoPlaying.file_url.startsWith("http") || activeVideoPlaying.file_url.startsWith("blob:")
-                                ? activeVideoPlaying.file_url
-                                : `${process.env.REACT_APP_NETWORK}/blobs/${activeVideoPlaying.file_url}`
-                            }
+                            src={mediaUrl(activeVideoPlaying)}
                             className="w-full max-h-96 rounded-xl"
                           >
                             Your browser does not support HTML5 video playback.
@@ -3792,11 +3789,7 @@ export default function ProductMasterPage() {
                           >
                             <div className="relative w-full h-32 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
                               <img
-                                src={
-                                  img.file_url.startsWith("http") || img.file_url.startsWith("blob:")
-                                    ? img.file_url
-                                    : `${process.env.REACT_APP_NETWORK}/blobs/${img.file_url}`
-                                }
+                                src={mediaUrl(img)}
                                 alt={img.title || "Product"}
                                 className="w-full h-full object-contain"
                                 onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=Image"; }}
@@ -4108,11 +4101,7 @@ export default function ProductMasterPage() {
                               >
                                 {p.images && p.images.length > 0 ? (
                                   <img
-                                    src={
-                                      p.images[0].file_url?.startsWith("http") || p.images[0].file_url?.startsWith("blob:")
-                                        ? p.images[0].file_url
-                                        : `${process.env.REACT_APP_NETWORK}/blobs/${p.images[0].file_url}`
-                                    }
+                                    src={mediaUrl(p.images[0])}
                                     alt={p.name}
                                     className="w-full h-full object-cover transition-transform group-hover:scale-110"
                                     onError={(e) => {
@@ -4719,11 +4708,7 @@ export default function ProductMasterPage() {
                           {p.images && p.images.length > 0 ? (
                             <>
                               <img
-                                src={
-                                  p.images[0].file_url?.startsWith("http") || p.images[0].file_url?.startsWith("blob:")
-                                    ? p.images[0].file_url
-                                    : `${process.env.REACT_APP_NETWORK}/blobs/${p.images[0].file_url}`
-                                }
+                              src={mediaUrl(p.images[0])}
                                 alt={p.name}
                                 className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
                                 onError={(e) => {
@@ -5153,12 +5138,7 @@ export default function ProductMasterPage() {
             <div className="w-full h-96 rounded-2xl bg-black flex items-center justify-center overflow-hidden border border-slate-800 relative">
               {previewMediaModal.images && previewMediaModal.images.length > 0 ? (
                 <img
-                  src={
-                    previewMediaModal.images[activeMediaIdx]?.file_url?.startsWith("http") ||
-                    previewMediaModal.images[activeMediaIdx]?.file_url?.startsWith("blob:")
-                      ? previewMediaModal.images[activeMediaIdx].file_url
-                      : `${process.env.REACT_APP_NETWORK}/blobs/${previewMediaModal.images[activeMediaIdx]?.file_url}`
-                  }
+                  src={mediaUrl(previewMediaModal.images[activeMediaIdx])}
                   alt={previewMediaModal.name}
                   className="max-h-full max-w-full object-contain"
                 />
@@ -5180,11 +5160,7 @@ export default function ProductMasterPage() {
                     }`}
                   >
                     <img
-                      src={
-                        img.file_url?.startsWith("http") || img.file_url?.startsWith("blob:")
-                          ? img.file_url
-                          : `${process.env.REACT_APP_NETWORK}/blobs/${img.file_url}`
-                      }
+                      src={mediaUrl(img)}
                       alt={`Thumb ${idx}`}
                       className="w-full h-full object-cover"
                     />

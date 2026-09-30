@@ -47,7 +47,7 @@ Broad fallback handlers that convert API failures into legacy calls or placehold
 
 ## Media
 
-Product media and supplier logos currently use `/blobs/{key}` URLs. The stabilization plan replaces these with backend-issued signed URLs and one shared `mediaUrl` helper. Order, payment, RFQ, and defect documents use their owning authenticated API endpoints.
+Product media and supplier logos use backend-issued signed URLs. `src/utils/mediaUrl.js` is the only browser URL resolver: it accepts signed application URLs and external media URLs but refuses unsigned object keys. Order, payment, RFQ, and defect documents use their owning authenticated API endpoints.
 
 ## Build and Deployment
 

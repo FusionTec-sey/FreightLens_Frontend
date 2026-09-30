@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "../../../context/ThemeContext";
 import CurrencyInput from "./CurrencyInput";
+import { mediaUrl } from "../../../utils/mediaUrl";
 
 export default function ProductCatalogSelector({
   products = [],
@@ -416,11 +417,7 @@ export default function ProductCatalogSelector({
                     <div className="w-11 h-11 rounded-lg overflow-hidden flex-none border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-xs">
                       {prod.image_url ? (
                         <img
-                          src={
-                            prod.image_url.startsWith("http") || prod.image_url.startsWith("blob:")
-                              ? prod.image_url
-                              : `${process.env.REACT_APP_NETWORK}/blobs/${prod.image_url}`
-                          }
+                          src={mediaUrl(prod, "image_url")}
                           alt={prod.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {

@@ -21,6 +21,7 @@ import {
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
 import { COUNTRIES, getCountryFlag, formatCountryDisplay } from "../../../utils/countries";
+import { mediaUrl } from "../../../utils/mediaUrl";
 
 export default function SuppliersMasterPage() {
   const { isDark } = useTheme();
@@ -117,7 +118,7 @@ export default function SuppliersMasterPage() {
     setCountry(sup.country || "China");
     setLogoUrl(sup.logo_url || "");
     setLogoFile(null);
-    setLogoPreview(sup.logo_url || "");
+    setLogoPreview(mediaUrl(sup, "logo_url") || "");
     setDefaultCurrency(sup.default_currency || "USD");
     setDefaultPaymentTermId(sup.default_payment_term_id ? String(sup.default_payment_term_id) : "");
     setVarianceThreshold(String(sup.variance_threshold_pct || "2.0"));
@@ -331,7 +332,7 @@ export default function SuppliersMasterPage() {
                       <div className="flex items-center gap-2.5">
                         {s.logo_url ? (
                           <img
-                            src={s.logo_url.startsWith("http") ? s.logo_url : `${process.env.REACT_APP_NETWORK}/blobs/${s.logo_url}`}
+                            src={mediaUrl(s, "logo_url")}
                             alt={s.name}
                             className="w-7 h-7 rounded-lg object-contain border border-slate-200 dark:border-slate-700 bg-white p-0.5 shrink-0"
                             onError={(e) => { e.target.style.display = 'none'; }}
@@ -495,7 +496,7 @@ export default function SuppliersMasterPage() {
                   <div className="flex items-center gap-3">
                     {logoPreview || logoUrl ? (
                       <img
-                        src={logoPreview || (logoUrl.startsWith("http") ? logoUrl : `${process.env.REACT_APP_NETWORK}/blobs/${logoUrl}`)}
+                        src={logoPreview || mediaUrl(logoUrl)}
                         alt="Logo preview"
                         className="w-10 h-10 rounded-lg object-contain border border-slate-200 dark:border-slate-700 bg-white p-1 shrink-0"
                         onError={(e) => { e.target.style.display = 'none'; }}

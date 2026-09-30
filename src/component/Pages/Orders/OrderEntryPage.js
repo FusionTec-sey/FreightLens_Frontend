@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { STATUS_PIPELINE } from "./mockOrders";
 import { useTheme } from "../../../context/ThemeContext";
+import { mediaUrl } from "../../../utils/mediaUrl";
 import { useAuth } from "../../../context/AuthContext";
 import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { useOptions } from "../../../hooks/useOptions";
@@ -1106,6 +1107,7 @@ export default function OrderEntryPage({
         item_code: prod.sku || prod.code || "",
         factory_code: prod.factory_code || "",
         image_url: prod.image_url || null,
+        image_signed_url: prod.image_signed_url || null,
         description: prod.name,
         quantity_ordered: 1,
         unit: prod.unit || "PCS",
@@ -2443,11 +2445,7 @@ export default function OrderEntryPage({
                           <div className="flex items-center gap-1">
                             {it.image_url && (
                               <img
-                                src={
-                                  it.image_url.startsWith("http") || it.image_url.startsWith("blob:")
-                                    ? it.image_url
-                                    : `${process.env.REACT_APP_NETWORK}/blobs/${it.image_url}`
-                                }
+                                src={mediaUrl(it, "image_url")}
                                 alt=""
                                 className="w-5 h-5 rounded object-cover flex-none border border-slate-200 dark:border-slate-700 shadow-2xs"
                                 title="Catalog Product Image"
