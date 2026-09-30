@@ -4374,10 +4374,10 @@ export default function ProductMasterPage() {
   // SCREEN 1: MAIN PRODUCTS SCREEN (CLEAN, NO KPIS, FULL-WIDTH LIST)
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-6 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+    <div className="space-y-4 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 pb-6">
       {/* ── Executive Top Header ────────────────────────────────────────────── */}
       <div
-        className={`p-5 rounded-2xl border shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition ${
+        className={`p-4 rounded-2xl border shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition ${
           isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
         }`}
       >
@@ -4603,19 +4603,19 @@ export default function ProductMasterPage() {
         </div>
       </div>
 
-      {/* ── Main Full-Width Product Data Table ──────────────────────────────── */}
+      {/* ── Main Full-Width Product Data Table (Contained Viewport Layout) ── */}
       <div
-        className={`rounded-2xl border shadow-xs overflow-hidden ${
+        className={`rounded-2xl border shadow-xs overflow-hidden flex flex-col ${
           isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         }`}
       >
-        <div className="overflow-x-auto min-h-[420px]">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] min-h-[380px]">
+          <table className="w-full text-left text-xs border-collapse">
             <thead
-              className={`sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider border-b ${
+              className={`sticky top-0 z-20 text-[11px] font-semibold uppercase tracking-wider border-b ${
                 isDark
-                  ? "bg-slate-800/95 border-slate-800 text-slate-400 backdrop-blur-md"
-                  : "bg-slate-50/95 border-slate-200 text-slate-500 backdrop-blur-md"
+                  ? "bg-slate-800 border-slate-700/80 text-slate-300 shadow-xs"
+                  : "bg-slate-50 border-slate-200 text-slate-600 shadow-xs"
               }`}
             >
               <tr>
@@ -4754,20 +4754,27 @@ export default function ProductMasterPage() {
 
                         {/* Title, Clean Description & Dimensions Badge */}
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold text-sm text-slate-900 dark:text-white leading-snug hover:text-indigo-600 dark:hover:text-indigo-400 transition">
+                          <div
+                            title={p.name}
+                            className="font-medium text-xs text-slate-800 dark:text-slate-200 leading-snug hover:text-indigo-600 dark:hover:text-indigo-400 transition line-clamp-2"
+                          >
                             {p.name}
                           </div>
 
-                          {(p.description_quick || p.description) && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5 leading-relaxed">
+                          {/* Render secondary description only if distinct from name */}
+                          {(p.description_quick || (p.description && p.description.trim().toLowerCase() !== (p.name || "").trim().toLowerCase())) && (
+                            <p
+                              title={p.description_quick || p.description}
+                              className="text-[11px] font-normal text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 leading-relaxed"
+                            >
                               {p.description_quick || p.description}
                             </p>
                           )}
 
                           {formatDimensions(p) && (
-                            <div className="flex items-center gap-1.5 mt-1.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80">
-                                <Ruler size={11} className="text-indigo-500" />
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80">
+                                <Ruler size={10} className="text-indigo-500" />
                                 <span>{formatDimensions(p)}</span>
                               </span>
                             </div>
@@ -5012,10 +5019,10 @@ export default function ProductMasterPage() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
+        {/* Pagination Footer - Anchored at Bottom of Card */}
         <div
-          className={`p-3.5 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs ${
-            isDark ? "bg-slate-800/40 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
+          className={`p-3 shrink-0 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs ${
+            isDark ? "bg-slate-900/90 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-600"
           }`}
         >
           <div className="flex items-center gap-3">
