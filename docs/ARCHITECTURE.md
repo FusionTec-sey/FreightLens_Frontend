@@ -62,3 +62,5 @@ npm run build
 The current build passes with pre-existing ESLint warnings. Warning cleanup is tracked separately from security stabilization.
 
 Sustained-use UI changes also follow `docs/FRONTEND_ERGONOMICS.md`. Its evidence boundary prevents unsupported medical claims while adding zoom, readability, workflow-continuity, and layout-stability checks.
+
+Supplier master data displays the backend's explicit scope. Root users can choose shared or tenant-specific when creating/editing a supplier; tenant users can view shared suppliers but cannot mutate them.

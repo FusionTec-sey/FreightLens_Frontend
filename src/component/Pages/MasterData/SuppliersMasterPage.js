@@ -20,11 +20,13 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
+import { useAuth } from "../../../context/AuthContext";
 import { COUNTRIES, getCountryFlag, formatCountryDisplay } from "../../../utils/countries";
 import { mediaUrl } from "../../../utils/mediaUrl";
 
 export default function SuppliersMasterPage() {
   const { isDark } = useTheme();
+  const { isRoot } = useAuth();
 
   const [suppliers, setSuppliers] = useState([]);
   const [currencies, setCurrencies] = useState([]);
@@ -51,6 +53,7 @@ export default function SuppliersMasterPage() {
   const [varianceThreshold, setVarianceThreshold] = useState("2.0");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isShared, setIsShared] = useState(false);
 
   const token = localStorage.getItem("token");
   const headers = useMemo(() => ({
@@ -104,6 +107,7 @@ export default function SuppliersMasterPage() {
     setDefaultPaymentTermId(paymentTerms.length > 0 ? String(paymentTerms[0].id) : "");
     setVarianceThreshold("2.0");
     setNotes("");
+    setIsShared(false);
     setShowModal(true);
   };
 
@@ -123,6 +127,7 @@ export default function SuppliersMasterPage() {
     setDefaultPaymentTermId(sup.default_payment_term_id ? String(sup.default_payment_term_id) : "");
     setVarianceThreshold(String(sup.variance_threshold_pct || "2.0"));
     setNotes(sup.notes || "");
+    setIsShared(Boolean(sup.is_shared));
     setShowModal(true);
   };
 
@@ -155,7 +160,8 @@ export default function SuppliersMasterPage() {
       default_payment_term_id: defaultPaymentTermId ? Number(defaultPaymentTermId) : null,
       variance_threshold_pct: parseFloat(varianceThreshold) || 2.0,
       notes: notes.trim() || null,
-      is_active: true
+      is_active: true,
+      is_shared: isRoot ? isShared : false
     };
 
     try {
@@ -342,7 +348,12 @@ export default function SuppliersMasterPage() {
                             {s.name ? s.name.charAt(0).toUpperCase() : "V"}
                           </div>
                         )}
-                        <span>{s.name}</span>
+                        <div>
+                          <span>{s.name}</span>
+                          <div className={`text-[10px] font-semibold ${s.is_shared ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`}>
+                            {s.is_shared ? "Shared supplier" : "Tenant supplier"}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="py-2 px-3 text-slate-600 dark:text-slate-300">
@@ -402,16 +413,18 @@ export default function SuppliersMasterPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenEditModal(s)}
-                          className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition"
-                          title="Edit Supplier"
+                          disabled={s.is_shared && !isRoot}
+                          className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={s.is_shared && !isRoot ? "Shared suppliers are managed by the root organisation" : "Edit Supplier"}
                         >
                           <Edit2 size={13} />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(s)}
-                          className="p-1 text-slate-400 hover:text-rose-500 transition"
-                          title="Delete Supplier"
+                          disabled={s.is_shared && !isRoot}
+                          className="p-1 text-slate-400 hover:text-rose-500 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={s.is_shared && !isRoot ? "Shared suppliers are managed by the root organisation" : "Delete Supplier"}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -457,6 +470,23 @@ export default function SuppliersMasterPage() {
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold"
                   />
                 </div>
+
+                {isRoot && (
+                  <label className="sm:col-span-2 flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isShared}
+                      onChange={(e) => setIsShared(e.target.checked)}
+                      className="mt-0.5 h-4 w-4"
+                    />
+                    <span>
+                      <span className="block text-xs font-bold">Shared supplier</span>
+                      <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Visible to every organisation. Leave unchecked to keep this supplier tenant-specific.
+                      </span>
+                    </span>
+                  </label>
+                )}
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
