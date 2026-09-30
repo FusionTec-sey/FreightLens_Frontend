@@ -1,3 +1,5 @@
+> **Archived v1 document.** This guide is retained only for historical reference and must not be used as the current implementation standard. See `docs/ARCHITECTURE.md` and backend `AGENTS.md`.
+
 # Frontend Logic Guide: BoL & Container Synchronization
 
 This guide explains how to implement the frontend UI logic for managing **Bill of Lading (BoL)** settings vs. **Individual Container** overrides, including permissions and visual logic.
