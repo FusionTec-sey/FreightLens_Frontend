@@ -21,11 +21,14 @@ import {
   Filter,
   Play,
   Bookmark,
+  Building2,
+  Star,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import DatasetReportModal from "./DatasetReportModal";
 import DatasetReportView from "./DatasetReportView";
 import TabularTemplateDesignerModal from "./TabularTemplateDesignerModal";
+import OrgPrintProfilePanel from "./OrgPrintProfilePanel";
 
 export default function ReportTemplatesPage() {
   const navigate = useNavigate();
@@ -37,12 +40,11 @@ export default function ReportTemplatesPage() {
     permissions.includes("Manage_Report_Template") ||
     permissions.includes("Administrator") ||
     permissions.includes("admin") ||
-    permissions.includes("View_Report") ||
-    permissions.includes("Report") ||
-    permissions.includes("Generate_Report") ||
     user?.role === "admin" ||
-    user?.role === "Administrator" ||
-    true;
+    user?.role === "Administrator";
+
+  const canManagePrintProfile =
+    canManage || permissions.includes("Manage_Print_Profile");
 
   // Dual-mode Hub: "DOCUMENTS" vs "DATASETS"
   const [mainHubTab, setMainHubTab] = useState("DOCUMENTS");
@@ -99,14 +101,14 @@ export default function ReportTemplatesPage() {
     permissions.includes("Administrator") ||
     permissions.includes("admin") ||
     user?.role === "admin" ||
-    user?.role === "Administrator" ||
-    true;
+    user?.role === "Administrator";
 
   // Module clearance tabs
   const hasOrders = hasModule ? hasModule("ORDERS") : true;
   const hasLogistics = hasModule ? hasModule("LOGISTICS") : true;
 
   const [togglingId, setTogglingId] = useState(null);
+  const [defaultingId, setDefaultingId] = useState(null);
 
   const tabs = [
     { id: "ALL", label: "All Templates" },
@@ -306,6 +308,32 @@ export default function ReportTemplatesPage() {
     }
   };
 
+  const handleSetDefault = async (template) => {
+    setDefaultingId(template.id);
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_NETWORK}/reports/templates/${template.id}/assignment`,
+        { is_default: true },
+        { headers: getHeaders() }
+      );
+      const applyDefault = (items) =>
+        items.map((item) => ({
+          ...item,
+          is_default_for_org:
+            item.entity_type === template.entity_type ? item.id === template.id : item.is_default_for_org,
+          is_active_for_org: item.id === template.id ? true : item.is_active_for_org,
+        }));
+      setTemplates(applyDefault);
+      setCustomTabularTemplates(applyDefault);
+      toast.success(`'${template.name}' is now the default for ${template.entity_type}.`);
+    } catch (err) {
+      console.error("Set default failed:", err);
+      toast.error(err.response?.data?.detail || "Failed to set the default template.");
+    } finally {
+      setDefaultingId(null);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       
@@ -349,6 +377,17 @@ export default function ReportTemplatesPage() {
                 {datasetCatalog.length || 3}
               </span>
             </button>
+            <button
+              onClick={() => setMainHubTab("PROFILE")}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer ${
+                mainHubTab === "PROFILE"
+                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <Building2 size={14} />
+              Print Profile
+            </button>
           </div>
         </div>
 
@@ -382,7 +421,9 @@ export default function ReportTemplatesPage() {
       </div>
 
       {/* ── View 1: Operational Registers Catalog ────────────────────────── */}
-      {mainHubTab === "DATASETS" ? (
+      {mainHubTab === "PROFILE" ? (
+        <OrgPrintProfilePanel canEdit={canManagePrintProfile} />
+      ) : mainHubTab === "DATASETS" ? (
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-6xl mx-auto space-y-8">
             
@@ -554,14 +595,14 @@ export default function ReportTemplatesPage() {
                             </span>
                             
                             {/* Active Switch Toggle */}
-                            <label className="flex items-center gap-2 cursor-pointer" title="Toggle active status for operational use">
+                            <label className={`flex items-center gap-2 ${canManageOperationalTemplate ? "cursor-pointer" : "cursor-not-allowed"}`} title="Toggle active status for operational use">
                               <span className="text-[11px] font-medium text-slate-500">
                                 {t.is_active_for_org ? "Active" : "Inactive"}
                               </span>
                               <input
                                 type="checkbox"
                                 checked={Boolean(t.is_active_for_org)}
-                                disabled={isToggling}
+                                disabled={isToggling || !canManageOperationalTemplate}
                                 onChange={() => handleToggleActive(t)}
                                 className="sr-only peer"
                               />
@@ -614,6 +655,14 @@ export default function ReportTemplatesPage() {
 
                           {canManageOperationalTemplate && (
                             <>
+                              <button
+                                onClick={() => handleSetDefault(t)}
+                                disabled={defaultingId === t.id || t.is_default_for_org}
+                                className={`p-1.5 rounded-lg transition ${t.is_default_for_org ? "text-amber-500" : "text-slate-500 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                                title={t.is_default_for_org ? "Default template" : "Set as default template"}
+                              >
+                                {defaultingId === t.id ? <Loader2 size={15} className="animate-spin" /> : <Star size={15} className={t.is_default_for_org ? "fill-current" : ""} />}
+                              </button>
                               <button
                                 onClick={() => {
                                   setActiveDatasetForDesigner(matchedDataset || datasetCatalog[0] || null);
@@ -839,7 +888,7 @@ export default function ReportTemplatesPage() {
                             <button
                               type="button"
                               onClick={() => handleToggleActive(tmpl)}
-                              disabled={togglingId === tmpl.id}
+                              disabled={togglingId === tmpl.id || !canManage}
                               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer ${
                                 tmpl.is_active_for_org
                                   ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
@@ -867,6 +916,18 @@ export default function ReportTemplatesPage() {
                           {/* Action Buttons */}
                           <td className="px-5 py-4 text-right">
                             <div className="inline-flex items-center gap-1">
+                              {/* Default Template */}
+                              {canManage && (
+                                <button
+                                  onClick={() => handleSetDefault(tmpl)}
+                                  disabled={defaultingId === tmpl.id || tmpl.is_default_for_org}
+                                  title={tmpl.is_default_for_org ? "Default template for this entity" : "Set as default template for this entity"}
+                                  className={`p-1.5 rounded-lg transition cursor-pointer ${tmpl.is_default_for_org ? "text-amber-500" : "text-slate-600 dark:text-slate-300 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                                >
+                                  {defaultingId === tmpl.id ? <Loader2 size={15} className="animate-spin" /> : <Star size={15} className={tmpl.is_default_for_org ? "fill-current" : ""} />}
+                                </button>
+                              )}
+
                               {/* AI Context Download */}
                               {canManage && (
                                 <button
