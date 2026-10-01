@@ -7,14 +7,14 @@ const PrivateRoute = ({
   requiredPermissions = [],
   requiredModules = [],
 }) => {
-  const { token, permissions = [], isRoot, modules = [] } = useAuth();
+  const { token, permissions = [], isSuperAdmin, modules = [] } = useAuth();
 
   if (!token) {
     return <Navigate to="/" replace />;
   }
 
-  // Superadmins / Root users bypass module & permission restrictions
-  if (isRoot) {
+  // Only an explicit platform administrator bypasses module and permission restrictions.
+  if (isSuperAdmin) {
     return children;
   }
 
@@ -53,4 +53,3 @@ const PrivateRoute = ({
 };
 
 export default PrivateRoute;
-

@@ -22,12 +22,24 @@ export default function OrgSwitcher() {
         },
       })
       .then((res) => {
-        setOrganisations(res.data || []);
+        const assignedOrganisations = Array.isArray(res.data) ? res.data : [];
+        setOrganisations(assignedOrganisations);
+
+        const selected = assignedOrganisations.find((org) => org.id === selectedOrgId);
+        const combinedModules = assignedOrganisations.length > 0
+          ? assignedOrganisations
+              .map((org) => Array.isArray(org.modules) ? org.modules : [])
+              .reduce((common, orgModules) => common.filter((module) => orgModules.includes(module)))
+          : [];
+        setSelectedOrgId(
+          selectedOrgId,
+          selected ? (selected.modules || []) : combinedModules
+        );
       })
       .catch((err) => {
         console.error("Failed to fetch organisations for switcher:", err);
       });
-  }, [isRoot]);
+  }, [isRoot, selectedOrgId, setSelectedOrgId]);
 
   // Determine active company display label
   const activeCompany = selectedOrgId
@@ -69,7 +81,12 @@ export default function OrgSwitcher() {
           <button
             type="button"
             onClick={() => {
-              setSelectedOrgId(null);
+              const combinedModules = organisations.length > 0
+                ? organisations
+                    .map((org) => Array.isArray(org.modules) ? org.modules : [])
+                    .reduce((common, orgModules) => common.filter((module) => orgModules.includes(module)))
+                : [];
+              setSelectedOrgId(null, combinedModules);
               setIsOpen(false);
             }}
             className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition ${isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-gray-100 text-gray-800"}`}
@@ -85,7 +102,7 @@ export default function OrgSwitcher() {
               key={org.id}
               type="button"
               onClick={() => {
-                setSelectedOrgId(org.id);
+                setSelectedOrgId(org.id, org.modules || []);
                 setIsOpen(false);
               }}
               className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition ${isDark ? "hover:bg-slate-800 text-slate-300" : "hover:bg-gray-100 text-gray-700"}`}
