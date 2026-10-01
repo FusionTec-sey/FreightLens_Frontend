@@ -22,7 +22,8 @@ import {
   Loader2,
   AlertTriangle,
   Search,
-  CheckCircle2
+  CheckCircle2,
+  Printer,
 } from "lucide-react";
 
 import { useTheme } from "../../../context/ThemeContext";
@@ -31,6 +32,7 @@ import { useConfirm } from "../../../context/ConfirmContext";
 import { useOptions } from "../../../hooks/useOptions";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import { formatDateTime12hr } from "../../../utils/DateFormater";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 
 export default function BillOfLandingSiderDrawer({
   isOpen,
@@ -59,6 +61,7 @@ export default function BillOfLandingSiderDrawer({
   const [isSearchingCarrier, setIsSearchingCarrier] = useState(false);
   const [carrierSynced, setCarrierSynced] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     billOfLadingNumber: "",
@@ -99,6 +102,20 @@ export default function BillOfLandingSiderDrawer({
       permissions.includes("Delete_BillOfLanding") ||
       permissions.includes("Administrator")
     ));
+  }, [permissions, isRoot]);
+
+  const canPrintBL = useMemo(() => {
+    return Boolean(
+      isRoot ||
+      (Array.isArray(permissions) && (
+        permissions.includes("Print_BillOfLanding") ||
+        permissions.includes("View_BL") ||
+        permissions.includes("BillOfLanding") ||
+        permissions.includes("Administrator") ||
+        permissions.includes("Super_Admin") ||
+        permissions.includes("admin")
+      ))
+    );
   }, [permissions, isRoot]);
 
   // Helper to resolve human-readable milestone status text
@@ -407,6 +424,19 @@ export default function BillOfLandingSiderDrawer({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Contextual Print Action */}
+            {isEditMode && canPrintBL && (
+              <button
+                type="button"
+                onClick={() => setIsPrintModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 border-indigo-200 dark:border-indigo-800 transition cursor-pointer"
+                title="Print Bill of Lading Manifest"
+              >
+                <Printer size={13} />
+                <span>Print</span>
+              </button>
+            )}
+
             {/* Quick action to open dedicated full workspace */}
             <button
               type="button"
@@ -815,6 +845,18 @@ export default function BillOfLandingSiderDrawer({
           </div>
         </div>
       </div>
+
+      {/* Contextual Print Modal */}
+      {isPrintModalOpen && (
+        <EntityPrintModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          entityType="BillOfLanding"
+          entityId={billOfLanding?.id || billOfLanding?.BillOfLanding_ID || formData.billOfLadingNumber}
+          entityIdentifier={formData.billOfLadingNumber || billOfLanding?.BillOfLanding}
+          title={`Print Bill of Lading — ${formData.billOfLadingNumber || ""}`}
+        />
+      )}
     </div>
   );
 }

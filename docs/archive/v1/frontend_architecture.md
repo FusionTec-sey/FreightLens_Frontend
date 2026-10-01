@@ -1,3 +1,5 @@
+> **Archived v1 document.** This describes the pre-FreightLens frontend and is retained only for historical reference. Current architecture is in `docs/ARCHITECTURE.md`.
+
 # Frontend Architecture Document
 
 ## Overview

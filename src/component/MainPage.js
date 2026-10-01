@@ -37,6 +37,8 @@ import CurrenciesPage from "./Pages/MasterData/CurrenciesPage.js";
 import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
 import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
 import DocumentTypesMasterPage from "./Pages/MasterData/DocumentTypesMasterPage.js";
+import ReportTemplatesPage from "./Pages/ReportTemplates/ReportTemplatesPage.js";
+import ReportTemplateEditorPage from "./Pages/ReportTemplates/ReportTemplateEditorPage.js";
 
 import { useTheme } from "../context/ThemeContext.js";
 
@@ -52,6 +54,7 @@ export default function MainPage() {
   const { theme } = useTheme();
   const isFullBleedPage =
     isLoginPage ||
+    location.pathname.startsWith("/reports") ||
     location.pathname === "/orders" ||
     location.pathname === "/orders/new" ||
     location.pathname.startsWith("/inventory") ||
@@ -173,6 +176,12 @@ export default function MainPage() {
             <Route path="/master-data/payment-terms" element={<PrivateRoute><PaymentTermsPage /></PrivateRoute>} />
             <Route path="/master-data/suppliers" element={<PrivateRoute><SuppliersMasterPage /></PrivateRoute>} />
             <Route path="/master-data/document-types" element={<PrivateRoute><DocumentTypesMasterPage /></PrivateRoute>} />
+
+            {/* Customer-Configurable Report & Print Templates */}
+            <Route path="/reports" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage /></PrivateRoute>} />
+            <Route path="/reports/templates" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage /></PrivateRoute>} />
+            <Route path="/reports/editor/:id" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin", "View_Report", "Report"]}><ReportTemplateEditorPage /></PrivateRoute>} />
+            <Route path="/reports/editor/new" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin", "View_Report", "Report"]}><ReportTemplateEditorPage /></PrivateRoute>} />
 
             <Route path="/unauthorized" element={<Unauthorized />} />
           </Routes>

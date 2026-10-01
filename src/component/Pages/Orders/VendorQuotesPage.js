@@ -340,40 +340,42 @@ export default function VendorQuotesPage() {
                         {order.company || "Pending Vendor Bids"}
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        {stage === "CONFIRMED" ? (
-                          canSendRFQ ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {stage === "CONFIRMED" ? (
+                            canSendRFQ ? (
+                              <button
+                                type="button"
+                                disabled={sendingRfqId === order.id}
+                                onClick={(e) => handleSendRFQ(order, e)}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+                                title="Dispatch / Send this RFQ to suppliers"
+                              >
+                                <Send size={13} className={sendingRfqId === order.id ? "animate-spin" : ""} />
+                                <span>{sendingRfqId === order.id ? "Sending..." : "Send RFQ to Vendors"}</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-amber-600 font-semibold italic">Ready to Send</span>
+                            )
+                          ) : stage === "QUOTE_APPROVED" ? (
                             <button
                               type="button"
-                              disabled={sendingRfqId === order.id}
-                              onClick={(e) => handleSendRFQ(order, e)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
-                              title="Dispatch / Send this RFQ to suppliers"
+                              onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
                             >
-                              <Send size={13} className={sendingRfqId === order.id ? "animate-spin" : ""} />
-                              <span>{sendingRfqId === order.id ? "Sending..." : "Send RFQ to Vendors"}</span>
+                              <Award size={13} />
+                              <span>View Awarded Quotes</span>
                             </button>
                           ) : (
-                            <span className="text-xs text-amber-600 font-semibold italic">Ready to Send</span>
-                          )
-                        ) : stage === "QUOTE_APPROVED" ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
-                          >
-                            <Award size={13} />
-                            <span>View Awarded Quotes</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
-                          >
-                            <GitCompare size={13} />
-                            <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
-                          </button>
-                        )}
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-lg text-xs transition shadow-xs inline-flex items-center gap-1.5"
+                            >
+                              <GitCompare size={13} />
+                              <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -414,42 +416,44 @@ export default function VendorQuotesPage() {
                     )}
                   </div>
                   <div
-                    className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end"
+                    className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {stage === "CONFIRMED" ? (
-                      canSendRFQ ? (
+                    <div className="flex-1">
+                      {stage === "CONFIRMED" ? (
+                        canSendRFQ ? (
+                          <button
+                            type="button"
+                            disabled={sendingRfqId === order.id}
+                            onClick={(e) => handleSendRFQ(order, e)}
+                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            <Send size={14} className={sendingRfqId === order.id ? "animate-spin" : ""} />
+                            <span>{sendingRfqId === order.id ? "Sending RFQ..." : "Send RFQ to Vendors"}</span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-amber-600 font-semibold italic text-center block">Ready to Dispatch</span>
+                        )
+                      ) : stage === "QUOTE_APPROVED" ? (
                         <button
                           type="button"
-                          disabled={sendingRfqId === order.id}
-                          onClick={(e) => handleSendRFQ(order, e)}
-                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
                         >
-                          <Send size={14} className={sendingRfqId === order.id ? "animate-spin" : ""} />
-                          <span>{sendingRfqId === order.id ? "Sending RFQ..." : "Send RFQ to Vendors"}</span>
+                          <Award size={14} />
+                          <span>View Awarded Quotes</span>
                         </button>
                       ) : (
-                        <span className="text-xs text-amber-600 font-semibold italic">Ready to Dispatch</span>
-                      )
-                    ) : stage === "QUOTE_APPROVED" ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
-                      >
-                        <Award size={14} />
-                        <span>View Awarded Quotes</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/orders/${order.id}/quotes`)}
-                        className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
-                      >
-                        <GitCompare size={14} />
-                        <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
-                      </button>
-                    )}
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/orders/${order.id}/quotes`)}
+                          className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-1.5"
+                        >
+                          <GitCompare size={14} />
+                          <span>{stage === "QUOTE_RECEIVED" ? "Review & Compare Quotes" : "Record / Compare Quotes"}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -457,6 +461,8 @@ export default function VendorQuotesPage() {
           </div>
         )}
       </div>
+
+
     </div>
   );
 }

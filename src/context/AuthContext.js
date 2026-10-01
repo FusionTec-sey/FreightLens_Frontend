@@ -99,6 +99,7 @@ import React, {
   useEffect,
   useCallback,
   useRef,
+  useMemo,
 } from "react";
 import axios from "axios";
 
@@ -154,7 +155,7 @@ export const AuthProvider = ({ children }) => {
   });
   const [isRoot, setIsRoot] = useState(() => {
     const stored = localStorage.getItem(IS_ROOT_KEY);
-    return stored ? stored === "true" : true;
+    return stored ? stored === "true" : false;
   });
   const [modules, setModules] = useState(() => {
     const stored = localStorage.getItem(MODULES_KEY);
@@ -163,7 +164,7 @@ export const AuthProvider = ({ children }) => {
     }
     const tok = localStorage.getItem(ACCESS_TOKEN_KEY);
     const payload = decodeJwt(tok);
-    return payload?.modules || ["LOGISTICS", "ORDERS"];
+    return Array.isArray(payload?.modules) ? payload.modules : [];
   });
   const [plan, setPlan] = useState(() => {
     return localStorage.getItem(PLAN_KEY) || "complete";
@@ -173,7 +174,7 @@ export const AuthProvider = ({ children }) => {
     return stored ? parseInt(stored, 10) : null;
   });
 
-  const setSelectedOrgId = (id) => {
+  const setSelectedOrgId = useCallback((id, selectedModules = null) => {
     if (id) {
       localStorage.setItem(SELECTED_ORG_KEY, id.toString());
       setSelectedOrgIdState(id);
@@ -181,7 +182,11 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem(SELECTED_ORG_KEY);
       setSelectedOrgIdState(null);
     }
-  };
+    if (Array.isArray(selectedModules)) {
+      localStorage.setItem(MODULES_KEY, JSON.stringify(selectedModules));
+      setModules(selectedModules);
+    }
+  }, []);
 
   // used to schedule refresh
   const refreshTimeoutRef = useRef(null);
@@ -212,8 +217,8 @@ export const AuthProvider = ({ children }) => {
     const tokenPayload = decodeJwt(accessToken) || {};
     const oid = orgMeta?.org_id || tokenPayload.org_id || 1;
     const oname = orgMeta?.org_name || tokenPayload.org_name || "Sahaj Construction";
-    const rootFlag = orgMeta?.is_root !== undefined ? orgMeta.is_root : (tokenPayload.is_root !== undefined ? tokenPayload.is_root : true);
-    const userModules = orgMeta?.modules || tokenPayload.modules || ["LOGISTICS", "ORDERS"];
+    const rootFlag = orgMeta?.is_root !== undefined ? orgMeta.is_root : (tokenPayload.is_root !== undefined ? tokenPayload.is_root : false);
+    const userModules = orgMeta?.modules || tokenPayload.modules || [];
     const userPlan = orgMeta?.plan || tokenPayload.plan || "complete";
 
     localStorage.setItem(ORG_ID_KEY, oid.toString());
@@ -246,8 +251,8 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setOrgId(1);
     setOrgName("Sahaj Construction");
-    setIsRoot(true);
-    setModules(["LOGISTICS", "ORDERS"]);
+    setIsRoot(false);
+    setModules([]);
     setPlan("complete");
     setSelectedOrgIdState(null);
 
@@ -290,6 +295,12 @@ export const AuthProvider = ({ children }) => {
         if (newRefreshToken) {
           localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
           setRefreshToken(newRefreshToken);
+        }
+
+        const newPermissions = resp?.data?.permissions || null;
+        if (Array.isArray(newPermissions)) {
+          localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(newPermissions));
+          setPermissions(newPermissions);
         }
 
         scheduleRefresh(newAccessToken);
@@ -428,13 +439,53 @@ export const AuthProvider = ({ children }) => {
     };
   }, [refreshAccessToken, selectedOrgId]);
 
+  const roles = useMemo(() => {
+    const tok = token || localStorage.getItem(ACCESS_TOKEN_KEY);
+    const payload = decodeJwt(tok);
+    return payload?.roles || [];
+  }, [token]);
+
+  const isSuperAdmin = useMemo(() => {
+    return roles.some((r) => {
+      const lower = String(r).trim().toLowerCase();
+      return lower === "super_admin" || lower === "superadmin" || lower === "root";
+    });
+  }, [roles]);
+
+  const effectivePermissions = useMemo(() => {
+    const list = Array.isArray(permissions) ? [...permissions] : [];
+    if (isSuperAdmin) {
+      const adminPerms = [
+        "Administrator",
+        "admin",
+        "Super_Admin",
+        "Print_PurchaseOrder",
+        "Print_BillOfLanding",
+        "Print_Container",
+        "View_Order",
+        "View_RFQ",
+        "View_BL",
+        "View_Container",
+        "View_VendorQuote",
+        "Compare_Quote"
+      ];
+      adminPerms.forEach((p) => {
+        if (!list.includes(p)) list.push(p);
+      });
+    }
+    return list;
+  }, [permissions, isSuperAdmin]);
+
   const value = {
     token,
     refreshAccessToken,
     login,
     logout,
-    permissions,
+    permissions: effectivePermissions,
+    rawPermissions: permissions,
     user,
+    roles,
+    isSuperAdmin,
     orgId,
     orgName,
     selectedOrgId,
@@ -442,7 +493,7 @@ export const AuthProvider = ({ children }) => {
     isRoot,
     modules,
     plan,
-    hasModule: (mod) => isRoot || (modules || []).includes(mod),
+    hasModule: (mod) => isSuperAdmin || (modules || []).includes(mod),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
@@ -20,12 +20,7 @@ import {
   ArrowRight,
   Package,
   Ship,
-  Eye,
-  Mail,
-  ChevronDown,
-  Truck,
-  ArrowDownRight,
-  Loader2
+  Eye
 } from 'lucide-react';
 
 import { useAuth } from '../../../context/AuthContext';
@@ -71,128 +66,14 @@ export default function ContainerEntry() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState(null);
 
-  // Mail Dispatch State
-  const [isMailMenuOpen, setIsMailMenuOpen] = useState(false);
-  const [isLoadingMail, setIsLoadingMail] = useState(false);
-  const mailMenuRef = useRef(null);
-
   const canAdd = permissions.includes("Add_Container") || permissions.includes("Container") || (Array.isArray(permissions) && permissions.includes("Administrator"));
   const canDelete = permissions.includes("Delete_Container") || permissions.includes("Container") || (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canMail = useMemo(() => {
-    return isRoot || (Array.isArray(permissions) && (
-      permissions.includes("Mail_Container") ||
-      permissions.includes("Mail") ||
-      permissions.includes("Container") ||
-      permissions.includes("Administrator")
-    ));
-  }, [permissions, isRoot]);
   const canViewSupplier = Array.isArray(permissions) && (
     permissions.includes("View_Supplier") ||
     permissions.includes("Supplier") ||
     permissions.includes("Edit_Supplier") ||
     permissions.includes("Add_Supplier")
   );
-
-  // Close mail menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (mailMenuRef.current && !mailMenuRef.current.contains(e.target)) {
-        setIsMailMenuOpen(false);
-      }
-    };
-    if (isMailMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isMailMenuOpen]);
-
-  // ── Mail Dispatch Handlers ────────────────────────────────────────────────
-  const handlePickupEmail = async () => {
-    setIsLoadingMail(true);
-    try {
-      const response = await axios.get(`${process.env.REACT_APP_NETWORK}/toPickup`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          skip_zrok_interstitial: "true",
-        },
-      });
-
-      const containers = response.data || [];
-      if (!containers.length) {
-        toast.info("No arrived containers found awaiting pickup.");
-        return;
-      }
-
-      const subject = `Pickup Request for Containers (${containers.length} Units)`;
-      let body = "Please arrange pickup for the following containers:\n\n";
-
-      containers.forEach((c, i) => {
-        body += `${i + 1}. Container: ${c.container_no || "N/A"}\n   Location: ${c.venue || "N/A"}\n   Empty Date: ${c.emptyDate || "N/A"}\n\n`;
-      });
-
-      const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.location.href = mailto;
-      toast.success(`Generated pickup email for ${containers.length} container(s).`);
-    } catch (err) {
-      console.error("Failed to fetch pickup containers:", err);
-      toast.error("Error generating pickup email.");
-    } finally {
-      setIsLoadingMail(false);
-      setIsMailMenuOpen(false);
-    }
-  };
-
-  const handleDropoffEmail = async () => {
-    setIsLoadingMail(true);
-    try {
-      const response = await axios.get(`${process.env.REACT_APP_NETWORK}/arrived`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          skip_zrok_interstitial: "true",
-        },
-      });
-
-      const containers = response.data || [];
-      if (!containers.length) {
-        toast.info("No arrived containers found awaiting dropoff.");
-        return;
-      }
-
-      const subject = `Drop-off Request for Arrived Containers (${containers.length} Units)`;
-      let body = "Please arrange drop-off for the following arrived containers:\n\n";
-
-      containers.forEach((c, i) => {
-        body += `${i + 1}. Container: ${c.container_no || "N/A"}\n   Location: ${c.venue || "Port Victoria"}\n   Arrival: ${c.arrival_on_port ? String(c.arrival_on_port).slice(0, 10) : "N/A"}\n\n`;
-      });
-
-      const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.location.href = mailto;
-      toast.success(`Generated drop-off email for ${containers.length} container(s).`);
-    } catch (err) {
-      console.error("Failed to fetch arrived containers:", err);
-      toast.error("Error generating drop-off email.");
-    } finally {
-      setIsLoadingMail(false);
-      setIsMailMenuOpen(false);
-    }
-  };
-
-  const handleSingleContainerEmail = (c) => {
-    const cNo = c.Container || c.container_no || "Container";
-    const subject = `Container Status Notice: ${cNo}`;
-    let body = `Dear Team,\n\nPlease find the current status details for container ${cNo}:\n\n` +
-      `- Container Number: ${cNo}\n` +
-      `- Status: ${c.Status || c.state || "N/A"}\n` +
-      `- Consignee: ${c.Consignee || "N/A"}\n` +
-      `- Arrival Date: ${c.ArrivalDate || "N/A"}\n` +
-      `- Location: ${c.EmptyAt || c.location || "Port Victoria"}\n` +
-      `- Demurrage: ${c.Demurrage || "N/A"}\n\n` +
-      `Best regards,\nLogistics Operations`;
-
-    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
-    toast.info(`Drafted email notice for container ${cNo}.`);
-  };
 
   // Transform raw API data into presentation format
   const transformData = useCallback((apiData) => {
@@ -415,72 +296,7 @@ export default function ContainerEntry() {
         </div>
 
         <div className="flex items-center gap-2">
-          {canMail && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsMailMenuOpen(prev => !prev)}
-                disabled={isLoadingMail}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition shadow-xs cursor-pointer ${
-                  isMailMenuOpen
-                    ? "bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-300"
-                    : isDark
-                    ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-                title="Container Email Dispatch & Requests"
-              >
-                {isLoadingMail ? <Loader2 size={15} className="animate-spin text-indigo-600" /> : <Mail size={15} />}
-                <span>Mail Dispatch</span>
-                <ChevronDown size={13} className={`transition-transform duration-200 ${isMailMenuOpen ? "rotate-180" : ""}`} />
-              </button>
 
-              {isMailMenuOpen && (
-                <div 
-                  ref={mailMenuRef}
-                  className={`absolute right-0 mt-1.5 w-64 rounded-2xl border shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150 ${
-                    isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
-                  }`}
-                >
-                  <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-inherit mb-1">
-                    Container Email Requests
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handlePickupEmail}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2.5 transition cursor-pointer ${
-                      isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-indigo-50 text-slate-700 hover:text-indigo-700"
-                    }`}
-                  >
-                    <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                      <Truck size={14} />
-                    </div>
-                    <div>
-                      <div className="font-bold">Pick Up Request</div>
-                      <div className="text-[10px] text-slate-400">Containers ready for pickup</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleDropoffEmail}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2.5 transition cursor-pointer mt-1 ${
-                      isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-emerald-50 text-slate-700 hover:text-emerald-700"
-                    }`}
-                  >
-                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                      <ArrowDownRight size={14} />
-                    </div>
-                    <div>
-                      <div className="font-bold">Drop Off Request</div>
-                      <div className="text-[10px] text-slate-400">Arrived containers at port</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
           <button
             onClick={() => fetchData()}
@@ -800,16 +616,6 @@ export default function ContainerEntry() {
                       {/* Actions */}
                       <td className="py-3 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
-                          {canMail && (
-                            <button
-                              type="button"
-                              onClick={() => handleSingleContainerEmail(row)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition"
-                              title="Send Container Notice Email"
-                            >
-                              <Mail size={14} />
-                            </button>
-                          )}
                           <button
                             type="button"
                             onClick={() => handleEdit(row)}

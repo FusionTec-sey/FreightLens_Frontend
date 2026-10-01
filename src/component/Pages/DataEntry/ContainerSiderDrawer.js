@@ -24,7 +24,7 @@ import {
   CheckCircle2,
   Loader2,
   FileCheck,
-  Mail
+  Printer
 } from "lucide-react";
 
 import { useTheme } from "../../../context/ThemeContext";
@@ -34,6 +34,7 @@ import { useOptions } from "../../../hooks/useOptions";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput";
 import ContainerContextPanel from "./ContainerContextPanel";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { calculateDemurrage } from "../../../utils/DemurrageUtil";
 
 export default function ContainerSiderDrawer({
@@ -63,6 +64,7 @@ export default function ContainerSiderDrawer({
   const [activeTab, setActiveTab] = useState("container");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -176,14 +178,17 @@ export default function ContainerSiderDrawer({
     );
   }, [permissions]);
 
-  const canMail = useMemo(() => {
-    return isRoot || (Array.isArray(permissions) && (
-      permissions.includes("Mail_Container") ||
-      permissions.includes("Mail") ||
+  const canPrintContainer = Boolean(
+    isRoot ||
+    (Array.isArray(permissions) && (
+      permissions.includes("Print_Container") ||
+      permissions.includes("View_Container") ||
       permissions.includes("Container") ||
-      permissions.includes("Administrator")
-    ));
-  }, [permissions, isRoot]);
+      permissions.includes("Administrator") ||
+      permissions.includes("Super_Admin") ||
+      permissions.includes("admin")
+    ))
+  );
 
   const isEditMode = !!container;
 
@@ -410,26 +415,7 @@ export default function ContainerSiderDrawer({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSendContainerEmail = () => {
-    const cNo = formData.containerNo || "Container";
-    const statusObj = (statusOptions || []).find(s => String(s.id) === String(formData.status));
-    const statusName = statusObj?.name || "In Transit";
-    const subject = `Container Status Notice: ${cNo}`;
-    const body = `Dear Team,\n\nPlease see the operational status details for container ${cNo}:\n\n` +
-      `- Container Number: ${cNo}\n` +
-      `- Ocean B/L: ${formData.BillOfLanding || "N/A"}\n` +
-      `- Milestone Status: ${statusName}\n` +
-      `- Port Arrival: ${formData.arrival_on_port || "N/A"}\n` +
-      `- Demurrage / Free Days: ${demurrageBadge?.text || `${formData.freeDays || formData.blFreeDays || 10} Free Days`}\n` +
-      `- In-Bound Date: ${formData.in_bound || "N/A"}\n` +
-      `- Empty Date: ${formData.empty_date || "N/A"}\n` +
-      (formData.note ? `- Notes: ${formData.note}\n` : "") +
-      `\nBest regards,\nLogistics Operations`;
 
-    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailto;
-    toast.info(`Drafted email notice for container ${cNo}.`);
-  };
 
   // ── Document and Image Pickers ─────────────────────────────────────────────
   const handleAddDocumentFile = (e) => {
@@ -690,14 +676,19 @@ export default function ContainerSiderDrawer({
               </span>
             )}
 
-            {canMail && formData.containerNo && (
+            {canPrintContainer && (formData.container_id || formData.containerNo) && (
               <button
                 type="button"
-                onClick={handleSendContainerEmail}
-                className="p-2 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 transition cursor-pointer"
-                title="Send Container Notice Email"
+                onClick={() => setIsPrintModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                  isDark
+                    ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20"
+                    : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                }`}
+                title="Print Container Document"
               >
-                <Mail size={16} />
+                <Printer size={14} className="text-indigo-600 dark:text-indigo-400" />
+                <span>Print</span>
               </button>
             )}
 
@@ -1435,6 +1426,18 @@ export default function ContainerSiderDrawer({
           </div>
         </div>
       </div>
+
+      {/* Contextual Entity Print Modal for Container */}
+      {isPrintModalOpen && (formData.container_id || formData.containerNo) && (
+        <EntityPrintModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          entityType="ContainerDetails"
+          entityId={formData.container_id || formData.containerNo}
+          entityIdentifier={formData.containerNo || "Container"}
+          title={`Print Container — ${formData.containerNo || ""}`}
+        />
+      )}
     </div>
   );
 }

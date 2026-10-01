@@ -15,7 +15,7 @@ const LIFECYCLE_CONFIG = {
   PROFORMA: { label: "Proforma", bg: "bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800" }
 };
 
-export default function OrderTable({ orders, orderStatuses = [], activeTab = "orders", onEditOrder, onDeleteOrder, onOpenVersionHistory }) {
+export default function OrderTable({ orders, orderStatuses = [], activeTab = "orders", onEditOrder, onDeleteOrder, onOpenVersionHistory, onPrintOrder }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { isRoot, permissions = [] } = useAuth();
@@ -336,10 +336,11 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                       {o.eta_date || o.fulfillment_summary?.eta_date || o.pi_confirmed_date || "TBD"}
                     </td>
 
-                    {/* Actions: Soft Delete */}
+                    {/* Actions: Print & Soft Delete */}
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      {canDelete && onDeleteOrder && (
-                        <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+
+                        {canDelete && onDeleteOrder && (
                           <button
                             type="button"
                             onClick={() => onDeleteOrder(o)}
@@ -349,8 +350,8 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                             <Trash2 size={12} />
                             <span>Delete</span>
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -451,17 +452,19 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                     <Building2 size={13} className="text-slate-500 flex-shrink-0" />
                     <span className="truncate">{o.company || "Supplier TBD"}</span>
                   </div>
-                  {canDelete && onDeleteOrder && (
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+
+                    {canDelete && onDeleteOrder && (
                       <button
+                        type="button"
                         onClick={() => onDeleteOrder(o)}
                         className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 text-[11px] font-semibold rounded-lg hover:bg-rose-600 hover:text-white transition flex items-center gap-1"
                       >
                         <Trash2 size={12} />
                         <span>Delete</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <div

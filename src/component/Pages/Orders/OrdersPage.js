@@ -22,6 +22,7 @@ import OrderForm from "./OrderForm";
 import OrderTemplatesPage from "./OrderTemplatesPage";
 import TemplatePickerModal from "./TemplatePickerModal";
 import POVersionHistoryDrawer from "./POVersionHistoryDrawer";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -67,6 +68,7 @@ export default function OrdersPage() {
   const canAddRFQ = hasPermission("Add_RFQ") || hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
   const canAddPO = hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
   const canAddTemplate = hasPermission("Add_OrderTemplate") || hasPermission("Add_Order") || isRoot || permissions.includes("Administrator");
+  const canPrintPO = hasPermission("Print_PurchaseOrder") || hasPermission("View_Order") || isRoot || permissions.includes("Administrator");
 
   const isAccountsOrAdmin = userInfo?.roles?.some((r) => {
     const lower = (r || "").toLowerCase();
@@ -106,6 +108,7 @@ export default function OrdersPage() {
   const [selectedPaymentFilter, setSelectedPaymentFilter] = useState("ALL");
   const [onlyUrgentFilter, setOnlyUrgentFilter] = useState(false);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState(null);
+  const [printOrder, setPrintOrder] = useState(null);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -576,6 +579,7 @@ export default function OrdersPage() {
             }}
             onDeleteOrder={(order) => setOrderToDelete(order)}
             onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+            onPrintOrder={canPrintPO ? (order) => setPrintOrder(order) : undefined}
           />
         ) : (
           <OrderTable
@@ -587,6 +591,7 @@ export default function OrdersPage() {
             }}
             onDeleteOrder={(order) => setOrderToDelete(order)}
             onOpenVersionHistory={(order) => setSelectedHistoryOrder(order)}
+            onPrintOrder={canPrintPO ? (order) => setPrintOrder(order) : undefined}
           />
         )}
 
@@ -705,6 +710,18 @@ export default function OrdersPage() {
         poId={selectedHistoryOrder?.id}
         poNumber={selectedHistoryOrder?.po_number}
       />
+
+      {/* CONTEXTUAL ENTITY PRINT MODAL */}
+      {printOrder && (
+        <EntityPrintModal
+          isOpen={Boolean(printOrder)}
+          onClose={() => setPrintOrder(null)}
+          entityType="PurchaseOrder"
+          entityId={printOrder.id}
+          entityIdentifier={printOrder.po_number}
+          title={`Print Purchase Order — ${printOrder.po_number || ""}`}
+        />
+      )}
     </div>
   );
 }

@@ -1,3 +1,5 @@
+> **Archived v1 document.** This guide is retained only for historical reference and must not be used as the current implementation standard. See `docs/ARCHITECTURE.md` and backend `AGENTS.md`.
+
 # Frontend Implementation Guide
 
 This guide details how to consume the REST API endpoints exposed by the FastAPI backend. It covers Authentication, Bill of Lading management, Container operations, and Damage Reporting.

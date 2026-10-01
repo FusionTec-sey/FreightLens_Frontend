@@ -22,11 +22,13 @@ import {
   Building,
   FilterX,
   Pencil,
-  FileText
+  FileText,
+  Printer
 } from 'lucide-react';
 
 import ContainerEntryForm from './EditContainerInfo';
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
+import EntityPrintModal from '../ReportTemplates/EntityPrintModal';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { useConfirm } from '../../../context/ConfirmContext';
@@ -43,11 +45,12 @@ export default function BillOfLandingInfo() {
   const { permissions, isRoot } = useAuth();
   const navigate = useNavigate();
 
-  const { Id } = useParams();
-  const decodedId = Id ? decodeURIComponent(Id) : "new";
-
   const location = useLocation();
   const editData = location.state?.data;
+  const { Id } = useParams();
+  const decodedId = Id
+    ? decodeURIComponent(Id)
+    : (editData?.BillOfLanding || location.state?.billOfLandingId || "");
 
   const {
     suppliers,
@@ -77,6 +80,27 @@ export default function BillOfLandingInfo() {
       permissions.includes("BillOfLanding") ||
       permissions.includes("Administrator")
     ));
+  }, [permissions, isRoot]);
+
+  const canPrintContainer = useMemo(() => {
+    return isRoot || (Array.isArray(permissions) && (
+      permissions.includes("Print_Container") ||
+      permissions.includes("View_Container") ||
+      permissions.includes("Administrator")
+    ));
+  }, [permissions, isRoot]);
+
+  const canPrintBL = useMemo(() => {
+    return Boolean(
+      isRoot || (Array.isArray(permissions) && (
+        permissions.includes("Print_BillOfLanding") ||
+        permissions.includes("View_BL") ||
+        permissions.includes("BillOfLanding") ||
+        permissions.includes("Administrator") ||
+        permissions.includes("Super_Admin") ||
+        permissions.includes("admin")
+      ))
+    );
   }, [permissions, isRoot]);
 
   // ── Form State ─────────────────────────────────────────────────────────────
@@ -119,6 +143,8 @@ export default function BillOfLandingInfo() {
   const [isAddMode, setIsAddMode] = useState(false);
   const [editingContainer, setEditingContainer] = useState(null);
   const [pendingEditIndex, setPendingEditIndex] = useState(-1);
+  const [printContainer, setPrintContainer] = useState(null);
+  const [isPrintBlOpen, setIsPrintBlOpen] = useState(false);
 
   // ── Free Days & Status Lock Detection ──────────────────────────────────────
   // Check if any containers have custom FreeDays that differ from BoL defaults
@@ -881,12 +907,15 @@ export default function BillOfLandingInfo() {
   };
 
   const handleDeleteBl = async () => {
-    const isConfirmed = await confirm(`Permanently delete Bill of Lading "${formData.billOfLadingNumber || decodedId}"? All container linkages will be affected.`);
+    const targetDeleteId = (decodedId && decodedId !== "new" && decodedId !== "undefined") ? decodedId : formData.billOfLadingNumber;
+    if (!targetDeleteId) return;
+
+    const isConfirmed = await confirm(`Permanently delete Bill of Lading "${targetDeleteId}"? All container linkages will be affected.`);
     if (!isConfirmed) return;
     
     try {
       await axios.delete(
-        `${process.env.REACT_APP_NETWORK}/bills-of-lading/${decodedId}`,
+        `${process.env.REACT_APP_NETWORK}/bills-of-lading/${targetDeleteId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -947,7 +976,9 @@ export default function BillOfLandingInfo() {
               </span>
               <span className="text-slate-300 dark:text-slate-700">•</span>
               <span className="text-xs text-slate-500 font-mono font-semibold">
-                {decodedId !== "new" && decodedId !== "undefined" ? `B/L #${formData.billOfLadingNumber || decodedId}` : "New Ocean B/L"}
+                {formData.billOfLadingNumber || (decodedId && decodedId !== "new" && decodedId !== "undefined")
+                  ? `B/L #${formData.billOfLadingNumber || decodedId}`
+                  : "New Ocean B/L"}
               </span>
               {hasUnsavedChanges && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
@@ -962,7 +993,19 @@ export default function BillOfLandingInfo() {
         </div>
 
         <div className="flex items-center gap-2">
-          {decodedId !== "new" && decodedId !== "undefined" && canDeleteBl && (
+          {(formData.billOfLadingNumber || (decodedId && decodedId !== "new" && decodedId !== "undefined")) && canPrintBL && (
+            <button
+              onClick={() => setIsPrintBlOpen(true)}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-xs font-semibold transition cursor-pointer"
+              title="Print Bill of Lading Manifest"
+            >
+              <Printer size={14} />
+              <span>Print B/L</span>
+            </button>
+          )}
+
+          {(formData.billOfLadingNumber || (decodedId && decodedId !== "new" && decodedId !== "undefined")) && canDeleteBl && (
             <button
               onClick={handleDeleteBl}
               type="button"
@@ -1643,6 +1686,43 @@ export default function BillOfLandingInfo() {
             />
           </div>
         </div>
+      )}
+
+      {/* ── Contextual Print Modal for Container ─────────────────────────── */}
+      {printContainer && (
+        <EntityPrintModal
+          isOpen={Boolean(printContainer)}
+          onClose={() => setPrintContainer(null)}
+          entityType="ContainerDetails"
+          entityId={
+            printContainer.Container_ID ||
+            printContainer.id ||
+            printContainer.container_id ||
+            printContainer.rawData?.Container_ID ||
+            printContainer.rawData?.id
+          }
+          entityIdentifier={
+            printContainer.container_no ||
+            printContainer.containerNo ||
+            printContainer.rawData?.container_no ||
+            ""
+          }
+          title={`Print Container — ${
+            printContainer.container_no || printContainer.containerNo || ""
+          }`}
+        />
+      )}
+
+      {/* ── Contextual Print Modal for Bill of Lading ────────────────────── */}
+      {isPrintBlOpen && (
+        <EntityPrintModal
+          isOpen={isPrintBlOpen}
+          onClose={() => setIsPrintBlOpen(false)}
+          entityType="BillOfLanding"
+          entityId={formData.billOfLadingNumber || decodedId}
+          entityIdentifier={formData.billOfLadingNumber || decodedId}
+          title={`Print Bill of Lading — ${formData.billOfLadingNumber || decodedId}`}
+        />
       )}
     </div>
   );

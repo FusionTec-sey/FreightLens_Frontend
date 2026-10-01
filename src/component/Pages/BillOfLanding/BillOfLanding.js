@@ -16,7 +16,8 @@ import {
   X,
   FileText,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Printer
 } from 'lucide-react';
 
 import { useAuth } from '../../../context/AuthContext';
@@ -25,6 +26,7 @@ import { useConfirm } from '../../../context/ConfirmContext';
 import { formatDateTime12hr } from '../../../utils/DateFormater';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import BillOfLandingSiderDrawer from './BillOfLandingSiderDrawer';
+import EntityPrintModal from '../ReportTemplates/EntityPrintModal';
 
 export default function BillOfLanding() {
   const navigate = useNavigate();
@@ -48,9 +50,11 @@ export default function BillOfLanding() {
   // Drawer State
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedBL, setSelectedBL] = useState(null);
+  const [printBol, setPrintBol] = useState(null);
 
   const canAdd = permissions.includes("Add_BillOfLanding") || permissions.includes("BillOfLanding") || permissions.includes("View_BL") || isRoot || permissions.includes("Administrator");
   const canDelete = permissions.includes("Delete_BillOfLanding") || permissions.includes("BillOfLanding") || isRoot || permissions.includes("Administrator");
+  const canPrintBL = permissions.includes("Print_BillOfLanding") || permissions.includes("View_BL") || isRoot || permissions.includes("Administrator");
 
   // Fetch Bills of Lading
   const fetchData = useCallback(async () => {
@@ -451,6 +455,18 @@ export default function BillOfLanding() {
         onSubmitSuccess={handleDrawerSuccess}
         onDelete={handleDelete}
       />
+
+      {/* ── Contextual Print Modal ─────────────────────────────────────────── */}
+      {printBol && (
+        <EntityPrintModal
+          isOpen={Boolean(printBol)}
+          onClose={() => setPrintBol(null)}
+          entityType="BillOfLanding"
+          entityId={printBol.id || printBol.BillOfLanding_ID || printBol.BillOfLanding}
+          entityIdentifier={printBol.BillOfLanding}
+          title={`Print Bill of Lading — ${printBol.BillOfLanding || ""}`}
+        />
+      )}
     </div>
   );
 }
