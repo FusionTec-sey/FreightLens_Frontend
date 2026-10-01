@@ -594,6 +594,7 @@ export default function ReportRenderModal({
                 <iframe
                   ref={iframeRef}
                   title="Report Document Preview"
+                  sandbox="allow-modals"
                   srcDoc={enhancedHtml}
                   className="border-0 bg-white"
                   style={{

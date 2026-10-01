@@ -552,6 +552,7 @@ export default function EntityPrintModal({
                     <iframe
                       ref={iframeRef}
                       title="Live Document Preview"
+                      sandbox="allow-modals"
                       srcDoc={enhancedHtml}
                       className="border-0 bg-white"
                       style={{

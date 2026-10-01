@@ -766,6 +766,7 @@ export default function ReportTemplateEditorPage() {
                 <iframe
                   ref={iframeRef}
                   title="Live Preview"
+                  sandbox=""
                   srcDoc={previewHtml}
                   className="w-full h-full border-none bg-white"
                 />
