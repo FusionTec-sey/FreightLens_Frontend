@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
-import { Building2, Loader2, Save } from "lucide-react";
+import { Building2, Image, Loader2, Save, Upload } from "lucide-react";
 import { toast } from "react-toastify";
 
 const EMPTY_PROFILE = {
@@ -31,6 +31,12 @@ const TERM_FIELDS = [
   ["invoice", "Invoice terms"],
 ];
 
+const ASSET_FIELDS = [
+  ["logo", "logo_asset_key", "Company logo"],
+  ["stamp", "stamp_asset_key", "Company stamp"],
+  ["signature", "signature_asset_key", "Authorized signature"],
+];
+
 const inputClass =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-hidden transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-900";
 
@@ -42,6 +48,7 @@ export default function OrgPrintProfilePanel({ canEdit }) {
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState("");
 
   const headers = useCallback(
     () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` }),
@@ -107,6 +114,27 @@ export default function OrgPrintProfilePanel({ canEdit }) {
     }
   };
 
+  const uploadAsset = async (assetType, file) => {
+    if (!file) return;
+    setUploading(assetType);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/reports/settings/print-profile/assets/${assetType}`,
+        form,
+        { headers: headers() }
+      );
+      setProfile({ ...EMPTY_PROFILE, ...data });
+      toast.success(`${assetType[0].toUpperCase()}${assetType.slice(1)} uploaded.`);
+    } catch (error) {
+      console.error("Failed to upload print asset:", error);
+      toast.error(error.response?.data?.detail || "Failed to upload image.");
+    } finally {
+      setUploading("");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center text-slate-500">
@@ -163,6 +191,36 @@ export default function OrgPrintProfilePanel({ canEdit }) {
               Contact phone
               <input className={`${inputClass} mt-1`} value={profile.contact_phone || ""} disabled={!canEdit} onChange={(e) => setField("contact_phone", e.target.value)} />
             </label>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-b border-slate-200 pb-6 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Brand assets</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            {ASSET_FIELDS.map(([assetType, key, label]) => (
+              <div key={assetType} className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-200">
+                  <Image size={16} className="text-indigo-600" />
+                  {label}
+                </div>
+                <p className="mt-2 truncate text-xs text-slate-500" title={profile[key] || ""}>
+                  {profile[key]?.split("/").pop() || "No image uploaded"}
+                </p>
+                {canEdit && (
+                  <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+                    {uploading === assetType ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    Replace image
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                      disabled={Boolean(uploading)}
+                      className="sr-only"
+                      onChange={(event) => uploadAsset(assetType, event.target.files?.[0])}
+                    />
+                  </label>
+                )}
+              </div>
+            ))}
           </div>
         </section>
 
