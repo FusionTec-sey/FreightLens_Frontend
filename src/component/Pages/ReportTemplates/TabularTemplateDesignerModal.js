@@ -318,23 +318,23 @@ export default function TabularTemplateDesignerModal({
         initColumnsFromDataset(currentDataset);
       }
 
-      setGroupBy(tc.groupBy || "none");
-      setShowSubtotals(tc.showSubtotals !== false);
-      setShowGrandTotal(tc.showGrandTotal !== false);
-      setSortBy(tc.sortBy || "");
-      setSortOrder(tc.sortOrder || "desc");
+      setGroupBy(tc.group_by || "none");
+      setShowSubtotals(tc.show_subtotals !== false);
+      setShowGrandTotal(tc.show_grand_total !== false);
+      setSortBy(tc.sort_by || "");
+      setSortOrder(tc.sort_order || "desc");
 
       const ps = templateToEdit.paper_settings || {};
-      setPageSize(ps.pageSize || templateToEdit.page_size || "A4");
+      setPageSize(ps.page_size || templateToEdit.page_size || "A4");
       setOrientation(ps.orientation || templateToEdit.orientation || "landscape");
-      setMarginPreset(ps.marginPreset || "compact");
-      setMarginTop(ps.margin_top || (ps.marginPreset === "wide" ? "25mm" : ps.marginPreset === "normal" ? "15mm" : "8mm"));
-      setMarginBottom(ps.margin_bottom || (ps.marginPreset === "wide" ? "25mm" : ps.marginPreset === "normal" ? "15mm" : "8mm"));
-      setMarginLeft(ps.margin_left || (ps.marginPreset === "wide" ? "25mm" : ps.marginPreset === "normal" ? "15mm" : "8mm"));
-      setMarginRight(ps.margin_right || (ps.marginPreset === "wide" ? "25mm" : ps.marginPreset === "normal" ? "15mm" : "8mm"));
-      setRepeatHeaderOnBreak(ps.repeatHeaderOnBreak !== false);
-      setPageBreakPerGroup(Boolean(ps.pageBreakPerGroup));
-      setAlternateRowBanding(ps.alternateRowBanding !== false);
+      setMarginPreset(ps.margin_preset || "compact");
+      setMarginTop(ps.margin_top || (ps.margin_preset === "wide" ? "25mm" : ps.margin_preset === "normal" ? "15mm" : "8mm"));
+      setMarginBottom(ps.margin_bottom || (ps.margin_preset === "wide" ? "25mm" : ps.margin_preset === "normal" ? "15mm" : "8mm"));
+      setMarginLeft(ps.margin_left || (ps.margin_preset === "wide" ? "25mm" : ps.margin_preset === "normal" ? "15mm" : "8mm"));
+      setMarginRight(ps.margin_right || (ps.margin_preset === "wide" ? "25mm" : ps.margin_preset === "normal" ? "15mm" : "8mm"));
+      setRepeatHeaderOnBreak(ps.repeat_header !== false);
+      setPageBreakPerGroup(Boolean(ps.break_per_group));
+      setAlternateRowBanding(ps.alternate_row_banding !== false);
 
       setDesignerMode(templateToEdit.designer_mode || (templateToEdit.custom_html ? "code" : "visual"));
       if (templateToEdit.custom_html) setCustomHtml(templateToEdit.custom_html);
@@ -582,48 +582,58 @@ export default function TabularTemplateDesignerModal({
           templateSlug.trim() ||
           `${selectedDatasetKey}_layout_${Date.now() % 10000}`,
         description: templateDescription.trim(),
-        category: currentDataset?.category || "LOGISTICS",
         resolver_key: selectedDatasetKey,
-        entity_type: selectedDatasetKey,
         template_type: "OPERATIONAL_TABULAR",
         page_size: pageSize,
         orientation: orientation,
         is_active: true,
         table_config: {
           columns: columnsConfig,
-          groupBy,
-          showSubtotals,
-          showGrandTotal,
-          sortBy,
-          sortOrder,
+          group_by: groupBy !== "none" ? groupBy : null,
+          show_subtotals: showSubtotals,
+          show_grand_total: showGrandTotal,
+          sort_by: sortBy || null,
+          sort_order: sortOrder,
         },
         paper_settings: {
-          pageSize,
+          page_size: pageSize,
           orientation,
-          marginPreset,
+          margin_preset: marginPreset,
           margin_top: marginTop,
           margin_bottom: marginBottom,
           margin_left: marginLeft,
           margin_right: marginRight,
-          repeatHeaderOnBreak,
-          pageBreakPerGroup,
-          alternateRowBanding,
+          repeat_header: repeatHeaderOnBreak,
+          break_per_group: pageBreakPerGroup,
+          alternate_row_banding: alternateRowBanding,
         },
-        designer_mode: designerMode,
-        custom_html: designerMode === "code" ? customHtml : null,
-        custom_css: designerMode === "code" ? customCss : null,
-        header_html: headerHtml || null,
-        footer_html: footerHtml || null,
       };
 
+      const versionPayload = designerMode === "code" ? {
+        html_content: customHtml,
+        css_content: customCss || null,
+        header_html: headerHtml || null,
+        footer_html: footerHtml || null,
+        changelog: "Updated tabular code layout",
+      } : null;
+
       if (templateToEdit?.id) {
+        const { slug, ...updatePayload } = payload;
         await axios.put(
           `${process.env.REACT_APP_NETWORK}/reports/templates/${templateToEdit.id}`,
-          payload,
+          updatePayload,
           { headers: getHeaders() }
         );
+        if (versionPayload) {
+          await axios.post(
+            `${process.env.REACT_APP_NETWORK}/reports/templates/${templateToEdit.id}/versions`,
+            versionPayload,
+            { headers: getHeaders() }
+          );
+        }
         toast.success(`Tabular template '${templateName}' updated successfully!`);
       } else {
+        if (versionPayload) payload.initial_version = versionPayload;
         await axios.post(
           `${process.env.REACT_APP_NETWORK}/reports/templates`,
           payload,

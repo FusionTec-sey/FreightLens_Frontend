@@ -28,12 +28,13 @@ export default function ReportTemplateEditorPage() {
   // Template metadata
   const [templateName, setTemplateName] = useState("");
   const [templateSlug, setTemplateSlug] = useState("");
-  const [category, setCategory] = useState("ORDERS");
   const [resolverKey, setResolverKey] = useState("purchase_order");
   const [pageSize, setPageSize] = useState("A4");
   const [orientation, setOrientation] = useState("portrait");
   const [isSystem, setIsSystem] = useState(false);
-  const [activeVersionNumber, setActiveVersionNumber] = useState(1);
+  const [activeVersionNumber, setActiveVersionNumber] = useState(null);
+  const [draftVersionId, setDraftVersionId] = useState(null);
+  const [lastSavedContent, setLastSavedContent] = useState(null);
   const [changelog, setChangelog] = useState("");
 
   // Code contents
@@ -59,6 +60,13 @@ export default function ReportTemplateEditorPage() {
   const [loadingTemplate, setLoadingTemplate] = useState(!isNew);
 
   const iframeRef = useRef(null);
+
+  const serializeContent = () => JSON.stringify({
+    html_content: htmlContent,
+    css_content: cssContent,
+    header_html: headerHtml,
+    footer_html: footerHtml,
+  });
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
@@ -150,12 +158,11 @@ export default function ReportTemplateEditorPage() {
         const tmpl = res.data;
         setTemplateName(tmpl.name);
         setTemplateSlug(tmpl.slug);
-        setCategory(tmpl.category);
         setResolverKey(tmpl.resolver_key);
         setPageSize(tmpl.page_size || "A4");
         setOrientation(tmpl.orientation || "portrait");
         setIsSystem(tmpl.is_system);
-        setActiveVersionNumber(tmpl.active_version || 1);
+        setActiveVersionNumber(tmpl.active_version_number || null);
 
         const ver = tmpl.active_version_data;
         if (ver) {
@@ -163,6 +170,14 @@ export default function ReportTemplateEditorPage() {
           setCssContent(ver.css_content || "");
           setHeaderHtml(ver.header_html || "");
           setFooterHtml(ver.footer_html || "");
+          setActiveVersionNumber(ver.version_number);
+          setDraftVersionId(ver.status === "DRAFT" ? ver.id : null);
+          setLastSavedContent(JSON.stringify({
+            html_content: ver.html_content || "",
+            css_content: ver.css_content || "",
+            header_html: ver.header_html || "",
+            footer_html: ver.footer_html || "",
+          }));
         }
       } catch (err) {
         console.error("Failed to load template:", err);
@@ -258,8 +273,8 @@ export default function ReportTemplateEditorPage() {
         const payload = {
           name: templateName,
           slug: templateSlug,
-          category,
           resolver_key: resolverKey,
+          template_type: "DOCUMENT",
           page_size: pageSize,
           orientation,
           initial_version: {
@@ -291,6 +306,9 @@ export default function ReportTemplateEditorPage() {
           payload,
           { headers: getHeaders() }
         );
+        setDraftVersionId(res.data.id);
+        setActiveVersionNumber(res.data.version_number);
+        setLastSavedContent(serializeContent());
         toast.success(`Draft saved as version v${res.data.version_number}`);
       }
     } catch (err) {
@@ -309,27 +327,34 @@ export default function ReportTemplateEditorPage() {
     }
     setPublishing(true);
     try {
-      // First save draft as new version, then publish it
-      const verRes = await axios.post(
-        `${process.env.REACT_APP_NETWORK}/reports/templates/${id}/versions`,
-        {
-          html_content: htmlContent,
-          css_content: cssContent,
-          header_html: headerHtml,
-          footer_html: footerHtml,
-          changelog: changelog || "Published update",
-        },
-        { headers: getHeaders() }
-      );
+      let version = draftVersionId && lastSavedContent === serializeContent()
+        ? { id: draftVersionId, version_number: activeVersionNumber }
+        : null;
+      if (!version) {
+        const verRes = await axios.post(
+          `${process.env.REACT_APP_NETWORK}/reports/templates/${id}/versions`,
+          {
+            html_content: htmlContent,
+            css_content: cssContent,
+            header_html: headerHtml,
+            footer_html: footerHtml,
+            changelog: changelog || "Published update",
+          },
+          { headers: getHeaders() }
+        );
+        version = verRes.data;
+      }
 
       await axios.put(
-        `${process.env.REACT_APP_NETWORK}/reports/templates/${id}/versions/${verRes.data.id}/publish`,
+        `${process.env.REACT_APP_NETWORK}/reports/templates/${id}/versions/${version.id}/publish`,
         {},
         { headers: getHeaders() }
       );
 
-      setActiveVersionNumber(verRes.data.version_number);
-      toast.success(`Version v${verRes.data.version_number} is now LIVE and published!`);
+      setActiveVersionNumber(version.version_number);
+      setDraftVersionId(null);
+      setLastSavedContent(serializeContent());
+      toast.success(`Version v${version.version_number} is now LIVE and published!`);
     } catch (err) {
       console.error("Publish failed:", err);
       toast.error("Failed to publish version.");
@@ -405,7 +430,7 @@ export default function ReportTemplateEditorPage() {
               className="text-base font-bold bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 focus:outline-hidden text-slate-900 dark:text-white px-1 py-0.5"
             />
             <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-              v{activeVersionNumber} {isNew ? "(Draft)" : "(Published)"}
+              {activeVersionNumber ? `v${activeVersionNumber}` : "Unsaved"} {isNew || draftVersionId ? "(Draft)" : "(Published)"}
             </span>
             {isSystem && (
               <span className="text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">

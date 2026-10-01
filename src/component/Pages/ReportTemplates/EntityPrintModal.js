@@ -379,7 +379,7 @@ export default function EntityPrintModal({
                             {tmpl.name}
                           </h4>
                           <span className="text-[10px] font-mono text-slate-400 shrink-0">
-                            v{tmpl.active_version || 1}
+                            {tmpl.active_version_number ? `v${tmpl.active_version_number}` : "Draft"}
                           </span>
                         </div>
 

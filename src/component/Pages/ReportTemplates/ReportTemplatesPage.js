@@ -586,11 +586,11 @@ export default function ReportTemplatesPage() {
                               {colsCount} columns
                             </span>
                             <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium capitalize">
-                              {paper.pageSize || t.page_size || "A4"} {paper.orientation || t.orientation || "landscape"}
+                              {paper.page_size || t.page_size || "A4"} {paper.orientation || t.orientation || "landscape"}
                             </span>
-                            {t.table_config?.groupBy && (
+                            {t.table_config?.group_by && (
                               <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-medium">
-                                Grouped: {t.table_config.groupBy}
+                                Grouped: {t.table_config.group_by}
                               </span>
                             )}
                           </div>
@@ -829,7 +829,7 @@ export default function ReportTemplatesPage() {
                                 </span>
                               )}
                               <span className="text-[11px] text-slate-400">
-                                v{tmpl.active_version || 1}
+                                {tmpl.active_version_number ? `v${tmpl.active_version_number}` : "Draft"}
                               </span>
                             </div>
                           </td>

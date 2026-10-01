@@ -119,26 +119,26 @@ export default function DatasetReportModal({
     if (!tmpl) return;
 
     if (tmpl.table_config) {
-      if (tmpl.table_config.groupBy) setGroupBy(tmpl.table_config.groupBy);
-      if (tmpl.table_config.sortBy) setSortBy(tmpl.table_config.sortBy);
-      if (tmpl.table_config.sortOrder) setSortOrder(tmpl.table_config.sortOrder);
-      if (tmpl.table_config.datePreset) applyDatePreset(tmpl.table_config.datePreset);
-      if (tmpl.table_config.selectedSuppliers) setSelectedSuppliers(tmpl.table_config.selectedSuppliers);
-      if (tmpl.table_config.selectedVessels) setSelectedVessels(tmpl.table_config.selectedVessels);
-      if (tmpl.table_config.selectedVenues) setSelectedVenues(tmpl.table_config.selectedVenues);
-      if (tmpl.table_config.searchTerm) setSearchTerm(tmpl.table_config.searchTerm);
+      if (tmpl.table_config.group_by) setGroupBy(tmpl.table_config.group_by);
+      if (tmpl.table_config.sort_by) setSortBy(tmpl.table_config.sort_by);
+      if (tmpl.table_config.sort_order) setSortOrder(tmpl.table_config.sort_order);
+      if (tmpl.table_config.date_preset) applyDatePreset(tmpl.table_config.date_preset);
+      if (tmpl.table_config.supplier_ids) setSelectedSuppliers(tmpl.table_config.supplier_ids);
+      if (tmpl.table_config.vessel_ids) setSelectedVessels(tmpl.table_config.vessel_ids);
+      if (tmpl.table_config.venue_ids) setSelectedVenues(tmpl.table_config.venue_ids);
+      if (tmpl.table_config.search) setSearchTerm(tmpl.table_config.search);
     }
 
     if (tmpl.paper_settings) {
-      if (tmpl.paper_settings.pageSize) setPageSize(tmpl.paper_settings.pageSize);
+      if (tmpl.paper_settings.page_size) setPageSize(tmpl.paper_settings.page_size);
       if (tmpl.paper_settings.orientation) setOrientation(tmpl.paper_settings.orientation);
-      if (tmpl.paper_settings.marginPreset) setMarginPreset(tmpl.paper_settings.marginPreset);
-      if (tmpl.paper_settings.repeatHeaderOnBreak !== undefined)
-        setRepeatHeaderOnBreak(tmpl.paper_settings.repeatHeaderOnBreak);
-      if (tmpl.paper_settings.pageBreakPerGroup !== undefined)
-        setPageBreakPerGroup(tmpl.paper_settings.pageBreakPerGroup);
-      if (tmpl.paper_settings.sheetPerGroup !== undefined)
-        setSheetPerGroup(tmpl.paper_settings.sheetPerGroup);
+      if (tmpl.paper_settings.margin_preset) setMarginPreset(tmpl.paper_settings.margin_preset);
+      if (tmpl.paper_settings.repeat_header !== undefined)
+        setRepeatHeaderOnBreak(tmpl.paper_settings.repeat_header);
+      if (tmpl.paper_settings.break_per_group !== undefined)
+        setPageBreakPerGroup(tmpl.paper_settings.break_per_group);
+      if (tmpl.paper_settings.sheet_per_group !== undefined)
+        setSheetPerGroup(tmpl.paper_settings.sheet_per_group);
     }
 
     toast.info(`Applied layout template '${tmpl.name}'`);
@@ -159,31 +159,29 @@ export default function DatasetReportModal({
         name: templateName.trim(),
         slug,
         description: templateDescription.trim() || `Custom layout for ${catalogItem.name}`,
-        category: catalogItem.category,
         resolver_key: catalogItem.key,
-        entity_type: catalogItem.key,
         template_type: "OPERATIONAL_TABULAR",
         page_size: pageSize,
         orientation: orientation,
         is_active: true,
         table_config: {
-          groupBy,
-          sortBy,
-          sortOrder,
-          datePreset,
-          selectedSuppliers,
-          selectedVessels,
-          selectedVenues,
-          searchTerm,
+          group_by: groupBy !== "none" ? groupBy : null,
+          sort_by: sortBy || null,
+          sort_order: sortOrder,
+          date_preset: datePreset,
+          supplier_ids: selectedSuppliers,
+          vessel_ids: selectedVessels,
+          venue_ids: selectedVenues,
+          search: searchTerm || null,
         },
         paper_settings: {
-          pageSize,
+          page_size: pageSize,
           orientation,
-          marginPreset,
-          repeatHeaderOnBreak,
-          pageBreakPerGroup,
-          avoidRowSplit,
-          sheetPerGroup,
+          margin_preset: marginPreset,
+          repeat_header: repeatHeaderOnBreak,
+          break_per_group: pageBreakPerGroup,
+          avoid_row_split: avoidRowSplit,
+          sheet_per_group: sheetPerGroup,
         },
       };
 
@@ -329,6 +327,7 @@ export default function DatasetReportModal({
     };
 
     return {
+      template_id: selectedSavedTemplateId || null,
       date_from: dateFrom || null,
       date_to: dateTo || null,
       supplier_ids: selectedSuppliers.length > 0 ? selectedSuppliers : null,
@@ -339,15 +338,15 @@ export default function DatasetReportModal({
       group_by: groupBy !== "none" ? groupBy : null,
       sort_by: sortBy || null,
       sort_order: sortOrder,
-      paper_settings: {
-        page_size: pageSize,
-        orientation: orientation,
-        margin: marginsMap[marginPreset] || marginsMap.normal,
-        repeat_header_on_break: repeatHeaderOnBreak,
-        page_break_per_group: pageBreakPerGroup,
-        avoid_row_split: avoidRowSplit,
-        sheet_per_group: sheetPerGroup,
-      },
+      page_size: pageSize,
+      orientation,
+      margin_top: (marginsMap[marginPreset] || marginsMap.normal).top,
+      margin_bottom: (marginsMap[marginPreset] || marginsMap.normal).bottom,
+      margin_left: (marginsMap[marginPreset] || marginsMap.normal).left,
+      margin_right: (marginsMap[marginPreset] || marginsMap.normal).right,
+      repeat_header: repeatHeaderOnBreak,
+      break_per_group: pageBreakPerGroup,
+      sheet_per_group: sheetPerGroup,
     };
   };
 
