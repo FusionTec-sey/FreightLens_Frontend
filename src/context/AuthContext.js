@@ -107,13 +107,11 @@ const AuthContext = createContext();
 
 const ACCESS_TOKEN_KEY = "token";
 const REFRESH_TOKEN_KEY = "refreshToken";
-const PERMISSIONS_KEY = "permissions";
 const USER_KEY = "user";
 const ORG_ID_KEY = "org_id";
 const ORG_NAME_KEY = "org_name";
 const IS_ROOT_KEY = "is_root";
 const SELECTED_ORG_KEY = "selected_org_id";
-const MODULES_KEY = "modules";
 const PLAN_KEY = "plan";
 
 /** Helper to decode JWT payload (no validation) */
@@ -138,10 +136,8 @@ const decodeJwt = (token) => {
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem(ACCESS_TOKEN_KEY) || null);
   const [refreshToken, setRefreshToken] = useState(localStorage.getItem(REFRESH_TOKEN_KEY) || null);
-  const [permissions, setPermissions] = useState(() => {
-    const stored = localStorage.getItem(PERMISSIONS_KEY);
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [permissions, setPermissions] = useState([]);
+  const [access, setAccess] = useState(null);
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem(USER_KEY);
     return stored ? JSON.parse(stored) : null;
@@ -157,15 +153,7 @@ export const AuthProvider = ({ children }) => {
     const stored = localStorage.getItem(IS_ROOT_KEY);
     return stored ? stored === "true" : false;
   });
-  const [modules, setModules] = useState(() => {
-    const stored = localStorage.getItem(MODULES_KEY);
-    if (stored) {
-      try { return JSON.parse(stored); } catch (e) {}
-    }
-    const tok = localStorage.getItem(ACCESS_TOKEN_KEY);
-    const payload = decodeJwt(tok);
-    return Array.isArray(payload?.modules) ? payload.modules : [];
-  });
+  const [modules, setModules] = useState([]);
   const [plan, setPlan] = useState(() => {
     return localStorage.getItem(PLAN_KEY) || "complete";
   });
@@ -182,10 +170,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem(SELECTED_ORG_KEY);
       setSelectedOrgIdState(null);
     }
-    if (Array.isArray(selectedModules)) {
-      localStorage.setItem(MODULES_KEY, JSON.stringify(selectedModules));
-      setModules(selectedModules);
-    }
+    // Modules and permissions are refreshed from /auth/me/access.
   }, []);
 
   // used to schedule refresh
@@ -198,48 +183,44 @@ export const AuthProvider = ({ children }) => {
   const clearStorage = () => {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(PERMISSIONS_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(ORG_ID_KEY);
     localStorage.removeItem(ORG_NAME_KEY);
     localStorage.removeItem(IS_ROOT_KEY);
     localStorage.removeItem(SELECTED_ORG_KEY);
-    localStorage.removeItem(MODULES_KEY);
     localStorage.removeItem(PLAN_KEY);
   };
 
   const login = (accessToken, refresh, userPermissions = [], userInfo = null, orgMeta = {}) => {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(userPermissions));
     if (userInfo) localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
 
     const tokenPayload = decodeJwt(accessToken) || {};
     const oid = orgMeta?.org_id || tokenPayload.org_id || 1;
     const oname = orgMeta?.org_name || tokenPayload.org_name || "Sahaj Construction";
     const rootFlag = orgMeta?.is_root !== undefined ? orgMeta.is_root : (tokenPayload.is_root !== undefined ? tokenPayload.is_root : false);
-    const userModules = orgMeta?.modules || tokenPayload.modules || [];
     const userPlan = orgMeta?.plan || tokenPayload.plan || "complete";
 
     localStorage.setItem(ORG_ID_KEY, oid.toString());
     localStorage.setItem(ORG_NAME_KEY, oname);
     localStorage.setItem(IS_ROOT_KEY, rootFlag.toString());
-    localStorage.setItem(MODULES_KEY, JSON.stringify(userModules));
     localStorage.setItem(PLAN_KEY, userPlan);
 
     setToken(accessToken);
     setRefreshToken(refresh);
-    setPermissions(userPermissions);
+    setPermissions([]);
+    setAccess(null);
     setUser(userInfo);
     setOrgId(oid);
     setOrgName(oname);
     setIsRoot(rootFlag);
-    setModules(userModules);
+    setModules([]);
     setPlan(userPlan);
     
     // schedule refresh for new token
     scheduleRefresh(accessToken);
-    console.log("✅ Login successful with org:", oname, "modules:", userModules);
+    console.log("✅ Login successful with org:", oname);
   };
 
   const logout = useCallback(() => {
@@ -248,6 +229,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setRefreshToken(null);
     setPermissions([]);
+    setAccess(null);
     setUser(null);
     setOrgId(1);
     setOrgName("Sahaj Construction");
@@ -295,12 +277,6 @@ export const AuthProvider = ({ children }) => {
         if (newRefreshToken) {
           localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
           setRefreshToken(newRefreshToken);
-        }
-
-        const newPermissions = resp?.data?.permissions || null;
-        if (Array.isArray(newPermissions)) {
-          localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(newPermissions));
-          setPermissions(newPermissions);
         }
 
         scheduleRefresh(newAccessToken);
@@ -439,6 +415,34 @@ export const AuthProvider = ({ children }) => {
     };
   }, [refreshAccessToken, selectedOrgId]);
 
+  useEffect(() => {
+    if (!token) {
+      setAccess(null);
+      setPermissions([]);
+      setModules([]);
+      return;
+    }
+    let cancelled = false;
+    const headers = { Authorization: `Bearer ${token}` };
+    if (selectedOrgId) headers["X-Active-Org"] = selectedOrgId.toString();
+    axios
+      .get(`${process.env.REACT_APP_NETWORK}/auth/me/access`, { headers })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const next = data || {};
+        setAccess(next);
+        setPermissions(Array.isArray(next.permissions) ? next.permissions : []);
+        setModules(Array.isArray(next.modules) ? next.modules : []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAccess(null);
+        setPermissions([]);
+        setModules([]);
+      });
+    return () => { cancelled = true; };
+  }, [token, selectedOrgId]);
+
   const roles = useMemo(() => {
     const tok = token || localStorage.getItem(ACCESS_TOKEN_KEY);
     const payload = decodeJwt(tok);
@@ -446,9 +450,8 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const isSuperAdmin = useMemo(() => {
-    const tok = token || localStorage.getItem(ACCESS_TOKEN_KEY);
-    return decodeJwt(tok)?.is_platform_admin === true;
-  }, [token]);
+    return access?.is_platform_admin === true;
+  }, [access]);
 
   const effectivePermissions = useMemo(() => {
     const list = Array.isArray(permissions) ? [...permissions] : [];
@@ -491,6 +494,9 @@ export const AuthProvider = ({ children }) => {
     isRoot,
     modules,
     plan,
+    access,
+    fieldClasses: access?.field_classes || [],
+    locationIds: access?.location_ids || [],
     hasModule: (mod) => isSuperAdmin || (modules || []).includes(mod),
   };
 
