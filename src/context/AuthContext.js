@@ -446,11 +446,9 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const isSuperAdmin = useMemo(() => {
-    return roles.some((r) => {
-      const lower = String(r).trim().toLowerCase();
-      return lower === "super_admin" || lower === "superadmin" || lower === "root";
-    });
-  }, [roles]);
+    const tok = token || localStorage.getItem(ACCESS_TOKEN_KEY);
+    return decodeJwt(tok)?.is_platform_admin === true;
+  }, [token]);
 
   const effectivePermissions = useMemo(() => {
     const list = Array.isArray(permissions) ? [...permissions] : [];
