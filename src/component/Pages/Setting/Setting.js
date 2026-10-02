@@ -385,9 +385,8 @@ function Setting({ currentUser }) {
     const [newUser, setNewUser] = useState({
         name: '',
         password: '',
-        isRoot: true,
-        org_ids: [1],
-        roles: []
+        org_ids: [],
+        org_roles: {}
     });
 
     const [showRoleModal, setShowRoleModal] = useState(false);
@@ -597,34 +596,52 @@ function Setting({ currentUser }) {
         }
 
         try {
-            const orgIdsToSend = newUser.isRoot 
-                ? [1] 
-                : (newUser.org_ids && newUser.org_ids.length > 0 ? newUser.org_ids : [2]);
+            const orgIdsToSend = newUser.org_ids || [];
+            if (orgIdsToSend.length === 0) {
+                toast.error("Select at least one organization");
+                return;
+            }
             const payload = {
                 username: usernameVal,
                 name: usernameVal,
-                password: newUser.password ? newUser.password.trim() : undefined,
-                org_id: orgIdsToSend[0],
-                org_ids: orgIdsToSend,
-                roles: newUser.roles
+                password: newUser.password ? newUser.password.trim() : undefined
             };
 
+            let userId = editingUserId;
             if (editingUserId) {
                 await axios.put(`${process.env.REACT_APP_NETWORK}/updateUser/${editingUserId}`, payload, {
                     headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, "skip_zrok_interstitial": "true" }
                 });
-                toast.success("User updated successfully!");
             } else {
-                await axios.post(`${process.env.REACT_APP_NETWORK}/addUser`, payload, {
+                const created = await axios.post(`${process.env.REACT_APP_NETWORK}/addUser`, {
+                    ...payload,
+                    org_ids: orgIdsToSend,
+                    org_roles: orgIdsToSend.map(orgId => ({
+                        org_id: orgId,
+                        role_ids: newUser.org_roles[orgId] || []
+                    }))
+                }, {
                     headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, "skip_zrok_interstitial": "true" }
                 });
-                toast.success("User added successfully!");
+                userId = created.data.id;
             }
+
+            if (editingUserId) {
+                await axios.put(`${process.env.REACT_APP_NETWORK}/users/${userId}/org-roles`, {
+                    assignments: orgIdsToSend.map(orgId => ({
+                        org_id: orgId,
+                        role_ids: newUser.org_roles[orgId] || []
+                    }))
+                }, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, "skip_zrok_interstitial": "true" }
+                });
+            }
+            toast.success(editingUserId ? "User updated successfully!" : "User added successfully!");
 
             setShowAddUserModal(false);
             setEditingUserId(null);
             setUserRoleSearch('');
-            setNewUser({ name: '', password: '', isRoot: true, org_ids: [1], roles: [] });
+            setNewUser({ name: '', password: '', org_ids: [], org_roles: {} });
             getUsers();
         } catch (err) {
             console.error("Failed to save user:", err);
@@ -648,24 +665,17 @@ function Setting({ currentUser }) {
             initialOrgIds = [1];
         }
 
-        const isRoot = initialOrgIds.includes(1);
-        
-        let currentRoleIds = [];
-        if (Array.isArray(user.roles)) {
-            currentRoleIds = user.roles.map(rName => {
-                const found = roles.find(r => r.name.toLowerCase() === String(rName).toLowerCase());
-                return found ? found.id : null;
-            }).filter(Boolean);
-        }
+        const orgRoles = Object.fromEntries(
+            (user.org_roles || []).map(assignment => [assignment.org_id, assignment.role_ids || []])
+        );
 
         setEditingUserId(user.id);
         setUserRoleSearch('');
         setNewUser({
             name: user.username || user.name || '',
             password: '',
-            isRoot: isRoot,
-            org_ids: isRoot ? [1] : initialOrgIds,
-            roles: currentRoleIds
+            org_ids: initialOrgIds,
+            org_roles: orgRoles
         });
         setShowAddUserModal(true);
     }
@@ -688,6 +698,9 @@ function Setting({ currentUser }) {
         setNewUser(prev => {
             const currentList = Array.isArray(prev.org_ids) ? [...prev.org_ids] : [];
             const exists = currentList.includes(orgId);
+            if (exists && currentList.length === 1) {
+                return prev;
+            }
             let next;
             if (exists) {
                 next = currentList.filter(id => id !== orgId);
@@ -699,9 +712,21 @@ function Setting({ currentUser }) {
             }
             return {
                 ...prev,
-                isRoot: false,
-                org_ids: next
+                org_ids: next,
+                org_roles: exists
+                    ? Object.fromEntries(Object.entries(prev.org_roles).filter(([id]) => Number(id) !== orgId))
+                    : { ...prev.org_roles, [orgId]: [] }
             };
+        });
+    }
+
+    function toggleOrgRole(orgId, roleId) {
+        setNewUser(prev => {
+            const selected = prev.org_roles[orgId] || [];
+            const roleIds = selected.includes(roleId)
+                ? selected.filter(id => id !== roleId)
+                : [...selected, roleId];
+            return { ...prev, org_roles: { ...prev.org_roles, [orgId]: roleIds } };
         });
     }
 
@@ -900,7 +925,13 @@ function Setting({ currentUser }) {
                                 onClick={() => {
                                     setEditingUserId(null);
                                     setUserRoleSearch('');
-                                    setNewUser({ name: '', password: '', isRoot: true, org_ids: [1], roles: [] });
+                                    const firstOrgId = organisations[0]?.id;
+                                    setNewUser({
+                                        name: '',
+                                        password: '',
+                                        org_ids: firstOrgId ? [firstOrgId] : [],
+                                        org_roles: firstOrgId ? { [firstOrgId]: [] } : {}
+                                    });
                                     setShowAddUserModal(true);
                                 }}
                                 className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 active:scale-95 transition-all text-xs font-semibold shadow-xs cursor-pointer"
@@ -925,7 +956,6 @@ function Setting({ currentUser }) {
                                 {users.length === 0 ? (
                                     <tr><td colSpan={5} className="text-center py-6 text-gray-500 dark:text-gray-400 font-normal">No users configured</td></tr>
                                 ) : users.map(user => {
-                                    const isRoot = user.org_ids?.includes(1) || user.org_id === 1;
                                     return (
                                         <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
                                             <td className="p-2.5 text-center font-mono font-medium text-gray-500 dark:text-gray-400">{user.id}</td>
@@ -933,19 +963,24 @@ function Setting({ currentUser }) {
                                                 {user.username || user.name || `User #${user.id}`}
                                             </td>
                                             <td className="p-2.5 text-xs font-normal text-gray-600 dark:text-gray-400">
-                                                {isRoot ? "Root / All Access" : (user.org_names || [user.org_name]).join(", ")}
+                                                {(user.org_names || [user.org_name]).join(", ")}
                                             </td>
                                             <td className="p-2.5 text-xs font-normal text-gray-600 dark:text-gray-400">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {(!user.roles || user.roles.length === 0) ? (
+                                                    {(!user.org_roles || user.org_roles.length === 0) ? (
                                                         <span className="text-gray-400 italic">No roles</span>
                                                     ) : (
-                                                        user.roles.map(rName => (
+                                                        user.org_roles.flatMap(assignment =>
+                                                            (assignment.role_ids || []).map(roleId => ({
+                                                                key: `${assignment.org_id}-${roleId}`,
+                                                                name: roles.find(role => role.id === roleId)?.name || `Role #${roleId}`
+                                                            }))
+                                                        ).map(role => (
                                                             <span
-                                                                key={rName}
-                                                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getRoleBadgeStyle(rName)}`}
+                                                                key={role.key}
+                                                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getRoleBadgeStyle(role.name)}`}
                                                             >
-                                                                {rName}
+                                                                {role.name}
                                                             </span>
                                                         ))
                                                     )}
@@ -1179,59 +1214,34 @@ function Setting({ currentUser }) {
                                 <label className="block text-xs font-medium mb-1 text-gray-800 dark:text-gray-200">
                                     Organization / Tenant Access *
                                 </label>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2 font-normal">Select one or more tenant companies this user is authorized to access.</p>
+                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2 font-normal">Only organizations you are authorized to manage are available.</p>
                                 
                                 <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 space-y-2.5">
-                                    <label className={`flex items-center space-x-2.5 p-2 rounded-lg cursor-pointer transition ${newUser.isRoot ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-800 dark:text-gray-200'}`}>
-                                        <input
-                                            type="checkbox"
-                                            checked={newUser.isRoot}
-                                            onChange={(e) => {
-                                                const checked = e.target.checked;
-                                                setNewUser(prev => ({
-                                                    ...prev,
-                                                    isRoot: checked,
-                                                    org_ids: checked ? [1] : (prev.org_ids.filter(id => id !== 1).length ? prev.org_ids.filter(id => id !== 1) : [2])
-                                                }));
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <div>
-                                            <span className="font-semibold text-xs text-gray-900 dark:text-white block">Root / All Tenant Access</span>
-                                            <span className="text-[10px] text-gray-500 dark:text-gray-400">Unrestricted access across all tenant organizations</span>
-                                        </div>
-                                    </label>
-
-                                    {!newUser.isRoot && (
-                                        <div className="space-y-1.5 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                            <p className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Select One or More Tenant Companies:</p>
-                                            {organisations.map(org => {
-                                                const isSelected = newUser.org_ids.includes(org.id);
-                                                return (
-                                                    <label key={org.id} className={`flex items-center space-x-2.5 p-2 rounded-lg text-xs cursor-pointer transition ${isSelected ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            onChange={() => toggleOrgSelection(org.id)}
-                                                            className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                                                        />
-                                                        <span className="font-medium text-gray-800 dark:text-gray-200">{org.display_name || org.name}</span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                    {organisations.map(org => {
+                                        const isSelected = newUser.org_ids.includes(org.id);
+                                        return (
+                                            <label key={org.id} className={`flex items-center space-x-2.5 p-2 rounded-lg text-xs cursor-pointer transition ${isSelected ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => toggleOrgSelection(org.id)}
+                                                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="font-medium text-gray-800 dark:text-gray-200">{org.display_name || org.name}</span>
+                                            </label>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
-                            {/* ROLE SELECTION WITH SEARCH & SCROLL */}
+                            {/* ROLE SELECTION PER ORGANIZATION */}
                             <div>
                                 <div className="flex justify-between items-center mb-1.5">
                                     <label className="block text-xs font-medium text-gray-800 dark:text-gray-200">
-                                        Assign System Roles *
+                                        Assign Roles by Organization
                                     </label>
                                     <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                                        {newUser.roles?.length || 0} selected
+                                        {Object.values(newUser.org_roles).reduce((total, ids) => total + ids.length, 0)} selected
                                     </span>
                                 </div>
 
@@ -1255,32 +1265,37 @@ function Setting({ currentUser }) {
                                     )}
                                 </div>
 
-                                <div className="space-y-1.5 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg max-h-56 overflow-y-auto bg-gray-50 dark:bg-gray-800/40">
-                                    {roles
-                                        .filter(r => !userRoleSearch.trim() || r.name.toLowerCase().includes(userRoleSearch.toLowerCase()))
-                                        .map(r => {
-                                            const isChecked = newUser.roles?.includes(r.id);
-                                            return (
-                                                <label key={r.id} className={`flex items-center space-x-2.5 p-2 rounded-lg text-xs cursor-pointer transition ${isChecked ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isChecked}
-                                                        onChange={(e) => {
-                                                            const checked = e.target.checked;
-                                                            setNewUser(prev => ({
-                                                                ...prev,
-                                                                roles: checked ? [...prev.roles, r.id] : prev.roles.filter(id => id !== r.id)
-                                                            }));
-                                                        }}
-                                                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                                                    />
-                                                    <span className="font-medium capitalize text-gray-800 dark:text-gray-200">{r.name}</span>
-                                                </label>
-                                            );
-                                        })}
-                                    {roles.filter(r => !userRoleSearch.trim() || r.name.toLowerCase().includes(userRoleSearch.toLowerCase())).length === 0 && (
-                                        <p className="text-center py-4 text-xs text-gray-400">No matching roles found</p>
-                                    )}
+                                <div className="space-y-3 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg max-h-72 overflow-y-auto bg-gray-50 dark:bg-gray-800/40">
+                                    {newUser.org_ids.map(orgId => {
+                                        const org = organisations.find(item => item.id === orgId);
+                                        const availableRoles = roles.filter(role =>
+                                            (role.org_id == null || role.org_id === orgId) &&
+                                            (!userRoleSearch.trim() || role.name.toLowerCase().includes(userRoleSearch.toLowerCase()))
+                                        );
+                                        return (
+                                            <div key={orgId} className="space-y-1.5">
+                                                <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-200">
+                                                    {org?.display_name || org?.name || `Organization #${orgId}`}
+                                                </p>
+                                                {availableRoles.map(role => {
+                                                    const isChecked = (newUser.org_roles[orgId] || []).includes(role.id);
+                                                    return (
+                                                        <label key={`${orgId}-${role.id}`} className={`flex items-center space-x-2.5 p-2 rounded-lg text-xs cursor-pointer transition ${isChecked ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={() => toggleOrgRole(orgId, role.id)}
+                                                                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                                            />
+                                                            <span className="font-medium capitalize text-gray-800 dark:text-gray-200">{role.name}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                                {availableRoles.length === 0 && <p className="py-2 text-xs text-gray-400">No matching roles</p>}
+                                            </div>
+                                        );
+                                    })}
+                                    {newUser.org_ids.length === 0 && <p className="text-center py-4 text-xs text-gray-400">Select an organization first</p>}
                                 </div>
                             </div>
 
