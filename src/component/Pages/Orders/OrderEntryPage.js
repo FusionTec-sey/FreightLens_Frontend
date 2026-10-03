@@ -2025,10 +2025,12 @@ export default function OrderEntryPage({
                 )}
 
                 {/* Work Stage Pill (Dropdown - Compact Header) */}
+                {!showOrderDetails && <>
                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
                   <Clock size={11} className="text-blue-500 shrink-0" />
                   <span className="text-slate-500 dark:text-slate-400">Stage:</span>
                   <select
+                    aria-label="Workflow Stage"
                     value={activeWorkflowStage}
                     onChange={(e) => handleStageChange(e.target.value)}
                     className={`bg-transparent text-[10px] font-bold focus:outline-none cursor-pointer border-none py-0 pl-0 pr-1 ${
@@ -2062,6 +2064,7 @@ export default function OrderEntryPage({
                   />
                 </div>
 
+                </>}
                 {formData.eta_date && !isRFQ && (
                   <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                     <Ship size={11} /> ETA: {formData.eta_date}
@@ -2198,6 +2201,7 @@ export default function OrderEntryPage({
                     <span>{dateLabelConfig.full}</span>
                   </label>
                   <input
+                    aria-label={dateLabelConfig.full}
                     type="date"
                     value={formData.order_mail_date ? String(formData.order_mail_date).split("T")[0] : ""}
                     onChange={(e) => handleRequestDateChange(e.target.value)}
@@ -2235,6 +2239,7 @@ export default function OrderEntryPage({
                     Workflow Stage
                   </label>
                   <select
+                    aria-label="Workflow Stage"
                     value={activeWorkflowStage}
                     onChange={(e) => handleStageChange(e.target.value)}
                     className={`w-full px-2.5 py-1.5 border rounded-lg text-[11px] font-bold transition ${isDark
@@ -2305,7 +2310,8 @@ export default function OrderEntryPage({
             </div>
 
             {/* Dedicated Product Line Items Table */}
-            <div className="w-full flex-1 min-h-[140px] overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs scrollbar-thin">
+            <p id="line-items-scroll-help" className="text-xs text-slate-500 dark:text-slate-400 px-1 py-1">Scroll across for all item fields. Line actions stay on the right; the order total stays below.</p>
+            <div role="region" aria-label="Product line items" aria-describedby="line-items-scroll-help" tabIndex={0} className="w-full flex-1 min-h-[140px] overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs scrollbar-thin focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
               <table className="w-full text-left text-xs border-collapse table-fixed min-w-[700px]">
                 <colgroup>
                   <col style={{ width: `${columnWidths.index || 38}px` }} />
@@ -2397,7 +2403,7 @@ export default function OrderEntryPage({
                         />
                       </th>
                     ) : null}
-                    <th className="relative py-1 px-1 text-center bg-inherit">
+                    <th className="sticky right-0 z-20 py-1 px-1 text-center bg-slate-100 dark:bg-slate-800 shadow-sm">
                       <span>Actions</span>
                       <div
                         onMouseDown={(e) => startResize(e, "actions")}
@@ -2544,7 +2550,7 @@ export default function OrderEntryPage({
                             />
                           </td>
                         ) : null}
-                        <td className="py-[2.5px] px-1 text-center whitespace-nowrap">
+                        <td className="sticky right-0 z-[1] bg-white dark:bg-slate-900 py-[2.5px] px-1 text-center whitespace-nowrap shadow-sm">
                           <div className="flex items-center justify-center gap-0.5">
                             {isEdit && (
                               <button

@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import WidgetCard from "./components/WidgetCard";
+import LoadError from "../../LoadError";
 
 export default function Dashboard() {
   const { theme } = useTheme();
@@ -14,6 +15,9 @@ export default function Dashboard() {
   // ── State ───────────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
+  const [layoutError, setLayoutError] = useState(false);
+  const [dataError, setDataError] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
   const [layoutWidgets, setLayoutWidgets] = useState([]);
   const [liveData, setLiveData] = useState({});
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
@@ -65,12 +69,14 @@ export default function Dashboard() {
   const fetchLayout = useCallback(async () => {
     try {
       setLoading(true);
+      setLayoutError(false);
       const headers = getAuthHeaders();
       const res = await axios.get(`${process.env.REACT_APP_NETWORK}/dashboard/layout`, { headers });
       const widgets = res.data?.widgets || [];
       setLayoutWidgets(widgets);
     } catch (err) {
       console.error("Failed to load dashboard configuration:", err);
+      setLayoutError(true);
       toast.error("Failed to load dashboard layout");
     } finally {
       setLoading(false);
@@ -81,6 +87,8 @@ export default function Dashboard() {
   const fetchLiveData = useCallback(async () => {
     try {
       setDataLoading(true);
+      setDataReady(false);
+      setDataError(false);
       const headers = getAuthHeaders();
       const res = await axios.get(`${process.env.REACT_APP_NETWORK}/dashboard/data`, {
         params: { year: parseInt(selectedYear, 10) },
@@ -88,9 +96,11 @@ export default function Dashboard() {
       });
 
       setLiveData(res.data?.data || {});
+      setDataReady(true);
       setLastRefreshed(new Date());
     } catch (err) {
       console.error("Failed to fetch live dashboard metrics:", err);
+      setDataError(true);
     } finally {
       setDataLoading(false);
     }
@@ -176,7 +186,10 @@ export default function Dashboard() {
       </div>
 
       {/* ── Main Responsive Widget Grid ─────────────────────────────────────── */}
-      {layoutWidgets.length > 0 ? (
+      {layoutError ? <LoadError title="Dashboard layout unavailable" onRetry={fetchLayout}>The layout could not be loaded. This does not mean no widgets are assigned.</LoadError>
+      : dataError ? <LoadError title="Dashboard metrics unavailable" onRetry={fetchLiveData}>Current figures could not be loaded. Totals are withheld rather than displayed as zero.</LoadError>
+      : !dataReady || dataLoading ? <p role="status" className="p-4">Loading current metrics…</p>
+      : layoutWidgets.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {layoutWidgets.map((widget) => (
             <WidgetCard

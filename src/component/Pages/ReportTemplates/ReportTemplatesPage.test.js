@@ -1,0 +1,24 @@
+import React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import axios from "axios";
+import ReportTemplatesPage from "./ReportTemplatesPage";
+jest.mock("axios", () => ({ get: jest.fn() }));
+jest.mock("react-router-dom", () => ({ useNavigate: () => jest.fn() }), { virtual: true });
+jest.mock("../../../context/AuthContext", () => ({ useAuth: () => ({ permissions: [], hasModule: () => true }) }));
+jest.mock("react-toastify", () => ({ toast: { error: jest.fn() } }));
+jest.mock("./DatasetReportModal", () => () => null);
+jest.mock("./DatasetReportView", () => () => null);
+jest.mock("./TabularTemplateDesignerModal", () => () => null);
+jest.mock("./OrgPrintProfilePanel", () => () => null);
+test("load failure is not an empty catalog; retry can confirm an empty result", async () => {
+  const log = jest.spyOn(console, "error").mockImplementation(() => {});
+  axios.get.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({ data: { items: [], total: 0, pages: 1 } });
+  render(<ReportTemplatesPage />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Report templates unavailable");
+  expect(screen.queryByText("No Report Templates Found")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Retry loading" }));
+  expect(await screen.findByText("No Report Templates Found")).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  log.mockRestore();
+});

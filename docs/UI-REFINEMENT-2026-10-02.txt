@@ -1,0 +1,40 @@
+UI refinement checkpoint - 2026-10-02
+
+Implemented and verified
+- Shared LoadError component for failed reads, distinct from empty results.
+- Access lookup failure stays deny-by-default on the requested route with retry.
+  A retry reloads authoritative access; it does not grant permissions. Existing
+  cancellation prevents a previous company response replacing current access.
+- Sidebar Super Admin label follows authoritative platform-admin status, not
+  the root-organisation flag. Backend permissions and business writes unchanged.
+- Report catalog failure hides stale/empty rows and offers retry.
+- Dashboard failed layout/metrics do not render confirmed empty/zero figures.
+- Order/RFQ date and stage controls appear once in expanded or compact header.
+  Line actions pinned to right of horizontal table, keyboard-focusable scroll
+  region, visible scroll guidance; totals remain below the table.
+- User and role registers stack below 1536px instead of cramped tablet columns.
+- RFQ table empty-state text corrected; visible Freightliner branding changed
+  to FreightLens without renaming asset paths or business organisation records.
+- Standalone Approvals title states current inventory-policy scope and location
+  navigation names its destination. Existing case component/API reused.
+
+Evidence
+- Full frontend suite: 93 tests, 23 suites passed.
+- Production build passed with existing ESLint/Browserslist warnings.
+- git diff --check passed. No backend changes; backend suite not rerun.
+- Read-only local browser checks at 1024x768: PO expanded/compact forms,
+  exactly one stage/date control, pinned line actions, stacked users/roles,
+  standalone Approvals, loaded report catalog. Restored original viewport and
+  /inventory. Browser title confirmed FreightLens. No records/settings saved.
+- Failure/retry and stale-company responses exercised by automated mocks,
+  not by disrupting the running preview or altering authentication.
+
+Remaining UI work / acceptance limits
+- Broader legacy register/header/scroll standardisation remains outstanding.
+- Report-table rightmost controls still need tablet treatment; product tabs
+  and stage-filter overflow need clearer navigation affordances.
+- Populated transaction/detail/approval workflows, other roles, dark mode,
+  hardware/printing, saves and financial operations were not browser-accepted.
+- Access transport failure root cause was not established by this refinement;
+  error recovery is fixed without claiming the underlying outage eliminated.
+- No task/phase declared complete, no deployment and no real data created.

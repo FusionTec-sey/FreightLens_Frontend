@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Sidebar from './MenuPanel/Menu';
+import OrgSwitcher from './UI/OrgSwitcher';
 import ContainerEntry from './Pages/DataEntry/ConatinerEntry';
 import CompleteContainer from './Pages/DataEntry/CompleteContainers.js';
 import LoginPage from './Pages/Login/Login';
@@ -33,6 +34,9 @@ import GoodsReceivingPage from "./Pages/Orders/GoodsReceivingPage.js";
 import DamageDefectsPage from "./Pages/Orders/DamageDefectsPage.js";
 import DailyOperationsPage from "./Pages/Orders/DailyOperationsPage.js";
 import ProductMasterPage from "./Pages/Inventory/ProductMasterPage.js";
+import InventoryLocationsPage from "./Pages/Inventory/InventoryLocationsPage.js";
+import { INVENTORY_LOCATIONS_ROUTE, INVENTORY_POOLS_ROUTE, INVENTORY_APPROVALS_ROUTE, INVENTORY_BARCODE_REVIEWS_ROUTE } from "../utils/inventoryRoutes";
+import InventoryWorkspacePage from "./Pages/Inventory/InventoryWorkspacePage";
 import CurrenciesPage from "./Pages/MasterData/CurrenciesPage.js";
 import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
 import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
@@ -99,16 +103,17 @@ export default function MainPage() {
 
       {/* Main Content */}
       <main className={`flex-1 flex flex-col`} style={{ height: '100vh', overflow: 'hidden' }}>
-        {/* Mobile-only toggle header */}
+        {/* Explicit company context on every operational screen. */}
         {!isLoginPage && (
-          <header className={`md:hidden px-4 py-2.5 border-b flex items-center justify-between z-40 ${theme.background} ${theme.border}`}>
+          <header className={`shrink-0 px-4 py-2.5 border-b flex items-center justify-between gap-3 z-40 ${theme.background} ${theme.border}`}>
             <button
-              className={`h-8 w-8 flex items-center justify-center rounded-md border ${theme.border} ${theme.text}`}
+              type="button" className={`md:hidden h-8 w-8 flex items-center justify-center rounded-md border ${theme.border} ${theme.text}`}
               onClick={() => setSidebarVisible(true)}
               aria-label="Open menu"
             >
               ☰
             </button>
+            <div className="ml-auto"><OrgSwitcher /></div>
           </header>
         )}
 
@@ -170,6 +175,10 @@ export default function MainPage() {
             {/* Independent Inventory Module */}
             <Route path="/inventory" element={<PrivateRoute requiredModules={["INVENTORY"]}><ProductMasterPage /></PrivateRoute>} />
             <Route path="/inventory/products" element={<PrivateRoute requiredModules={["INVENTORY"]}><ProductMasterPage /></PrivateRoute>} />
+            <Route path={INVENTORY_LOCATIONS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["View_Product"]}><InventoryLocationsPage /></PrivateRoute>} />
+            <Route path={INVENTORY_POOLS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["View_Product"]}><InventoryWorkspacePage workspace="pools" /></PrivateRoute>} />
+            <Route path={INVENTORY_APPROVALS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["Review_InventoryPolicy"]}><InventoryWorkspacePage workspace="approvals" /></PrivateRoute>} />
+            <Route path={INVENTORY_BARCODE_REVIEWS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["Review_BarcodeRetirement"]}><InventoryWorkspacePage workspace="barcode-reviews" /></PrivateRoute>} />
 
             {/* Master Data & Multi-Currency Admin Routes */}
             <Route path="/master-data/currencies" element={<PrivateRoute><CurrenciesPage /></PrivateRoute>} />

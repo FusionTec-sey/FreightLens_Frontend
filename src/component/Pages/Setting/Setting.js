@@ -906,7 +906,7 @@ function Setting({ currentUser }) {
             </div>
 
             {/* MAIN 2-COLUMN SIDE-BY-SIDE GRID */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
                 
                 {/* USERS TABLE */}
                 <section className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-xs space-y-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">

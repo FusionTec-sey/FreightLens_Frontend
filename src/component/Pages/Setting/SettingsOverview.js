@@ -9,7 +9,7 @@ const settingsCards = [
   {
     to: "/organization-settings",
     title: "Organization & companies",
-    description: "Group identity, company names and active companies used throughout Freightliner.",
+    description: "Group identity, company names and active companies used throughout FreightLens.",
     icon: Building2,
     tenantConsole: true,
   },
@@ -94,7 +94,7 @@ export default function SettingsOverview() {
             <Settings2 size={20} />
           </span>
           <div>
-            <h2 className="font-semibold">Freightliner organization</h2>
+            <h2 className="font-semibold">FreightLens organization</h2>
             <p className="mt-1 text-sm opacity-70">
               {summary.groups || 1} group · {summary.activeCompanies} active of{" "}
               {summary.companies || 0} companies

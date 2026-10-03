@@ -53,7 +53,7 @@ export default function OrderSettings() {
     <div className={settingsPageClass}>
       <PageHeader
         title="Orders & procurement"
-        description="Maintain company-specific numbering used when Freightliner creates requests and purchase orders."
+        description="Maintain company-specific numbering used when FreightLens creates requests and purchase orders."
       />
 
       {!canEdit && (

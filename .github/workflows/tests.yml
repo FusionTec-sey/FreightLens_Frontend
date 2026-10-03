@@ -3,7 +3,7 @@ name: Frontend tests
 on:
   pull_request:
   push:
-    branches: [main, master]
+    branches: [main, master, standalone-main, codex/pos-development]
 
 jobs:
   test-and-build:

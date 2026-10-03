@@ -21,9 +21,10 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import logo from "../../assets/Images/Freightliner.png";
+import { INVENTORY_LOCATIONS_ROUTE, INVENTORY_POOLS_ROUTE, INVENTORY_APPROVALS_ROUTE, INVENTORY_BARCODE_REVIEWS_ROUTE } from "../../utils/inventoryRoutes";
 
 function Sidebar({ onLinkClick }) {
-  const { permissions, user, logout, isRoot, hasModule } = useAuth();
+  const { permissions, user, logout, isRoot, isSuperAdmin, hasModule } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,6 +54,7 @@ function Sidebar({ onLinkClick }) {
         else if (isSourcingActive) setOpenAccordion("sourcing");
         else if (isOrdersActive) setOpenAccordion("orders");
         else if (isContainerActive) setOpenAccordion("containers");
+        else if (isInventoryActive) setOpenAccordion("inventory");
         else if (isMasterDataActive) setOpenAccordion("masterdata");
         else if (isSettingsActive) setOpenAccordion("settings");
       }
@@ -94,10 +96,12 @@ function Sidebar({ onLinkClick }) {
     isActive("/dashboard-templates");
 
   const isSourcingActive =
+    location.pathname.startsWith("/sourcing/") ||
     isActive("/sourcing") ||
     isActive("/store-requests");
 
   const isOrdersActive =
+    location.pathname.startsWith("/orders/") ||
     isActive("/orders") ||
     isActive("/orders/quotes") ||
     isActive("/quotes") ||
@@ -117,9 +121,7 @@ function Sidebar({ onLinkClick }) {
     isActive("/Complete");
 
   const isInventoryActive =
-    isActive("/inventory") ||
-    isActive("/inventory/products") ||
-    location.pathname.startsWith("/inventory");
+    (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
 
   const isMasterDataActive =
     isActive("/master-data/suppliers") ||
@@ -157,6 +159,7 @@ function Sidebar({ onLinkClick }) {
     if (isSourcingActive) return "sourcing";
     if (isOrdersActive) return "orders";
     if (isContainerActive) return "containers";
+    if (isInventoryActive) return "inventory";
     if (isMasterDataActive) return "masterdata";
     if (isSettingsActive) return "settings";
     return null;
@@ -177,13 +180,17 @@ function Sidebar({ onLinkClick }) {
         setOpenAccordion("orders");
       } else if (isContainerActive) {
         setOpenAccordion("containers");
+      } else if (isInventoryActive) {
+        setOpenAccordion("inventory");
       } else if (isMasterDataActive) {
         setOpenAccordion("masterdata");
       } else if (isSettingsActive) {
         setOpenAccordion("settings");
+      } else {
+        setOpenAccordion(null);
       }
     }
-  }, [location.pathname, isLocked]);
+  }, [location.pathname, isLocked, isDashboardSectionActive, isSourcingActive, isOrdersActive, isContainerActive, isInventoryActive, isMasterDataActive, isSettingsActive]);
 
   // ── Render Helpers ──────────────────────────────────────────────────────────
   // Height is exactly h-6 in both collapsed (divider) and expanded (header title) states
@@ -263,6 +270,7 @@ function Sidebar({ onLinkClick }) {
           type="button"
           onClick={() => toggleAccordion(sectionKey)}
           title={label}
+          aria-expanded={isOpen}
           className={`relative flex items-center h-10 px-3 rounded-xl w-full text-left bg-transparent border-0 cursor-pointer transition-all duration-150 group/item ${
             isSectionActive
               ? "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold before:absolute before:left-0 before:top-2.5 before:bottom-2.5 before:w-1 before:bg-indigo-600 dark:before:bg-indigo-400 before:rounded-r-full"
@@ -430,7 +438,7 @@ function Sidebar({ onLinkClick }) {
                 : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 delay-75"
             }`}
           >
-            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">Freightliner</span>
+            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">FreightLens</span>
             <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Enterprise</span>
           </div>
         </div>
@@ -501,7 +509,7 @@ function Sidebar({ onLinkClick }) {
               isSectionActive: isSourcingActive,
               children: (
                 <>
-                  {canViewRFQ && renderSubLink("/sourcing", "Requisitions & RFQs", isActive("/sourcing"))}
+                  {canViewRFQ && renderSubLink("/sourcing", "Requisitions & RFQs", isActive("/sourcing") || location.pathname.startsWith("/sourcing/"))}
                   {canViewStoreReq && renderSubLink("/store-requests", "Store Requests", isActive("/store-requests"))}
                   {!canViewPO && canViewTemplates && renderSubLink("/templates", "Order Templates", isActive("/templates"))}
                 </>
@@ -517,7 +525,7 @@ function Sidebar({ onLinkClick }) {
               isSectionActive: isOrdersActive,
               children: (
                 <>
-                  {canViewPO && renderSubLink("/orders", "Purchase Orders", isActive("/orders"))}
+                  {canViewPO && renderSubLink("/orders", "Purchase Orders", isActive("/orders") || /^\/orders\/(?:new|[0-9]+)(?:\/edit)?\/?$/.test(location.pathname))}
                   {canViewQuotes && (
                     renderSubLink(
                       "/orders/quotes",
@@ -541,7 +549,7 @@ function Sidebar({ onLinkClick }) {
             })}
 
           {/* ── SECTION: LOGISTICS & INVENTORY ──────────────────────────────── */}
-          {(canViewContainers || canViewInventory) && renderSectionHeader("Logistics & Stock")}
+          {canViewContainers && renderSectionHeader("Logistics")}
 
           {/* Containers Module */}
           {canViewContainers &&
@@ -569,12 +577,23 @@ function Sidebar({ onLinkClick }) {
             })}
 
           {/* Inventory / Product Master */}
-          {canViewInventory &&
-            renderNavLink("/inventory", <Boxes />, "Product Master", isInventoryActive)}
+          {canViewInventory && renderSectionHeader("Inventory")}
+          {canViewInventory && renderAccordion({ sectionKey: "inventory", icon: <Boxes />, label: "Inventory", isSectionActive: isInventoryActive,
+            children: <>
+              {renderSubLink("/inventory", "Product Master", isActive("/inventory") || isActive("/inventory/products"))}
+              {(isSuperAdmin || hasPermission("View_Product")) && <>
+                {renderSubLink(INVENTORY_LOCATIONS_ROUTE, "Branches & locations", isActive(INVENTORY_LOCATIONS_ROUTE))}
+                {renderSubLink(INVENTORY_POOLS_ROUTE, "Cost pools", isActive(INVENTORY_POOLS_ROUTE))}
+              </>}
+            </> })}
+          {canViewInventory && (isSuperAdmin || hasPermission("Review_InventoryPolicy")) &&
+            renderNavLink(INVENTORY_APPROVALS_ROUTE, <Shield />, "Approvals", isActive(INVENTORY_APPROVALS_ROUTE))}
+          {hasModule("INVENTORY") && (isSuperAdmin || hasPermission("Review_BarcodeRetirement")) &&
+            renderNavLink(INVENTORY_BARCODE_REVIEWS_ROUTE, <Shield />, "Barcode reviews", isActive(INVENTORY_BARCODE_REVIEWS_ROUTE))}
 
           {/* ── Print & Reports Module ────────────────────────────────────── */}
           {canViewReports &&
-            renderNavLink("/reports", <Printer />, "Print & Reports", isReportsActive)}
+            renderNavLink("/reports", <Printer />, "Reports & printing", isReportsActive)}
 
           {/* ── SECTION: ADMINISTRATION & SETTINGS ─────────────────────────── */}
           {(canViewMasterData || canViewTenantConsole || canViewSettings) &&
@@ -646,12 +665,17 @@ function Sidebar({ onLinkClick }) {
           >
             <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{user || "User"}</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
-              {isRoot ? "Super Admin" : "Organization User"}
+              {isSuperAdmin ? "Super Admin" : "Organization User"}
             </p>
           </div>
         </div>
 
         {/* Controls: Theme & Logout */}
+        {canViewInventory && (isSuperAdmin || hasPermission("Review_InventoryPolicy")) && <Link
+          to={INVENTORY_APPROVALS_ROUTE} title="My review queue" aria-label="My review queue"
+          className="block rounded-lg px-2 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-800">
+          My review queue
+        </Link>}
         <div className="flex items-center justify-between pt-1">
           <button
             onClick={toggleTheme}

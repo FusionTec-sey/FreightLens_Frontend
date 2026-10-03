@@ -1,17 +1,25 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import LoadError from "./LoadError";
 
 const PrivateRoute = ({
   children,                   
   requiredPermissions = [],
   requiredModules = [],
 }) => {
-  const { token, permissions = [], isSuperAdmin, modules = [] } = useAuth();
+  const { token, permissions = [], isSuperAdmin, modules = [], accessLoading, accessError, retryAccess } = useAuth();
 
   if (!token) {
     return <Navigate to="/" replace />;
   }
+
+  // Never decide access using empty or previous-organisation permissions while
+  // the authoritative access request is still pending.
+  if (accessLoading) return <p role="status" className="p-4">Loading access…</p>;
+  if (accessError) return <LoadError title="Unable to verify access" onRetry={retryAccess}>
+    Your access could not be loaded. This is not a permission denial. Protected actions remain unavailable until verification succeeds.
+  </LoadError>;
 
   // Only an explicit platform administrator bypasses module and permission restrictions.
   if (isSuperAdmin) {

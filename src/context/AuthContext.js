@@ -138,6 +138,14 @@ export const AuthProvider = ({ children }) => {
   const [refreshToken, setRefreshToken] = useState(localStorage.getItem(REFRESH_TOKEN_KEY) || null);
   const [permissions, setPermissions] = useState([]);
   const [access, setAccess] = useState(null);
+  const [resolvedAccessKey, setResolvedAccessKey] = useState(null);
+  const [accessErrorKey, setAccessErrorKey] = useState(null);
+  const [accessAttempt, setAccessAttempt] = useState(0);
+  const retryAccess = useCallback(() => {
+    setResolvedAccessKey(null);
+    setAccessErrorKey(null);
+    setAccessAttempt((attempt) => attempt + 1);
+  }, []);
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem(USER_KEY);
     return stored ? JSON.parse(stored) : null;
@@ -418,11 +426,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!token) {
       setAccess(null);
+      setResolvedAccessKey(null);
       setPermissions([]);
       setModules([]);
       return;
     }
     let cancelled = false;
+    setAccessErrorKey(null);
     const headers = { Authorization: `Bearer ${token}` };
     if (selectedOrgId) headers["X-Active-Org"] = selectedOrgId.toString();
     axios
@@ -433,15 +443,18 @@ export const AuthProvider = ({ children }) => {
         setAccess(next);
         setPermissions(Array.isArray(next.permissions) ? next.permissions : []);
         setModules(Array.isArray(next.modules) ? next.modules : []);
+        setResolvedAccessKey(`${token}:${selectedOrgId || ""}`);
       })
       .catch(() => {
         if (cancelled) return;
         setAccess(null);
         setPermissions([]);
         setModules([]);
+        setAccessErrorKey(`${token}:${selectedOrgId || ""}`);
+        setResolvedAccessKey(`${token}:${selectedOrgId || ""}`);
       });
     return () => { cancelled = true; };
-  }, [token, selectedOrgId]);
+  }, [token, selectedOrgId, accessAttempt]);
 
   const roles = useMemo(() => {
     const tok = token || localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -495,6 +508,9 @@ export const AuthProvider = ({ children }) => {
     modules,
     plan,
     access,
+    accessLoading: !!token && resolvedAccessKey !== `${token}:${selectedOrgId || ""}`,
+    accessError: !!token && accessErrorKey === `${token}:${selectedOrgId || ""}`,
+    retryAccess,
     fieldClasses: access?.field_classes || [],
     locationIds: access?.location_ids || [],
     hasModule: (mod) => isSuperAdmin || (modules || []).includes(mod),

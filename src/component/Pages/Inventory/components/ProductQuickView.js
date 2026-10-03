@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import InventoryPolicyDraft from "./InventoryPolicyDraft";
 import {
   X,
   Package,
@@ -29,7 +30,9 @@ export default function ProductQuickView({
   onAdjustStock,
   onDuplicate,
 }) {
+  const [showPolicy, setShowPolicy] = useState(false);
   if (!product) return null;
+  if (showPolicy) return <InventoryPolicyDraft product={product} isDark={isDark} canEdit={canEdit} onClose={() => setShowPolicy(false)} />;
 
   const images = product.images || [];
   const primaryImg =
@@ -246,6 +249,8 @@ export default function ProductQuickView({
               </div>
             </div>
           )}
+
+          <button type="button" className="px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20" onClick={() => setShowPolicy(true)}>Units & tracking draft</button>
 
           {/* Description */}
           {product.description && (

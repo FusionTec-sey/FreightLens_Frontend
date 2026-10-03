@@ -65,7 +65,7 @@ export default function OrderTable({ orders, orderStatuses = [], activeTab = "or
                   colSpan={8}
                   className="py-12 text-center text-xs font-normal text-slate-500 italic"
                 >
-                  No purchase orders match current filter criteria.
+                  {activeTab === "sourcing" ? "No sourcing RFQs match current filter criteria." : "No purchase orders match current filter criteria."}
                 </td>
               </tr>
             ) : (

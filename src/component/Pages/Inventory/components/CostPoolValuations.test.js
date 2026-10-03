@@ -1,0 +1,57 @@
+import React from "react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import CostPoolValuations from "./CostPoolValuations";
+jest.mock("axios", () => ({ create: jest.fn(() => ({})) }));
+jest.mock("../../../../context/ThemeContext", () => ({ useTheme: () => ({ isDark: true }) }));
+const pool = { id: 3, code: "POOL", name: "Test pool" };
+const data = { items: [{ id: 1, product_name: "Tile", balance_id: 7, source_version: 1, version: 1,
+  quantity: "10.000000", base_unit: "PCS", goods_value_scr: "99999999999999999.123456",
+  additional_cost_scr: "0.000000", pool_quantity: "10.000000", pool_value_scr: "99999999999999999.123456",
+  status: "UNRECONCILED", reason: "Approved synthetic cost" }], total: 26, pages: 2 };
+
+test("selects current-page source and opens allocation without posting", async () => {
+  const api = { poolValuations: jest.fn().mockResolvedValue({ data }) };
+  render(<CostPoolValuations api={api} pool={pool} onClose={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "Preview additional-cost allocation" })).toBeDisabled();
+  fireEvent.click(await screen.findByLabelText("Select valuation 1"));
+  fireEvent.click(screen.getByRole("button", { name: "Preview additional-cost allocation" }));
+  expect(screen.getByRole("heading", { name: "Freight allocation preview" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Back to valuations" }));
+  fireEvent.click(screen.getByTitle("Next Page"));
+  await screen.findByText("UNRECONCILED");
+  expect(screen.getByRole("button", { name: "Preview additional-cost allocation" })).toBeDisabled();
+});
+
+test("shows exact historical values and requests server pages", async () => {
+  const api = { poolValuations: jest.fn().mockResolvedValue({ data }) };
+  render(<CostPoolValuations api={api} pool={pool} onClose={jest.fn()} />);
+  await screen.findByText("UNRECONCILED");
+  expect(screen.getAllByText("99999999999999999.123456")).toHaveLength(2);
+  fireEvent.click(screen.getByTitle("Next Page"));
+  await screen.findByText("UNRECONCILED");
+  expect(api.poolValuations).toHaveBeenLastCalledWith(3, 2, 25, expect.any(AbortSignal));
+});
+
+test("refresh failure removes previous costs and allows retry", async () => {
+  const api = { poolValuations: jest.fn().mockResolvedValueOnce({ data }).mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValue({ data: { items: [], total: 0, pages: 1 } }) };
+  render(<CostPoolValuations api={api} pool={pool} onClose={jest.fn()} />);
+  await screen.findByText("UNRECONCILED");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh valuations" }));
+  await screen.findByRole("alert");
+  expect(screen.queryByText("UNRECONCILED")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Refresh valuations" }));
+  await screen.findByText(/does not mean stock has zero cost/);
+});
+
+test("company changes abort old responses and hide old costs", async () => {
+  let finish;
+  const api = { poolValuations: jest.fn(() => new Promise(resolve => { finish = resolve; })) };
+  const next = { poolValuations: jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } }) };
+  const view = render(<CostPoolValuations api={api} pool={pool} onClose={jest.fn()} />);
+  view.rerender(<CostPoolValuations api={next} pool={pool} onClose={jest.fn()} />);
+  await act(async () => finish({ data }));
+  expect(api.poolValuations.mock.calls[0][3].aborted).toBe(true);
+  expect(screen.queryByText("UNRECONCILED")).not.toBeInTheDocument();
+});

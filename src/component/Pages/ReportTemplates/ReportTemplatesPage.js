@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import LoadError from "../../LoadError";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -52,6 +53,7 @@ export default function ReportTemplatesPage() {
   // Document Templates State
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [limit] = useState(15);
@@ -127,6 +129,7 @@ export default function ReportTemplatesPage() {
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       params.append("page", page.toString());
@@ -145,6 +148,7 @@ export default function ReportTemplatesPage() {
       setPages(res.data?.pages || 1);
     } catch (err) {
       console.error("Failed to load templates:", err);
+      setLoadError(true);
       toast.error("Failed to load report templates catalog.");
     } finally {
       setLoading(false);
@@ -767,6 +771,10 @@ export default function ReportTemplatesPage() {
                 <Loader2 size={28} className="animate-spin text-indigo-600" />
                 <p className="text-xs">Loading report templates...</p>
               </div>
+            ) : loadError ? (
+              <LoadError title="Report templates unavailable" onRetry={fetchTemplates}>
+                The catalog could not be loaded. No empty result has been confirmed. Retry to view templates and their current status.
+              </LoadError>
             ) : templates.length === 0 ? (
               <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                 <FileText size={36} className="text-slate-400 mb-2" />

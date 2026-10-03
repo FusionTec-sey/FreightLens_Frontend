@@ -2,6 +2,130 @@
 
 ## Status
 
+Saved cost proposals now expose independent allocation review through the existing
+PolicyReviewRequest and ManagerCases components. Cost-specific copy and exact SCR
+line tables distinguish review from financial posting. Financial viewers inspect
+decisions; Manage_Financials permits requests/decisions, with creator/requester
+self-review blocked again by the backend. Company-pinned API methods bind pool,
+proposal and case IDs. Failed requests retain their operation ID/reason, refresh
+and navigation are guarded while dirty/busy, and unsaved decisions warn on unload.
+No approval triggers activation, price changes or charge posting. New browser
+acceptance remains pending. Backend evidence: t06-cost-review-verification.txt.
+
+T06 Cost pools now offers a financial-permission-only Valuation history action per
+row. CostPoolValuations reuses the company-pinned inventory client and shared
+PaginationToolbar, with contained scrolling, dark/light styling, exact six-place
+strings and explicit UNRECONCILED historical snapshots. It clears failed/obsolete
+results and aborts old company requests. Empty history is not described as zero
+cost. No financial write controls or selling-price updates are introduced.
+Backend requires both View_Product and View_Financials; menu visibility is not
+authorization. New browser acceptance remains pending.
+
+Valuation history now permits selecting current-page sources for a freight-cost
+allocation preview. The exact SCR total stays a string; weights are loaded by the
+backend from immutable sources. Original goods value and same-unit base quantity
+are explicit choices. Page/refresh/context changes clear selection; input edits
+abort and invalidate the old calculation. Shared pool-scoped API and contained
+table/footer layout are retained. Preview does not save, approve or post a charge.
+
+An explicit Save unposted proposal action is now available to Manage_Financials
+users after a successful preview. It requires declared charge reference/reason,
+reuses useOperationIntent, retains uncertain-save inputs/key and prevents silent
+in-panel discard. The calculation button itself still does not save. Saved cost
+proposals opens a paginated historical register and exact allocation detail for
+financial viewers. Request-context binding prevents list data rendering as detail
+and drops obsolete company/pool/page responses. No approval/posting controls exist.
+
+Location-stock rows now expose a Reclassification proposals workflow. It
+uses existing scoped proposal APIs, the company-pinned inventory client and shared
+PaginationToolbar. Summary/detail views preserve exact decimal strings, distinguish
+historical snapshots from current stock or approval status. Obsolete requests abort,
+failed refreshes clear prior data, and selections
+are pinned to the API/company context. Internal scrolling keeps navigation and
+pagination outside the scroll area. The permission-aware editor loads active/draft
+policies, accepts explicit batch or serial identities, pins source versions and
+retains failed-save intent keys. Own-panel discard and browser-unload warnings
+protect unsaved entries; durable cross-route drafts remain a later task.
+Shared PolicyReviewRequest and ManagerCases panels provide proposal-scoped
+request/approve/reject actions and exact historical manifests. Approval never enables
+stock execution, even if an activation prop is mistakenly supplied. No second
+approval store is introduced. Browser/layout acceptance awaits confirmation.
+Actual stock conversion remains disabled pending authority, valuation and lineage.
+Verification: backend docs/planning/evidence/t05-proposal-workflow-verification.txt.
+
+Standalone Approvals now defaults to a server-filtered Needs my review view.
+My requests and All cases use the same register, pagination and decision panel;
+switching views resets the page and aborts obsolete reads. A permission-aware
+profile shortcut links to the queue. Contextual panels retain All by default.
+No client-selected reviewer identity, second case store, notification polling or
+durable unread state is introduced. New browser acceptance remains pending.
+
+Navigation reform: Logistics and Inventory have separate sidebar groups. Inventory
+contains Product Master, Branches & locations and Cost pools. A direct Approvals
+entry opens the existing inventory manager-case register. New refreshable routes
+`/inventory/cost-pools` and `/inventory/approvals` reuse panels via a thin
+organisation-keyed adapter; existing local shortcuts and legacy URLs remain valid.
+Routes retain INVENTORY plus View_Product / Review_InventoryPolicy gates; write
+permissions and backend APIs are unchanged. Branch-specific settings/counters and
+product policies remain contextual panels, not separate URL-persisted workspaces.
+Sourcing/order detail URLs expand their menu group; inventory auto-expands and
+accordions expose aria-expanded. Display branding now reads FreightLens. No Sales
+placeholder or new subscription module is introduced. Limited read-only tablet
+checks passed; populated workflow and dark-mode acceptance remain pending.
+
+Read failures in protected access, document catalog and dashboard use LoadError
+with explicit retry instead of displaying permission denial or empty/zero data.
+Access retry remains fail-closed and reloads authoritative permissions; no backend
+permission rules change. See UI-REFINEMENT-2026-10-02.txt for evidence and limits.
+
+T05 no-history policy revisions: saved draft screens offer a read-only readiness
+check with changed fields, active/draft versions and blocking reasons. It uses the
+existing pinned client; edited/reloaded drafts invalidate the result, failures clear
+old results, duplicate checks are blocked and unmount aborts reads. It is advisory,
+never a posting authority. Manager cases show the reviewed predecessor version and
+pass it through the existing confirmation/stable-intent activation component.
+Only no-history, no-barcode revisions can post. Existing-stock conversion and
+reviewed barcode maintenance remain pending. Browser acceptance remains deferred.
+
+T05 unit barcodes: policy dialog opens a contained register using the same pinned
+inventory client. Only active-policy units can be registered; codes remain strings
+and retain case/leading zeros. Server-paginated historical rows mark eligibility;
+exact lookup shows base quantity without implying a reservation/sale. Registration
+uses useOperationIntent, explicit unit selection, pending-submit guards and failed
+save/discard protection. Permissions are backend-enforced. No automatic catalogue
+barcode adoption or barcode correction/reassignment; browser acceptance pending.
+
+Consolidation: `useOperationIntent` owns in-memory stable retry identity for branch
+settings, counters, review requests, manager decisions and policy activation.
+It binds action/target plus payload and returns detached payload snapshots.
+Organisation-pinned parents own lifetime. Validation, duplicate-submit guards,
+abort lifecycle and discard UX remain explicit in each form. This hook is not
+durable draft recovery or an offline authorization mechanism; T15A supplies recovery
+before checkout. Canonical queue: backend docs/planning/TASK-QUEUE.txt.
+
+Local T05 partial: approved manager cases offer separately permission-controlled
+initial policy activation, explicit confirmation, duplicate-submit protection and
+stable retry keys. Drafts show the active reviewed policy separately; failed reads
+say unverified rather than inactive. Activation creates no stock and enables no
+checkout. Existing-stock conversions and barcode maintenance are still pending.
+
+Local T04: saved policy drafts expose a permission-controlled review request;
+locations expose a paginated manager inbox with exact snapshots and approve/reject
+reasons. Self-review is denied; failed decisions retain text and retry identity.
+Leaving asks before discarding. Approval is not activation. Personal manager-profile
+notifications and browser acceptance remain pending.
+
+Local T03: branch locations now expose Trading settings and Counters panels using
+the organisation-pinned inventory client. Trading settings retain exact local
+cutoffs, explicit weekly trading days and bounded date exceptions with no real
+defaults. Counter identities have permanent codes and versioned display/purpose/
+availability settings. Writes require Manage_BranchSettings (backend enforced),
+expected versions and secure UUID operation keys retained on unchanged retries.
+Forms preserve failed saves, guard duplicate submits and confirm discarding edits;
+counter lists use server pagination and both panels support contained scrolling
+and light/dark styles. Saving does not activate checkout/payments/collection.
+Automated tests/build pass; browser/layout acceptance remains skipped by owner.
+
 This document describes the current FreightLens v2 frontend. The complete system architecture is maintained in `Backend/docs/ARCHITECTURE.md`.
 
 ## Stack
@@ -39,6 +163,43 @@ Root users may select an organisation. Requests using the global Axios intercept
 
 ## API Access
 
+ProductQuickView now opens `InventoryPolicyDraft` for unit/tracking preparation.
+The org-pinned client reads/saves versioned drafts against existing product IDs.
+Viewers may inspect; product editors may save. Explicit tracking choice, quantity
+steps, batch expiry/shade/calibre flags and up to16 alternate-unit factors are
+supported. Factor inputs remain strings. Failed saves retain fields; duplicate
+submissions are blocked; unsaved close requires confirmation. Drafts do not
+activate stock rules, assign barcodes or change catalogue units/stock/prices.
+Keyboard focus is contained in the dialog. Browser/viewport verification remains
+pending at the owner's request.
+
+`UnitConversionPreview` tests the current unsaved draft using the scoped backend
+calculation endpoint. Quantities/factors remain decimal strings; editing any
+rule or test input clears the result and cancels stale requests. The test is
+read-only and never confirms stock availability or activates a policy.
+
+Inventory branch/location setup now offers View stock per physical location.
+`LocationStock` uses the org-pinned inventoryLocationsApi client and the existing
+PaginationToolbar. The read-only panel displays exact decimal strings for
+on-hand, reserved, available, damaged and quarantined quantities. It does not
+aggregate child/remote locations or substitute legacy product totals. Empty
+ledger data is explicitly not proof of zero physical stock. Loading/failed
+refreshes hide old rows; requests abort on unmount and late results are ignored.
+Each lot remains a separate row with code/shade/calibre/expiry. The unit column
+shows the snapshotted increment or an explicit review-required posting warning
+for pre-policy balances. Displayed quantities and expiry are advisory; posting
+must recheck batch eligibility. No client-side numeric conversion is performed.
+There are no stock-posting actions. Browser verification was skipped at the
+owner's request; visual acceptance is still pending.
+
+Serial-tracked rows expose View serials. `StockSerials` reuses the org-pinned
+client and PaginationToolbar for exact-balance identity/condition reads. Serial
+numbers stay strings, including leading zeros. Physical condition is explicitly
+not an individual reservation or a promise of unreserved quantity; assignment
+at handover is not enabled. Loading/failed refreshes hide stale rows, requests
+abort on navigation/org changes, and returning refreshes the stock list. No
+serial creation, edit, assignment or movement action is exposed.
+
 - `src/services/ordersApi.js` contains the orders/procurement client and legacy compatibility fallbacks.
 - Pages also use Axios directly and `src/utils/authFetch.js`.
 - `REACT_APP_NETWORK` is the API base URL injected at build time.
@@ -61,6 +222,43 @@ npm run build
 
 The current build passes with pre-existing ESLint warnings. Warning cleanup is tracked separately from security stabilization.
 
+POS prerequisite development extends test/build CI push coverage to
+`standalone-main` and `codex/pos-development`, retaining main/master and PR checks.
+No staging deployment trigger was changed.
+
 Sustained-use UI changes also follow `docs/FRONTEND_ERGONOMICS.md`. Its evidence boundary prevents unsupported medical claims while adding zoom, readability, workflow-continuity, and layout-stability checks.
 
 Supplier master data displays the backend's explicit scope. Root users can choose shared or tenant-specific when creating/editing a supplier; tenant users can view shared suppliers but cannot mutate them.
+
+## Branch and location setup (C10 partial, local development)
+
+`/inventory/locations` lists branches and their SITE -> ZONE -> BIN locations.
+It uses the existing pagination toolbar and paginated Inventory APIs. Creation
+requires Manage_InventoryLocation; navigation requires View_Product and INVENTORY.
+The API remains the permission and tenant-isolation boundary. No stock changes,
+real branch seeds, editing or deletion are introduced by this screen.
+
+The workspace resets on organisation change, cancels obsolete reads, discards
+old forms and ignores late responses. Its isolated Axios client explicitly pins
+the organisation and bearer token; it does not retry POST requests. AuthContext
+still schedules token refresh; an expired request reports an explicit error.
+Duplicate form submission is guarded, and failed saves retain input. An uncertain
+response requires checking the list before retrying; this is not durable
+idempotency. Site/zone row actions select a valid parent without fetching all
+locations into an unbounded selector. Forms replace the list within the fixed
+shell, keeping actions outside the scrollable form body.
+
+Protected routes now wait for access resolution for the current token and selected
+organisation before permission/module decisions. Failed access resolution remains
+deny-by-default; previous-organisation admin access cannot bypass loading.
+
+Browser checks cover empty-state/list and unsaved branch form at desktop/laptop
+widths; populated-table, real zoom and dark-mode visual acceptance remain pending.
+
+The same screen now includes Cost pools and per-branch initial pool assignment.
+`CostPoolSetup` reuses the paginated configuration API and PaginationToolbar,
+shows a confirmation step, and does not allow reassignment. Creation/assignment
+visibility requires Manage_InventoryCostPool; API checks remain authoritative.
+The pool list and current assignment must both load successfully before choosing
+a pool. An empty assignment does not imply stock is ready for posting. No pool
+or branch names, legal identifiers or real business records are seeded in code.
