@@ -61,3 +61,13 @@ test("revision posts the predecessor version approved in the case", async () => 
   fireEvent.click(screen.getByRole("button"));
   await waitFor(() => expect(api.activatePolicy).toHaveBeenCalledWith("revision", expect.objectContaining({ expected_active_version: 3 }), expect.any(AbortSignal)));
 });
+
+test('follow-up scheduling requires confirmation and does not call policy activation', async () => {
+  api.scheduleDeadline = jest.fn().mockResolvedValue({}); const done = jest.fn();
+  render(<PolicyActivation deadline api={api} caseKey="deadline" onBusyChange={jest.fn()} onActivated={done} />);
+  expect(screen.getByText('Schedule reviewed follow-up')).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByText('Schedule reviewed follow-up'));
+  await waitFor(() => expect(done).toHaveBeenCalled());
+  expect(api.scheduleDeadline).toHaveBeenCalledWith('deadline', { operation_key: 'activation-key' }, expect.any(AbortSignal));
+  expect(api.activatePolicy).not.toHaveBeenCalled();
+});

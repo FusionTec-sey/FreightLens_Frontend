@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { CUSTOMERS_ROUTE } from "../../utils/customerRoutes";
+import { SALES_DRAFTS_ROUTE } from "../../utils/salesRoutes";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -124,6 +126,7 @@ function Sidebar({ onLinkClick }) {
     (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
 
   const isMasterDataActive =
+    isActive(CUSTOMERS_ROUTE) ||
     isActive("/master-data/suppliers") ||
     isActive("/master-data/currencies") ||
     isActive("/master-data/payment-terms") ||
@@ -392,6 +395,8 @@ function Sidebar({ onLinkClick }) {
   const canViewInventory = hasModule("INVENTORY");
   const canViewMasterData =
     hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const canViewCustomers = hasPermission("View_Customer") && hasPermission("View_Personal_Data");
+  const canViewSalesDrafts = hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft");
   const canViewTenantConsole =
     hasPermission("View_TenantConsole") ||
     hasPermission("Manage_TenantConsole") ||
@@ -517,6 +522,7 @@ function Sidebar({ onLinkClick }) {
             })}
 
           {/* Purchase Orders Module */}
+          {canViewSalesDrafts && renderNavLink(SALES_DRAFTS_ROUTE, <ShoppingBag />, "Sales drafts", isActive(SALES_DRAFTS_ROUTE))}
           {canViewOrdersMenu &&
             renderAccordion({
               sectionKey: "orders",
@@ -596,11 +602,11 @@ function Sidebar({ onLinkClick }) {
             renderNavLink("/reports", <Printer />, "Reports & printing", isReportsActive)}
 
           {/* ── SECTION: ADMINISTRATION & SETTINGS ─────────────────────────── */}
-          {(canViewMasterData || canViewTenantConsole || canViewSettings) &&
+          {(canViewMasterData || canViewCustomers || canViewTenantConsole || canViewSettings) &&
             renderSectionHeader("System")}
 
           {/* Master Data Module */}
-          {canViewMasterData &&
+          {(canViewMasterData || canViewCustomers) &&
             renderAccordion({
               sectionKey: "masterdata",
               icon: <Database />,
@@ -608,10 +614,13 @@ function Sidebar({ onLinkClick }) {
               isSectionActive: isMasterDataActive,
               children: (
                 <>
+                  {canViewCustomers && renderSubLink(CUSTOMERS_ROUTE, "Customers", isActive(CUSTOMERS_ROUTE))}
+                  {canViewMasterData && <>
                   {renderSubLink("/master-data/suppliers", "Suppliers & Vendors", isActive("/master-data/suppliers"))}
                   {renderSubLink("/master-data/currencies", "Currencies & FX Rates", isActive("/master-data/currencies"))}
                   {renderSubLink("/master-data/payment-terms", "Payment Terms", isActive("/master-data/payment-terms"))}
                   {renderSubLink("/master-data/document-types", "Document Types", isActive("/master-data/document-types"))}
+                  </>}
                 </>
               ),
             })}

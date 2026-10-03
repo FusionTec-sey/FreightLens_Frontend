@@ -1,6 +1,114 @@
 # FreightLens Frontend Architecture
 
+## Parallel-development handoff (2026-10-03)
+
+Backend docs/planning/TASK-QUEUE.txt, BUSINESS-DECISIONS.txt and
+COLLABORATION-HANDOFF.txt are canonical; BASELINE-REVISIONS.txt pairs this checkout.
+Collaborator owns new T33A count planning/blind entry/recounts/review, not existing
+customer screens. No count implementation or stock posting is enabled by the
+handoff. Coordinate shared navigation/clients/permissions before changes. Frontend
+AGENTS.md points to the backend instructions; do not maintain another plan here.
+
 ## Status
+
+Sales drafts -> Overdue follow-up reuses DraftReservations in due-inbox mode, with
+server pagination, readable public stock/store labels and fresh checked Open draft.
+Only manager review/scheduling users see the entry; backend independently enforces
+the scope. Existing permission-aware request forms work on the selected source.
+Backend19/frontend16 checks and build main.cd891de3.js pass with existing warnings.
+Browser checks pending; evidence t07-due-followup-inbox.txt. This pull-based inbox is
+not delivered manager-profile notification, and never releases stock automatically.
+
+Reservation follow-up requests now extend DraftReservations with explicit next
+date/time and reason. Device timezone is visible; API receives an aware instant.
+Follow-up reviews reuses ManagerCases and PolicyActivation's confirmed-action panel
+with domain-specific labels and separate scheduling API. Permissions remain backend
+enforced. Latest due flags never imply cancellation or release; dates/quantities
+remain visible for exact review. Backend45/frontend33 focused checks and build
+main.fffd9b41.js pass with existing warnings. Browser acceptance pending; evidence:
+t07-reservation-deadlines.txt. Company-wide due inbox is now implemented as above.
+
+T15A: salesDraftRecovery stores only draft references, versions, exact quantities,
+unit choices, conflict state and pending operation payload. Local records are scoped
+to active company/user, carry explicit branch identity and support branch filtering.
+Web Locks plus expected revisions serialize local writes/deletes. Up to100 records
+per scope; unsupported browser locks or quota failure is explicit, not silent loss.
+SalesDraftEditor persists before sending, restores identical pending requests and
+clears only on confirmed server save or explicit discard. LocalSalesDrafts is the
+permission-gated recovery entry; Keep locally and close preserves unfinished edits.
+Names/contacts/tokens/prices/money/reservations/approvals are excluded. This is not
+encrypted shared-device storage, server backup or offline authority. Backend checks
+remain mandatory. Full frontend196 tests/40 suites and build main.cf3993a1.js pass
+with existing warnings; a subsequent non-resetting revision hardening has16 affected
+tests and build main.b8b7070e.js passing. Browser acceptance pending. Evidence:
+t15a-local-draft-recovery.txt.
+
+Sales drafts now links to Reservation reviews using the existing ManagerCases
+component with release-specific quantities, source references and approval labels.
+Request/review permissions and both SALES/INVENTORY modules control access; the
+backend enforces them independently. Approval does not release stock. Requestor-only
+queues default to My requests. Draft details now open a paginated Reserved stock
+workspace with quantity/reason release requests. Exact decimal-string comparison,
+stable retry payloads, conflict refresh and dirty-discard guard preserve intent.
+No durable navigation recovery or direct release action. Focused11 tests/2 suites
+and build main.50dbb2a1.js pass; evidence: t07-release-request-ui.txt.
+Focused23 tests/3 suites and production build pass with existing warnings;
+backend evidence: t07-reviewed-release.txt. Browser acceptance remains pending.
+
+Sales draft detail/editor now displays reserved base quantities separately from
+payment and handover. Totals are backend-derived from remaining source-linked holds;
+no reserve/release button is exposed before trusted runtime and reviewed lifecycle
+adapters exist. Backend protects held edits;10 affected frontend tests and production
+build pass with existing warnings. Evidence: t07-source-linked-reservations.txt.
+
+Sales draft workspace at /sales/drafts uses separate SALES entitlement and
+draft/product/customer/personal-data permissions. Pinned company API and remount/
+abort guards prevent stale company data. Reuses pagination and theme; details
+render above the register. Manage_SalesDraft enables New/Edit. SalesDraftEditor
+reuses CustomersPage selection and one paginated DraftSourcePicker for stores and
+products. Server product search is name/SKU-only, no supplier/cost matching. Unit
+choices come from reviewed policies, quantities remain strings, and save sends only
+explicit source IDs/versions/units/quantities. Uncertain outcomes lock to identical
+retry, conflicts stop overwrite, and dirty cancellation requires confirmation.
+T15A now supplies local navigation recovery; no auto-enablement, money or stock action.
+Platform settings expose a Sales drafts module toggle without altering subscriptions.
+Full frontend suite179/37 passed; after display-label/unit changes, affected10 tests
+and production build passed with existing warnings. Browser/provider acceptance
+pending. Backend evidence: t13a-editor-integration.txt.
+
+Frontend integration checkpoint: persistent customer-save/indexing result panel,
+direct saved-customer opening independent of search results, and fresh authenticated
+detail reads for View. Details render above the register rather than below a long
+table. Save clears search; result can be explicitly dismissed and clears on company
+change. Route constants moved into a dependency-free utility so sidebar navigation
+does not instantiate the API client. Full frontend: 169 tests / 35 suites passed;
+production build passed with existing warnings. Browser acceptance remains pending.
+Unfinished sales, collection, returns and offline APIs are not represented as working
+frontend actions; this checkpoint is not completion of all planned modules.
+
+T10A Customers register at /master-data/customers is a create/read/inspect workspace under
+Master Data, gated by customer and personal-data permissions. Dedicated API client
+pins token/company; keyed screen lifetime and abort/live guards prevent cross-company
+stale responses. No contact browser storage. Reuses PaginationToolbar, contained
+scrolling and theme context. Manage_Customer gates the multi-contact creation form.
+Existing operation-intent hook preserves exact uncertain retries; pending outcomes
+lock editing/cancel, validation errors preserve fields, dirty cancel needs confirmation.
+Returned identity/version must match before success. Unmount aborts and ignores late
+responses. A separate search_indexed flag controls an informational warning when
+the identity is saved but indexing is unconfirmed; users are directed to browse,
+not recreate the customer. Unmount handling still ignores late
+responses. Drafts remain in-memory: unload warning does not implement navigation recovery.
+Optional onSelect mode reuses this register and rereads customer detail before
+returning company/key/version/profile. Failed or changed reads cannot select;
+refresh/company changes cancel pending selection. Consuming document writers must
+revalidate references; no sales consumer is connected. Submitted name/phone/email
+search uses a POST body (no contact values in URLs), server pagination, resets page
+and clears obsolete selections. Clear
+search restores DB browsing. Indexing lag/provider caps are disclosed; failed loads
+hide old results. No browser-local filtering or direct search-provider credentials;
+no balances or profile editing exposed.
+16 focused tests and production build pass (existing warnings).
+Browser acceptance remains pending; backend enforces permissions independently.
 
 CostPoolSetup now displays central writer state and epoch in the existing table.
 NOT_CONFIGURED, ACTIVE (labelled Writer assigned) and SUSPENDED come from the pool

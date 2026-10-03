@@ -8,6 +8,21 @@ jest.mock("axios", () => ({ create: jest.fn(() => ({})) }));
 const props = { branch: { id: 1, name: "Branch", is_active: true }, canManage: true, onClose: jest.fn() };
 const row = { id: 2, counter_key: "counter", code: "C1", version: 1, config: { name: "Counter one", purpose: "BOTH", is_enabled: false } };
 let api;
+
+test('selects a branch stock area without creating stock or typing IDs', async () => {
+  api.list = jest.fn().mockResolvedValue({ data: { items: [{ id: 9, branch_id: 1, is_active: true, name: 'Demo work area' }], total: 1, pages: 1 } });
+  api.saveCounter.mockResolvedValue({ data: row });
+  render(<BranchCounters api={api} {...props} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit C1' }));
+  expect(screen.getByText(/automatic allocation is blocked/)).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Choose stock area'));
+  fireEvent.click(await screen.findByText('Select Demo work area'));
+  expect(screen.getByText('Demo work area')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Save counter'));
+  await waitFor(() => expect(api.saveCounter).toHaveBeenCalledWith(1, 'counter', expect.objectContaining({
+    expected_version: 1, config: expect.objectContaining({ default_stock_location_id: 9 }) }), expect.anything()));
+  expect(api.list).toHaveBeenCalledWith(1, 1, 25, expect.anything());
+});
 beforeEach(() => {
   api = { counters: jest.fn().mockResolvedValue({ data: { items: [row], total: 26, pages: 2 } }), saveCounter: jest.fn() };
   let count = 0;

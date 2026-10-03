@@ -40,6 +40,10 @@ import InventoryWorkspacePage from "./Pages/Inventory/InventoryWorkspacePage";
 import CurrenciesPage from "./Pages/MasterData/CurrenciesPage.js";
 import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
 import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
+import CustomersPage from "./Pages/MasterData/CustomersPage";
+import SalesDraftsPage from "./Pages/Sales/SalesDraftsPage";
+import { SALES_DRAFTS_ROUTE } from "../utils/salesRoutes";
+import { CUSTOMERS_ROUTE } from "../utils/customerRoutes";
 import DocumentTypesMasterPage from "./Pages/MasterData/DocumentTypesMasterPage.js";
 import ReportTemplatesPage from "./Pages/ReportTemplates/ReportTemplatesPage.js";
 import ReportTemplateEditorPage from "./Pages/ReportTemplates/ReportTemplateEditorPage.js";
@@ -184,6 +188,8 @@ export default function MainPage() {
             <Route path="/master-data/currencies" element={<PrivateRoute><CurrenciesPage /></PrivateRoute>} />
             <Route path="/master-data/payment-terms" element={<PrivateRoute><PaymentTermsPage /></PrivateRoute>} />
             <Route path="/master-data/suppliers" element={<PrivateRoute><SuppliersMasterPage /></PrivateRoute>} />
+            <Route path={CUSTOMERS_ROUTE} element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
+            <Route path={SALES_DRAFTS_ROUTE} element={<PrivateRoute><SalesDraftsPage /></PrivateRoute>} />
             <Route path="/master-data/document-types" element={<PrivateRoute><DocumentTypesMasterPage /></PrivateRoute>} />
 
             {/* Customer-Configurable Report & Print Templates */}

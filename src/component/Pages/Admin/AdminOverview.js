@@ -339,6 +339,12 @@ export default function AdminOverview() {
                     <span>Inventory</span>
                     {(o.modules || []).includes("INVENTORY") && <span>✓</span>}
                   </button>
+                  <button type="button" disabled={!canManageTenant}
+                    onClick={() => handleToggleModule(o.id, o.modules || [], "SALES")}
+                    className={`flex-1 py-1 px-2 rounded text-[11px] font-bold border disabled:opacity-40 ${(o.modules || []).includes("SALES") ? "bg-indigo-600 text-white border-indigo-600" : "text-gray-400 border-gray-300 dark:border-gray-700 hover:border-indigo-500"}`}
+                    title="Sales draft workspace only; this does not enable financial posting">
+                    Sales drafts {(o.modules || []).includes("SALES") && '✓'}
+                  </button>
                 </div>
               </div>
 

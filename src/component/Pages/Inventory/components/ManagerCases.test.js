@@ -9,6 +9,52 @@ const row = { case_key: "case", version: 1, status: "REQUESTED", product_name: "
   reason: "Review tile rules", requested_at: "2026-10-02T08:00:00Z" };
 let api;
 
+test.each(['REQUESTED', 'APPROVED'])('reallocation %s shows exact destination and never exposes execution', async status => {
+  api.managerCases.mockResolvedValue({ data: { items: [{ ...row, status, quantity: '0.000001', base_unit: 'PCS',
+    document_key: 'source', line_key: 'source-line', target: { document_key: 'destination', line_key: 'target-line', version: 4 },
+    target_review_at: '2026-10-07T08:00:00Z', target_hold_snapshot: { count: 2, remaining: '6.000001' } }], total: 1, pages: 1 } });
+  render(<ManagerCases reservationReallocation standalone canActivate api={api} userId={8} onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review case Tile' }));
+  expect(screen.getByText('Requested reallocation: 0.000001 PCS')).toBeInTheDocument();
+  expect(screen.getByText(/To draft: destination/)).toHaveTextContent('Version 4');
+  expect(screen.getByText(/Destination before this request/)).toHaveTextContent('6.000001 PCS remaining across 2 historical holds');
+  expect(screen.queryByText(/Initial activation review/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Activate|Execute|Schedule/ })).not.toBeInTheDocument();
+  if (status === 'REQUESTED') {
+    fireEvent.change(screen.getByLabelText('Decision reason'), { target: { value: 'Exact demand checked' } });
+    fireEvent.click(screen.getByText('Approve exact reallocation'));
+    await waitFor(() => expect(api.reviewPolicyCase).toHaveBeenCalledWith('case', expect.objectContaining({ outcome: 'APPROVED' }), expect.any(AbortSignal)));
+  }
+});
+
+test('follow-up review shows exact dates and schedules only after approval', async () => {
+  api.managerCases.mockResolvedValue({ data: { items: [{ ...row, status: 'APPROVED', version: 2,
+    review_at: '2026-10-04T08:00:00Z', next_review_at: '2026-10-07T08:00:00Z', deadline_version: 0,
+    held_quantity: '20', released_before: '0', base_unit: 'PCS' }], total: 1, pages: 1 } });
+  api.scheduleDeadline = jest.fn().mockResolvedValue({});
+  render(<ManagerCases reservationDeadline standalone canActivate api={api} userId={8} onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review case Tile' }));
+  expect(screen.getByText(/Requested next review: 2026-10-07/)).toBeInTheDocument();
+  expect(screen.queryByText(/Initial activation review/)).not.toBeInTheDocument();
+  expect(screen.getByText('Schedule reviewed follow-up')).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByText('Schedule reviewed follow-up'));
+  await waitFor(() => expect(api.scheduleDeadline).toHaveBeenCalled());
+});
+
+test('reservation release reuses review workflow without policy or execution actions', async () => {
+  api.managerCases.mockResolvedValue({ data: { items: [{ ...row, product_name: 'Reservation DEMO',
+    release_quantity: '5.000000', base_unit: 'PCS', held_quantity: '20.000000', released_before: '0.000000',
+    document_key: 'draft', line_key: 'line' }], total: 1, pages: 1 } });
+  render(<ManagerCases reservationRelease standalone canActivate api={api} userId={8} onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review case Reservation DEMO' }));
+  expect(screen.getByText('Requested release: 5.000000 PCS')).toBeInTheDocument();
+  expect(screen.getByText(/Approval alone does not release stock/)).toBeInTheDocument();
+  expect(screen.queryByText(/Initial activation review/)).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Decision reason'), { target: { value: 'Reviewed customer request' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Approve exact release' }));
+  await waitFor(() => expect(api.reviewPolicyCase).toHaveBeenCalledWith('case', expect.objectContaining({ outcome: 'APPROVED' }), expect.any(AbortSignal)));
+});
+
 test('charge evidence mode shows source amounts and documents without financial posting', async () => {
   api.managerCases.mockResolvedValue({ data: { items: [{ ...row, creator_id: 9, charge_reference: 'EVIDENCE',
     declaration: { invoice_date: '2026-10-03', source_currency: 'USD', eligible_amount: '1.000000', exchange_rate_to_scr: '12.34000000', document_id: 'doc' },

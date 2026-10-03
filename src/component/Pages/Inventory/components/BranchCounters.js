@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../../context/ThemeContext";
 import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
+import DraftSourcePicker from '../../Sales/DraftSourcePicker';
 
 export default function BranchCounters({ api, branch, canManage, onClose }) {
   const { isDark } = useTheme();
@@ -11,6 +12,8 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
   const [result, setResult] = useState({ items: [], total: 0, pages: 1 });
   const [loading, setLoading] = useState(true), [saving, setSaving] = useState(false);
   const [error, setError] = useState(""), [form, setForm] = useState(null), [discard, setDiscard] = useState(false);
+  const [choosingArea, setChoosingArea] = useState(false), [areaName, setAreaName] = useState('');
+  const loadAreas = useMemo(() => (page, limit, signal) => api.list(branch.id, page, limit, signal), [api, branch.id]);
   const controller = useRef(null), posting = useRef(false), original = useRef("");
   const { payloadFor, clear } = useOperationIntent();
   const editable = canManage && branch.is_active;
@@ -30,7 +33,7 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
     if (!editable) return;
     if (!row && typeof window.crypto?.randomUUID !== "function") { setError("A secure browser connection is required to create counters."); return; }
     const value = row ? { ...row, config: { ...row.config } } : { counter_key: window.crypto.randomUUID(), code: "", version: 0, config: { name: "", purpose: "", is_enabled: false } };
-    original.current = JSON.stringify(value); clear(); setForm(value); setError("");
+    original.current = JSON.stringify(value); clear(); setForm(value); setError(""); setAreaName('');
   };
   const cancel = () => { if (dirty) setDiscard(true); else { setForm(null); setError(""); } };
   const save = async (event) => {
@@ -49,6 +52,12 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
     } finally { posting.current = false; if (!request.signal.aborted) setSaving(false); }
   };
   const setConfig = (key, value) => setForm({ ...form, config: { ...form.config, [key]: value } });
+  if (choosingArea && form) return <DraftSourcePicker title="Choose this counter's stock area" load={loadAreas}
+    onClose={() => setChoosingArea(false)} onSelect={location => {
+      setChoosingArea(false);
+      if (!location.is_active || location.branch_id !== branch.id) { setError('Choose an active location in this branch.'); return; }
+      setConfig('default_stock_location_id', location.id); setAreaName(location.name); setError('');
+    }} />;
   return <section aria-label="Branch counters" className={`h-full min-h-0 flex flex-col gap-3 p-4 ${panel}`}>
     <header className="shrink-0 flex flex-wrap justify-between gap-3"><div><h1 className="text-xl font-bold">{branch.name} — counters</h1>
       <p className="text-sm">Stable branch identities. No payment accounts, printer devices or stock balances are inferred.</p></div>
@@ -65,6 +74,12 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
         <label className="block">Counter purpose<select required value={form.config.purpose} onChange={(event) => setConfig("purpose", event.target.value)} className={`block p-2 border rounded-lg ${panel}`}>
           <option value="">Choose explicitly</option><option value="CHECKOUT">Checkout</option><option value="COLLECTION">Collection</option><option value="BOTH">Checkout and collection</option></select></label>
         <label className="flex gap-2"><input type="checkbox" checked={form.config.is_enabled} onChange={(event) => setConfig("is_enabled", event.target.checked)} />Available for future authorised workflows</label>
+        <section className="space-y-2"><h2 className="font-semibold">Default stock area</h2>
+          <p>{form.config.default_stock_location_id ? areaName || `Location #${form.config.default_stock_location_id}` : 'Not configured — automatic allocation is blocked.'}</p>
+          <button type="button" className={button} onClick={() => setChoosingArea(true)}>Choose stock area</button>
+          {form.config.default_stock_location_id && <button type="button" className={button} onClick={() => { setConfig('default_stock_location_id', null); setAreaName(''); }}>Clear stock area</button>}
+          <p className="text-sm">Use the salesperson's current work counter to default stock to this area. Never silently draw from another area when stock is short. Other locations are an explicit choice and require applicable approval. Saving this default does not reserve stock.</p>
+        </section>
         <p className="text-sm">This setting does not activate checkout, approve collection, assign a store server or enable payments. Branch rules, staff permissions and later release gates must also pass.</p>
       </fieldset>
       <footer className="shrink-0 flex gap-2 border-t pt-3"><button type="submit" disabled={saving || !dirty} className={`${button} bg-indigo-600 text-white`}>{saving ? "Saving…" : "Save counter"}</button>
