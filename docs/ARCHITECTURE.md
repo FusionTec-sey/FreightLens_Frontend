@@ -2,6 +2,37 @@
 
 ## Status
 
+CostPoolSetup now displays central writer state and epoch in the existing table.
+NOT_CONFIGURED, ACTIVE (labelled Writer assigned) and SUSPENDED come from the pool
+page API; missing fields display Status unavailable. The screen states that writer
+assignment does not enable live posting. Refresh failures hide prior status with
+the existing error state; no extra endpoint, per-row fetch, enrollment or posting
+control. Existing theme and contained-scrolling layout retained; browser acceptance
+remains pending. Evidence: backend planning/evidence/t06-authority-status-verification.txt.
+
+Evidence review now distinguishes version-2 content-bound cases from historical
+metadata-only cases. ChargeEvidenceDetails uses a pool/proposal/case/document-pinned
+download adapter for v2; backend verifies saved version and full byte digest before
+responding. Failure never falls back to current files. Historical cases explicitly
+label their downloads as current files and cannot authorise financial posting.
+New request forms reuse existing controls; capture requires server-configured
+COST_EVIDENCE_MAX_BYTES and version-capable storage, with failures retaining drafts.
+Targeted checks: backend evidence/t06-public-versioned-evidence-verification.txt.
+
+Saved cost proposals now offer Invoice and FX evidence to users with financial,
+supplier and document access and the ORDERS module. Backend field policies remain
+authoritative. CostChargeEvidence preserves string amounts/rates, selects existing
+records through a shared bounded EvidenceChoice picker, and reuses operation-intent
+retry identity and explicit discard guards. Changing source currency clears the
+foreign exchange rate; no market conversion is guessed. Only GENERAL/PO documents
+are selectable in this slice. No new catalogue, invoice store or approval engine.
+ManagerCases adapts the existing exact-allocation display for independent invoice/FX
+review, including authenticated downloads with no raw storage URLs. Failed download
+is visible. Read-only users see history without request or decision controls.
+No review posts money, consumes a charge or changes prices. Immutable file versions,
+atomic accounting integration and browser acceptance remain gates. Automated evidence:
+backend docs/planning/evidence/t06-evidence-workspace-verification.txt.
+
 Saved cost proposals now expose independent allocation review through the existing
 PolicyReviewRequest and ManagerCases components. Cost-specific copy and exact SCR
 line tables distinguish review from financial posting. Financial viewers inspect
@@ -231,6 +262,12 @@ Sustained-use UI changes also follow `docs/FRONTEND_ERGONOMICS.md`. Its evidence
 Supplier master data displays the backend's explicit scope. Root users can choose shared or tenant-specific when creating/editing a supplier; tenant users can view shared suppliers but cannot mutate them.
 
 ## Branch and location setup (C10 partial, local development)
+
+The existing cost-pool valuation history now distinguishes OPENING and CHARGE
+entries and displays the original source for additional costs. Charge rows cannot
+be selected as allocation sources; the API independently enforces this restriction.
+No new ledger, posting button or automatic price change is introduced. Targeted
+component verification is recorded in the backend task-queue evidence for T06.
 
 `/inventory/locations` lists branches and their SITE -> ZONE -> BIN locations.
 It uses the existing pagination toolbar and paginated Inventory APIs. Creation

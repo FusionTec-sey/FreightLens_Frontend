@@ -4,8 +4,9 @@ import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import PolicyActivation from "./PolicyActivation";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
+import ChargeEvidenceDetails from './ChargeEvidenceDetails';
 
-export default function ManagerCases({ api, userId, onClose, canActivate = false, standalone = false, retirement = false, reclassification = false, reviewDetails = null, costAllocation = false, canReview = true }) {
+export default function ManagerCases({ api, userId, onClose, canActivate = false, standalone = false, retirement = false, reclassification = false, reviewDetails = null, costAllocation = false, chargeEvidence = false, canReview = true }) {
   const { isDark } = useTheme();
   const [page, setPage] = useState(1), [limit, setLimit] = useState(25), [reload, setReload] = useState(0);
   const [rows, setRows] = useState({ items: [], total: 0, pages: 1 }), [loading, setLoading] = useState(true);
@@ -41,9 +42,9 @@ export default function ManagerCases({ api, userId, onClose, canActivate = false
     finally { busy.current = false; if (!request.signal.aborted) setSaving(false); }
   };
   const self = selected && (String(selected.requestor_id) === String(userId) || (costAllocation && String(selected.creator_id) === String(userId)));
-  const caseSubject = costAllocation ? "cost allocation" : reclassification ? "reclassification proposal" : retirement ? "barcode retirement" : "policy";
+  const caseSubject = chargeEvidence ? 'charge evidence' : costAllocation ? "cost allocation" : reclassification ? "reclassification proposal" : retirement ? "barcode retirement" : "policy";
   return <section aria-label="Inventory manager cases" className={`h-full min-h-0 flex flex-col gap-3 p-4 ${panel}`}>
-    <header className="shrink-0 flex flex-wrap justify-between gap-3"><div><h1 className="text-xl font-bold">{costAllocation ? "Approvals — cost allocations" : reclassification ? "Approvals — stock proposals" : retirement ? "Approvals — barcode retirement" : standalone ? "Approvals — inventory policies" : "Inventory manager cases"}</h1>
+    <header className="shrink-0 flex flex-wrap justify-between gap-3"><div><h1 className="text-xl font-bold">{chargeEvidence ? 'Reviews — charge evidence' : costAllocation ? "Approvals — cost allocations" : reclassification ? "Approvals — stock proposals" : retirement ? "Approvals — barcode retirement" : standalone ? "Approvals — inventory policies" : "Inventory manager cases"}</h1>
       <p className="text-sm">Exact saved-source reviews. Approval is not execution and cannot be reused for changed details.</p></div>
       <div className="flex gap-2"><button type="button" className={button} disabled={saving} onClick={selected ? () => { if (reason) setDiscard(true); else { setSelected(null); setError(""); } } : onClose}>{selected ? "Back to cases" : reclassification || costAllocation ? "Back to proposal" : "Branches & locations"}</button>
         {!selected && <button type="button" className={button} onClick={() => setReload((value) => value + 1)}>Refresh cases</button>}</div></header>
@@ -55,7 +56,8 @@ export default function ManagerCases({ api, userId, onClose, canActivate = false
       <h2 className="font-semibold">{selected.charge_reference || selected.product_name} · {reclassification || costAllocation ? "proposal" : retirement ? "identity" : "policy"} version {selected.source_version}</h2>
       <p>Status: {selected.status} · Requestor #{selected.requestor_id}</p><p>Request: {selected.reason}</p>
       {reclassification && <><p>Review the exact historical quantities and identity manifest below. Approval does not execute a conversion; source versions are rechecked by the server.</p>{reviewDetails}</>}
-      {costAllocation && <><p>Approval records an allocation decision only. Supplier evidence, duplicate-charge checks and financial posting remain separate.</p><p>Declaration: {selected.declaration_reason} · Creator #{selected.creator_id}</p><p>SCR {selected.snapshot.total_scr} · {selected.snapshot.basis}</p><table className="w-full text-sm text-left"><thead><tr><th>Product / stock / valuation</th><th>Basis</th><th>Allocated SCR</th></tr></thead><tbody>{selected.snapshot.lines.map(line => <tr key={line.valuation_id}><td className="p-2">{line.product_name} · #{line.balance_id} · #{line.valuation_id}</td><td className="p-2">{line.basis_value} {selected.snapshot.basis === 'BASE_QUANTITY' ? line.base_unit : 'SCR'}</td><td className="p-2">{line.allocated_scr}</td></tr>)}</tbody></table></>}
+      {chargeEvidence && <ChargeEvidenceDetails key={selected.case_key} api={api} item={selected} button={button} />}
+      {costAllocation && <>{!chargeEvidence && <p>Approval records an allocation decision only. Supplier invoice and exchange-rate evidence require a separate verification review before financial posting. This screen cannot verify or post a charge.</p>}<p>Declaration: {selected.declaration_reason} · Creator #{selected.creator_id}</p><p>SCR {selected.snapshot.total_scr} · {selected.snapshot.basis}</p><table className="w-full text-sm text-left"><thead><tr><th>Product / stock / valuation</th><th>Basis</th><th>Allocated SCR</th></tr></thead><tbody>{selected.snapshot.lines.map(line => <tr key={line.valuation_id}><td className="p-2">{line.product_name} · #{line.balance_id} · #{line.valuation_id}</td><td className="p-2">{line.basis_value} {selected.snapshot.basis === 'BASE_QUANTITY' ? line.base_unit : 'SCR'}</td><td className="p-2">{line.allocated_scr}</td></tr>)}</tbody></table></>}
       {!reclassification && !costAllocation && <p>{retirement ? "Review permanently disabling this barcode. Its code, product and unit history will not be deleted or reassigned." : selected.transition === "EXTEND_UNITS" ? "Reviewed alternate-unit extension. Existing stock rules and barcode meanings must remain unchanged." : selected.expected_active_version ? `Reviewed transition from active policy ${selected.expected_active_version}; stock history and barcode checks still apply.` : "Initial activation review; no stock is created."}</p>}
       {!costAllocation && <pre className="whitespace-pre-wrap break-words border rounded-lg p-3 text-sm">{JSON.stringify(selected.config, null, 2)}</pre>}
       {selected.review_reason && <p>Review: {selected.review_reason} · Reviewer #{selected.reviewer_id}</p>}
@@ -66,7 +68,7 @@ export default function ManagerCases({ api, userId, onClose, canActivate = false
         expectedActiveVersion={selected.expected_active_version} transition={selected.transition}
         panel={panel} button={button} onBusyChange={setSaving} onActivated={() => { setSelected(null); setReload((value) => value + 1); }} />
     </footer>}{selected.status === "REQUESTED" && canReview && <footer className="shrink-0 flex gap-3 border-t pt-3">
-      <button type="button" className={button} disabled={saving || discard || self || !reason.trim()} onClick={() => review("APPROVED")}>{costAllocation ? "Approve exact allocation" : reclassification ? "Approve exact proposal" : retirement ? "Approve barcode retirement" : "Approve exact policy"}</button>
+      <button type="button" className={button} disabled={saving || discard || self || !reason.trim()} onClick={() => review("APPROVED")}>{chargeEvidence ? 'Verify invoice and FX evidence' : costAllocation ? "Approve exact allocation" : reclassification ? "Approve exact proposal" : retirement ? "Approve barcode retirement" : "Approve exact policy"}</button>
       <button type="button" className={button} disabled={saving || discard || self || !reason.trim()} onClick={() => review("REJECTED")}>Reject request</button></footer>}</> : <>
       <div className="shrink-0 space-y-2">
         <label className="flex flex-wrap items-center gap-2">Case view

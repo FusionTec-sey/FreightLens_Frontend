@@ -5,7 +5,7 @@ import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import CostPoolValuations from "./CostPoolValuations";
 
-export default function CostPoolSetup({ api, branch, orgId, userId, canManage, canViewValues = false, canManageValues = false, onClose }) {
+export default function CostPoolSetup({ api, branch, orgId, userId, canManage, canViewValues = false, canManageValues = false, canViewEvidence = false, onClose }) {
   const { isDark } = useTheme();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -71,7 +71,7 @@ export default function CostPoolSetup({ api, branch, orgId, userId, canManage, c
       if (!controller.signal.aborted) setFailure(locationError(err));
     } finally { busy.current = false; if (!controller.signal.aborted) setSaving(false); }
   };
-  if (valuationPool?.api === api && canViewValues) return <CostPoolValuations key={valuationPool.pool.id} api={api} pool={valuationPool.pool} userId={userId} canManage={canManageValues} onClose={() => setValuationPool(null)} />;
+  if (valuationPool?.api === api && canViewValues) return <CostPoolValuations key={valuationPool.pool.id} api={api} pool={valuationPool.pool} userId={userId} canManage={canManageValues} canViewEvidence={canViewEvidence} onClose={() => setValuationPool(null)} />;
   return <section aria-label="Cost pool setup" className={`h-full min-h-0 flex flex-col gap-3 p-4 ${panel}`}>
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-3">
       <div><h1 ref={heading} tabIndex={-1} className="text-xl font-bold">{form ? "New cost pool" : "Cost pools"}</h1><p className="text-sm">Organisation #{orgId}{branch ? ` · ${branch.name}` : ""}</p></div>
@@ -81,7 +81,7 @@ export default function CostPoolSetup({ api, branch, orgId, userId, canManage, c
         {canManage && <button type="button" className={`${button} bg-indigo-600 text-white`} onClick={() => { setFailure({ message: "", fields: {} }); setForm({ code: "", name: "" }); }}>Add cost pool</button>}
       </div>}
     </header>
-    <p className="text-sm shrink-0">A cost pool groups product valuation within one legal company. Physical quantities and store prices stay separate. This is setup only; stock posting is not enabled.</p>
+    <p className="text-sm shrink-0">A cost pool groups product valuation within one legal company. Physical quantities and store prices stay separate. Central writer status is read-only; an assigned writer does not enable live posting.</p>
     {form || selected ? <form onSubmit={save} className="flex-1 min-h-0 flex flex-col gap-3">
       <div className="flex-1 min-h-0 overflow-auto space-y-4">
         {failure.message && <p role="alert" className="text-red-500">{failure.message}</p>}
@@ -99,8 +99,8 @@ export default function CostPoolSetup({ api, branch, orgId, userId, canManage, c
       {branch && !loading && !error && <p className="shrink-0 text-sm">{binding ? `Assigned pool ID: ${binding.cost_pool_id}. Reassignment is not available.` : branch.is_active ? "No pool assigned. Select a pool below to review the initial assignment." : "This branch is inactive; assignment is blocked."}</p>}
       <div className={`flex-1 min-h-0 overflow-auto border rounded-xl ${panel}`} aria-busy={loading}>
         {loading ? <p role="status" className="p-4">Loading cost pools…</p> : error ? <p role="alert" className="p-4">{error} Use Refresh pools to retry.</p> : !data.items.length ? <p className="p-4">No cost pools in this organisation yet.</p> : <table className="w-full text-sm text-left">
-          <thead className={`sticky top-0 ${panel}`}><tr>{["Code / ID", "Name", "Status", "Assignment", ...(canViewValues ? ["Valuation"] : [])].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
-          <tbody>{data.items.map((pool) => <tr key={pool.id} className="border-t"><td className="p-3 font-mono whitespace-nowrap">{pool.code} / #{pool.id}</td><td className="p-3">{pool.name}</td><td className="p-3">{pool.is_active ? "Active" : "Inactive"}</td><td className="p-3">{binding?.cost_pool_id === pool.id ? "Assigned" : branch?.is_active && !binding && canManage && pool.is_active ? <button type="button" className={button} onClick={() => { setFailure({ message: "", fields: {} }); setSelected(pool); }}>Select {pool.code}</button> : "—"}</td>
+          <thead className={`sticky top-0 ${panel}`}><tr>{["Code / ID", "Name", "Status", "Central writer", "Assignment", ...(canViewValues ? ["Valuation"] : [])].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
+          <tbody>{data.items.map((pool) => <tr key={pool.id} className="border-t"><td className="p-3 font-mono whitespace-nowrap">{pool.code} / #{pool.id}</td><td className="p-3">{pool.name}</td><td className="p-3">{pool.is_active ? "Active" : "Inactive"}</td><td className="p-3">{{ NOT_CONFIGURED: "Not configured", ACTIVE: "Writer assigned", SUSPENDED: "Suspended" }[pool.central_authority_state] || "Status unavailable"}{pool.central_authority_epoch != null && <span className="block text-xs">Authority epoch {pool.central_authority_epoch}</span>}</td><td className="p-3">{binding?.cost_pool_id === pool.id ? "Assigned" : branch?.is_active && !binding && canManage && pool.is_active ? <button type="button" className={button} onClick={() => { setFailure({ message: "", fields: {} }); setSelected(pool); }}>Select {pool.code}</button> : "—"}</td>
             {canViewValues && <td className="p-3"><button type="button" className={button} onClick={() => setValuationPool({ api, pool })}>View {pool.code} valuations</button></td>}</tr>)}</tbody>
         </table>}
       </div>

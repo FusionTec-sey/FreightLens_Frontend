@@ -3,6 +3,17 @@ import { inventoryLocationsApi, locationError } from "./inventoryLocationsApi";
 jest.mock("axios", () => ({ create: jest.fn(() => ({ get: jest.fn(), post: jest.fn(), put: jest.fn() })) }));
 const client = axios.create.mock.results[0].value;
 
+test('charge evidence and downloads retain company auth and never use raw storage paths', () => {
+  const api = inventoryLocationsApi('evidence-token', 8), signal = new AbortController().signal;
+  const headers = { Authorization: 'Bearer evidence-token', 'X-Active-Org': '8' };
+  api.evidenceDocument('doc', signal);
+  expect(client.get).toHaveBeenLastCalledWith('/inventory/cost-evidence/documents/doc/download', { headers, signal, responseType: 'blob' });
+  api.chargeEvidenceCases(2, 'proposal', 1, 25, signal, 'NEEDS_MY_REVIEW');
+  expect(client.get).toHaveBeenLastCalledWith('/inventory/cost-evidence/pools/2/proposals/proposal/cases', { headers, signal, params: { page: 1, limit: 25, view: 'NEEDS_MY_REVIEW' } });
+  api.requestChargeEvidence(2, 'proposal', { reason: 'Review' }, signal);
+  expect(client.post).toHaveBeenLastCalledWith('/inventory/cost-evidence/pools/2/proposals/proposal/cases', { reason: 'Review' }, { headers, signal });
+});
+
 test("proposal reads pin company and exact stock record", () => {
   const api = inventoryLocationsApi("proposal-token", 7), signal = new AbortController().signal;
   const headers = { Authorization: "Bearer proposal-token", "X-Active-Org": "7" };

@@ -7,6 +7,13 @@ export function inventoryLocationsApi(token, orgId) {
   const headers = { Authorization: `Bearer ${token}`, "X-Active-Org": String(orgId) };
   const path = (branchId) => `/inventory/branches${branchId ? `/${branchId}/locations` : ""}`;
   return {
+    evidenceSuppliers: (page, limit, signal) => client.get('/inventory/cost-evidence/suppliers', { headers, params: { page, limit }, signal }),
+    evidenceDocuments: (page, limit, signal) => client.get('/inventory/cost-evidence/documents', { headers, params: { page, limit }, signal }),
+    evidenceDocument: (id, signal) => client.get(`/inventory/cost-evidence/documents/${id}/download`, { headers, signal, responseType: 'blob' }),
+    reviewedEvidenceDocument: (pool, key, caseKey, id, signal) => client.get(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases/${caseKey}/documents/${id}/download`, { headers, signal, responseType: 'blob' }),
+    requestChargeEvidence: (pool, key, body, signal) => client.post(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases`, body, { headers, signal }),
+    chargeEvidenceCases: (pool, key, page, limit, signal, view = 'ALL') => client.get(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases`, { headers, params: { page, limit, view }, signal }),
+    reviewChargeEvidence: (pool, key, caseKey, body, signal) => client.post(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases/${caseKey}/review`, body, { headers, signal }),
     saveReclassificationProposal: (body, signal) => client.post("/inventory/reclassification-proposals", body, { headers, signal }),
     requestReclassificationReview: (key, body, signal) => client.post(`/inventory/reclassification-proposals/${key}/request-review`, body, { headers, signal }),
     reclassificationCases: (key, page, limit, signal, view = "ALL") => client.get(`/inventory/reclassification-proposals/${key}/cases`, { headers, params: { page, limit, view }, signal }),

@@ -13,6 +13,25 @@ beforeEach(() => {
     branchPool: jest.fn().mockResolvedValue({ data: null }), createPool: jest.fn(), assignPool: jest.fn() };
 });
 const setup = (props = {}) => render(<CostPoolSetup api={api} orgId={7} branch={branch} canManage onClose={jest.fn()} {...props} />);
+test.each([["NOT_CONFIGURED", "Not configured", null], ["ACTIVE", "Writer assigned", 1], ["SUSPENDED", "Suspended", 2], [undefined, "Status unavailable", null]])("central authority %s is read-only", async (state, label, epoch) => {
+  api.listPools.mockResolvedValue({ data: { items: [{ ...pool, central_authority_state: state, central_authority_epoch: epoch }], total: 1, pages: 1 } });
+  setup({ canManage: false });
+  await screen.findByText(label);
+  expect(screen.getByText(/assigned writer does not enable live posting/)).toBeInTheDocument();
+  if (epoch != null) expect(screen.getByText(`Authority epoch ${epoch}`)).toBeInTheDocument();
+  expect(api.createPool).not.toHaveBeenCalled();
+  expect(api.assignPool).not.toHaveBeenCalled();
+});
+
+test("failed refresh hides previous authority status", async () => {
+  api.listPools.mockResolvedValueOnce({ data: { items: [{ ...pool, central_authority_state: "ACTIVE", central_authority_epoch: 1 }], total: 1, pages: 1 } });
+  setup();
+  await screen.findByText("Writer assigned");
+  api.listPools.mockRejectedValueOnce(new Error("Unavailable"));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh pools" }));
+  await screen.findByRole("alert");
+  expect(screen.queryByText("Writer assigned")).not.toBeInTheDocument();
+});
 test("read-only users can see pools but cannot create or assign", async () => {
   setup({ canManage: false });
   await screen.findByText("Shared pool");

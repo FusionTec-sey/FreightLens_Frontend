@@ -8,7 +8,7 @@ import ManagerCases from "./components/ManagerCases";
 
 // Route adapters reuse the existing panels; no duplicate registers or APIs.
 export default function InventoryWorkspacePage({ workspace }) {
-  const { token, selectedOrgId, orgId, permissions = [], isSuperAdmin, user } = useAuth();
+  const { token, selectedOrgId, orgId, permissions = [], modules = [], isSuperAdmin, user } = useAuth();
   const navigate = useNavigate();
   const activeOrg = selectedOrgId || orgId;
   const retirement = workspace === "barcode-reviews";
@@ -23,5 +23,6 @@ export default function InventoryWorkspacePage({ workspace }) {
     <CostPoolSetup key={`${activeOrg}:${workspace}`} api={api} orgId={activeOrg} userId={user?.id}
       canViewValues={isSuperAdmin || permissions.includes("View_Financials")}
       canManageValues={isSuperAdmin || permissions.includes("Manage_Financials")}
+      canViewEvidence={isSuperAdmin || (modules.includes('ORDERS') && ['View_Financials', 'View_Supplier', 'View_OrderDocument'].every(name => permissions.includes(name)))}
       canManage={isSuperAdmin || permissions.includes("Manage_InventoryCostPool")} onClose={onClose} />;
 }

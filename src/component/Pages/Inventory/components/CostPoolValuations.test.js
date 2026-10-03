@@ -10,6 +10,14 @@ const data = { items: [{ id: 1, product_name: "Tile", balance_id: 7, source_vers
   additional_cost_scr: "0.000000", pool_quantity: "10.000000", pool_value_scr: "99999999999999999.123456",
   status: "UNRECONCILED", reason: "Approved synthetic cost" }], total: 26, pages: 2 };
 
+test('charge history identifies its opening source and cannot be selected for another allocation', async () => {
+  const api = { poolValuations: jest.fn().mockResolvedValue({ data: { ...data, items: [{ ...data.items[0], kind: 'CHARGE', source_valuation_id: 8 }] } }) };
+  render(<CostPoolValuations api={api} pool={pool} onClose={jest.fn()} />);
+  expect(await screen.findByLabelText('Select valuation 1')).toBeDisabled();
+  expect(screen.getByText(/CHARGE.*Source valuation #8/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Preview additional-cost allocation' })).toBeDisabled();
+});
+
 test("selects current-page source and opens allocation without posting", async () => {
   const api = { poolValuations: jest.fn().mockResolvedValue({ data }) };
   render(<CostPoolValuations api={api} pool={pool} onClose={jest.fn()} />);
