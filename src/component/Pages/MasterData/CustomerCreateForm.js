@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { useTheme } from '../../../context/ThemeContext';
 import useOperationIntent from '../../../hooks/useOperationIntent';
+import { UserPlus } from 'lucide-react';
+import { RegisterHeader, fieldLabelClass, hintClass, inputClass, messageClass, pageClass, panelClass, primaryButtonClass, secondaryButtonClass, selectClass } from '../../UI/UXComponent/RegisterShell';
 
 const blankContact = () => ({ kind: 'PHONE', value: '', label: '', primary: false });
 
 export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
-  const { isDark } = useTheme();
   const [profile, setProfile] = useState({ name: '', kind: 'PERSON', contacts: [{ ...blankContact(), primary: true }] });
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
@@ -69,31 +69,33 @@ export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
       if (alive.current) setBusy(false);
     }
   }
-  const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
-  const input = `block w-full border rounded p-2 ${theme}`;
-  const button = 'border rounded px-4 py-2 cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40';
-  return <section className={`h-full min-h-0 flex flex-col gap-3 p-4 ${theme}`} aria-label="New customer form">
-    <header className="shrink-0"><h1 className="text-xl font-bold">New customer</h1><p className="text-sm">No credit, consent or financial terms are assigned. Review contact details before saving.</p><p className="text-sm">Keep this screen open until save is confirmed. Draft recovery after navigation is not yet available.</p></header>
+  const input = `block w-full ${inputClass}`;
+  const select = `block w-full ${selectClass}`;
+  const button = secondaryButtonClass;
+  return <section className={pageClass} aria-label="New customer form">
+    <RegisterHeader icon={UserPlus} title="New customer"
+      description="No credit, consent or financial terms are assigned. Review contact details before saving." />
+    <p className={hintClass}>Keep this screen open until save is confirmed. Draft recovery after navigation is not yet available.</p>
     <div className="flex-1 min-h-0 overflow-auto space-y-4">
-      {message && <p role="alert">{message}</p>}
-      {pending && <p className="text-xs break-all">Request reference: {pending.operation_key}</p>}
-      {errors.profile && <p role="alert">{errors.profile}</p>}
-      <fieldset disabled={busy || Boolean(pending)} className="space-y-4 disabled:opacity-70">
+      {message && <p role="alert" className={messageClass('error')}>{message}</p>}
+      {pending && <p className={`${hintClass} break-all`}>Request reference: {pending.operation_key}</p>}
+      {errors.profile && <p role="alert" className={messageClass('error')}>{errors.profile}</p>}
+      <fieldset disabled={busy || Boolean(pending)} className={`${panelClass} space-y-4 disabled:opacity-70`}>
         <div className="grid md:grid-cols-2 gap-3">
-          <label>Customer name<input autoFocus className={input} maxLength={160} value={profile.name} aria-invalid={Boolean(errors.name)} onChange={e => setProfile({ ...profile, name: e.target.value })} />{errors.name && <span role="alert">{errors.name}</span>}</label>
-          <label>Customer type<select className={input} value={profile.kind} onChange={e => setProfile({ ...profile, kind: e.target.value })}><option value="PERSON">Person</option><option value="BUSINESS">Business</option></select></label>
+          <label><span className={fieldLabelClass}>Customer name</span><input autoFocus className={input} maxLength={160} value={profile.name} aria-invalid={Boolean(errors.name)} onChange={e => setProfile({ ...profile, name: e.target.value })} />{errors.name && <span role="alert" className="mt-1 block text-xs font-semibold text-rose-700 dark:text-rose-300">{errors.name}</span>}</label>
+          <label><span className={fieldLabelClass}>Customer type</span><select className={select} value={profile.kind} onChange={e => setProfile({ ...profile, kind: e.target.value })}><option value="PERSON">Person</option><option value="BUSINESS">Business</option></select></label>
         </div>
         <h2 className="font-semibold">Contacts — choose one primary</h2>
         {errors.contacts && <p role="alert">{errors.contacts}</p>}
-        {profile.contacts.map((contact, index) => <fieldset key={index} className="border rounded p-3 space-y-2">
+        {profile.contacts.map((contact, index) => <fieldset key={index} className={`${panelClass} space-y-2`}>
           <legend>Contact {index + 1}</legend>
           <div className="grid md:grid-cols-3 gap-3">
-            <label>Contact type {index + 1}<select className={input} value={contact.kind} onChange={e => changeContact(index, { kind: e.target.value })}><option value="PHONE">Phone</option><option value="EMAIL">Email</option></select></label>
-            <label>Contact value {index + 1}<input className={input} maxLength={160} value={contact.value} aria-invalid={Boolean(errors[`contacts.${index}`])} onChange={e => changeContact(index, { value: e.target.value })} /></label>
-            <label>Label {index + 1}<input className={input} maxLength={60} value={contact.label} onChange={e => changeContact(index, { label: e.target.value })} /></label>
+            <label><span className={fieldLabelClass}>Contact type {index + 1}</span><select className={select} value={contact.kind} onChange={e => changeContact(index, { kind: e.target.value })}><option value="PHONE">Phone</option><option value="EMAIL">Email</option></select></label>
+            <label><span className={fieldLabelClass}>Contact value {index + 1}</span><input className={input} maxLength={160} value={contact.value} aria-invalid={Boolean(errors[`contacts.${index}`])} onChange={e => changeContact(index, { value: e.target.value })} /></label>
+            <label><span className={fieldLabelClass}>Label {index + 1}</span><input className={input} maxLength={60} value={contact.label} onChange={e => changeContact(index, { label: e.target.value })} /></label>
           </div>
-          {errors[`contacts.${index}`] && <p role="alert">{errors[`contacts.${index}`]}</p>}
-          <label><input type="radio" name="primary-contact" checked={contact.primary} onChange={() => setProfile(p => ({ ...p, contacts: p.contacts.map((c, i) => ({ ...c, primary: i === index })) }))} /> Primary contact {index + 1}</label>
+          {errors[`contacts.${index}`] && <p role="alert" className="text-xs font-semibold text-rose-700 dark:text-rose-300">{errors[`contacts.${index}`]}</p>}
+          <label className="flex items-center gap-2 text-sm"><input type="radio" name="primary-contact" checked={contact.primary} onChange={() => setProfile(p => ({ ...p, contacts: p.contacts.map((c, i) => ({ ...c, primary: i === index })) }))} /> Primary contact {index + 1}</label>
           <button type="button" className={button} disabled={profile.contacts.length === 1} onClick={() => setProfile(p => {
             const contacts = p.contacts.filter((_, i) => i !== index);
             if (!contacts.some(c => c.primary)) contacts[0] = { ...contacts[0], primary: true };
@@ -105,7 +107,7 @@ export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
     </div>
     <footer className="shrink-0 flex flex-wrap gap-3">
       {discard ? <><p role="alert">Discard these unsaved details?</p><button type="button" className={button} onClick={onClose}>Discard draft</button><button type="button" className={button} onClick={() => setDiscard(false)}>Keep editing</button></> : <>
-        <button type="button" className={`${button} bg-indigo-600 text-white`} disabled={busy} onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same request' : 'Save customer'}</button>
+        <button type="button" className={primaryButtonClass} disabled={busy} onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same request' : 'Save customer'}</button>
         <button type="button" className={button} disabled={busy || Boolean(pending)} onClick={() => dirty ? setDiscard(true) : onClose()}>Cancel</button>
       </>}
     </footer>

@@ -4,6 +4,7 @@ import { useTheme } from "../../../../context/ThemeContext";
 import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import CostPoolValuations from "./CostPoolValuations";
+import { cardClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function CostPoolSetup({ api, branch, orgId, userId, canManage, canViewValues = false, canManageValues = false, canViewEvidence = false, onClose }) {
   const { isDark } = useTheme();
@@ -23,8 +24,8 @@ export default function CostPoolSetup({ api, branch, orgId, userId, canManage, c
   const lifecycle = useRef(null);
   const heading = useRef(null);
   const branchId = branch?.id;
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 rounded-lg border cursor-pointer hover:bg-indigo-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-40";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   useEffect(() => {
     const controller = new AbortController(); lifecycle.current = controller;
     heading.current?.focus();
@@ -97,7 +98,7 @@ export default function CostPoolSetup({ api, branch, orgId, userId, canManage, c
       <footer className="shrink-0 border-t pt-3 flex gap-2"><button type="submit" className={`${button} bg-indigo-600 text-white`} disabled={saving || !canManage}>{saving ? "Saving…" : form ? "Save pool" : "Confirm assignment"}</button><button type="button" className={button} disabled={saving} onClick={cancel}>Cancel</button></footer>
     </form> : <>
       {branch && !loading && !error && <p className="shrink-0 text-sm">{binding ? `Assigned pool ID: ${binding.cost_pool_id}. Reassignment is not available.` : branch.is_active ? "No pool assigned. Select a pool below to review the initial assignment." : "This branch is inactive; assignment is blocked."}</p>}
-      <div className={`flex-1 min-h-0 overflow-auto border rounded-xl ${panel}`} aria-busy={loading}>
+      <div className={cardClass} aria-busy={loading}>
         {loading ? <p role="status" className="p-4">Loading cost pools…</p> : error ? <p role="alert" className="p-4">{error} Use Refresh pools to retry.</p> : !data.items.length ? <p className="p-4">No cost pools in this organisation yet.</p> : <table className="w-full text-sm text-left">
           <thead className={`sticky top-0 ${panel}`}><tr>{["Code / ID", "Name", "Status", "Central writer", "Assignment", ...(canViewValues ? ["Valuation"] : [])].map((label) => <th key={label} scope="col" className="p-3">{label}</th>)}</tr></thead>
           <tbody>{data.items.map((pool) => <tr key={pool.id} className="border-t"><td className="p-3 font-mono whitespace-nowrap">{pool.code} / #{pool.id}</td><td className="p-3">{pool.name}</td><td className="p-3">{pool.is_active ? "Active" : "Inactive"}</td><td className="p-3">{{ NOT_CONFIGURED: "Not configured", ACTIVE: "Writer assigned", SUSPENDED: "Suspended" }[pool.central_authority_state] || "Status unavailable"}{pool.central_authority_epoch != null && <span className="block text-xs">Authority epoch {pool.central_authority_epoch}</span>}</td><td className="p-3">{binding?.cost_pool_id === pool.id ? "Assigned" : branch?.is_active && !binding && canManage && pool.is_active ? <button type="button" className={button} onClick={() => { setFailure({ message: "", fields: {} }); setSelected(pool); }}>Select {pool.code}</button> : "—"}</td>

@@ -62,7 +62,7 @@ test('follow-up reviewers reach their own case API without release permissions',
   const deadlineCases = jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, deadlineCases });
   useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Review_ReservationDeadline'] });
-  render(<SalesDraftsPage />); fireEvent.click(screen.getByText('Follow-up reviews'));
+  render(<SalesDraftsPage view="DEADLINE_REVIEWS" />);
   expect(await screen.findByText('No reservation follow-up requests waiting for your review.')).toBeInTheDocument();
   expect(deadlineCases).toHaveBeenCalledWith(1, 25, expect.anything(), 'NEEDS_MY_REVIEW');
 });
@@ -71,9 +71,9 @@ test('reallocation review navigation is permission gated and uses its own API', 
   const reallocationCases = jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, reallocationCases });
   const view = render(<SalesDraftsPage />);
-  expect(screen.queryByText('Reallocation reviews')).not.toBeInTheDocument();
+  expect(reallocationCases).not.toHaveBeenCalled();
   useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Review_ReservationReallocation'] });
-  view.rerender(<SalesDraftsPage />); fireEvent.click(screen.getByText('Reallocation reviews'));
+  view.rerender(<SalesDraftsPage view="REALLOCATION_REVIEWS" />);
   expect(await screen.findByText('No reservation reallocation requests waiting for your review.')).toBeInTheDocument();
   expect(reallocationCases).toHaveBeenCalledWith(1, 25, expect.anything(), 'NEEDS_MY_REVIEW');
 });
@@ -82,7 +82,7 @@ test('overdue inbox drills through a fresh permission-checked draft read', async
   const dueReservations = jest.fn().mockResolvedValue({ data: { items: [{ ...row, reservation_key: 'hold', product_id: 1, product_name: 'Demo tile', remaining_quantity: '2', review_at: '2026-10-01T08:00:00Z', review_due: true }], total: 1, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, dueReservations });
   useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Review_ReservationDeadline'] });
-  render(<SalesDraftsPage />); fireEvent.click(screen.getByText('Overdue follow-up'));
+  render(<SalesDraftsPage view="OVERDUE" />);
   fireEvent.click(await screen.findByText('Open draft'));
   expect(await screen.findByLabelText('Sales draft details')).toBeInTheDocument();
   expect(read).toHaveBeenCalledWith('demo-draft', expect.anything());

@@ -4,6 +4,7 @@ import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import ReclassificationEditor from "./ReclassificationEditor";
 import PolicyReviewRequest from "./PolicyReviewRequest";
 import ManagerCases from "./ManagerCases";
+import { cardClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function ReclassificationProposals({ api, balance, onClose, canPropose = false, canReview = false, userId }) {
   const { isDark } = useTheme();
@@ -13,8 +14,8 @@ export default function ReclassificationProposals({ api, balance, onClose, canPr
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null), [reviews, setReviews] = useState(false);
   const [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false), [discard, setDiscard] = useState(false);
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 rounded-lg border cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   const key = selected?.api === api && selected?.balanceId === balance.id ? selected.key : null;
   const rows = result?.api === api && result?.balanceId === balance.id ? result.data : null;
   const record = detail?.api === api && detail?.key === key ? detail.data : null;
@@ -49,7 +50,7 @@ export default function ReclassificationProposals({ api, balance, onClose, canPr
       {key && record && canReview && <button type="button" className={button} disabled={busy || dirty} onClick={() => setReviews(true)}>Proposal review cases</button>}</div></header>
     <p className="shrink-0 text-sm">Saved proposals for this stock record. Historical snapshots are not current stock or approval status. Conversion is disabled; saving or approving a proposal does not move goods.</p>
     {discard && <div role="alert">Discard unsaved review reason?<button type="button" className={button} onClick={() => setDiscard(false)}>Keep reviewing</button><button type="button" className={button} onClick={() => { setDiscard(false); setDirty(false); setSelected(null); }}>Discard review reason</button></div>}
-    <div className={`flex-1 min-h-0 overflow-auto border rounded-xl ${panel}`} aria-busy={loading}>
+    <div className={cardClass} aria-busy={loading}>
       {loading ? <p role="status" className="p-4">Loading proposals…</p> : error ? <div role="alert" className="p-4"><p>{error}</p><button type="button" className={button} onClick={() => setRevision(n => n + 1)}>Retry proposals</button></div>
         : key && record ? <><ProposalDetail record={record} panel={panel} />{canPropose && <div className="p-4"><PolicyReviewRequest key={key} api={api} proposalKey={key} version={1} disabled={discard} panel={panel} button={button} onBusyChange={setBusy} onDirtyChange={setDirty} /></div>}</>
         : !rows?.items?.length ? <p className="p-4">No saved proposals for this stock record. No stock has been reclassified.</p>

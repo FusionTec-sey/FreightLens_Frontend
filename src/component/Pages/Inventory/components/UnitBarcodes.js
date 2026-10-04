@@ -3,6 +3,7 @@ import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import PolicyReviewRequest from "./PolicyReviewRequest";
+import { cardClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function UnitBarcodes({ api, product, canManage, canRequestRetirement = false, isDark, onClose }) {
   const [retirement, setRetirement] = useState(null), [reviewDirty, setReviewDirty] = useState(false);
@@ -13,8 +14,8 @@ export default function UnitBarcodes({ api, product, canManage, canRequestRetire
   const [scan, setScan] = useState(""), [lookup, setLookup] = useState(null), [checking, setChecking] = useState(false);
   const controller = useRef(null), busy = useRef(false), scanBusy = useRef(false);
   const { payloadFor, clear } = useOperationIntent();
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   useEffect(() => {
     const request = new AbortController(); controller.current = request;
     setLoading(true); setData(null); setPolicy(null); setError(""); setLookup(null);
@@ -87,7 +88,7 @@ export default function UnitBarcodes({ api, product, canManage, canRequestRetire
         {canManage && <button type="button" className={button} disabled={checking || policy?.status !== "ACTIVE"} onClick={() => { clear(); setError(""); setEditing(true); }}>Add unit barcode</button>}
         <button type="button" className={button} disabled={checking} onClick={() => setReload((n) => n + 1)}>Refresh barcodes</button>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto border rounded-lg">{!data.items.length ? <p className="p-3">No registered unit barcodes. Catalogue barcodes are not imported automatically.</p> :
+      <div className={cardClass}>{!data.items.length ? <p className="p-3">No registered unit barcodes. Catalogue barcodes are not imported automatically.</p> :
         <table className="w-full text-left text-sm"><thead className={`sticky top-0 ${panel}`}><tr>{["Barcode", "Unit", "Base quantity", "Policy", "Status"].map((label) => <th key={label} className="p-2">{label}</th>)}</tr></thead>
           <tbody>{data.items.map((row) => <tr key={row.id}><td className="p-2 break-all">{row.barcode}</td><td className="p-2">{row.unit}</td><td className="p-2">{row.base_quantity} {row.base_unit}</td><td className="p-2">{row.policy_version}</td><td className="p-2">{row.retired ? "Retired — cannot reuse" : row.eligible ? "Eligible for lookup" : "Review required"}
             {canRequestRetirement && !row.retired && <button type="button" className={`${button} block mt-2`} disabled={checking} onClick={() => { setRetirement(row); setReviewDirty(false); }}>Request retirement<span className="sr-only"> {row.barcode}</span></button>}</td></tr>)}</tbody></table>}</div>

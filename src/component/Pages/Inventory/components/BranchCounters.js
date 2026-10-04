@@ -5,6 +5,7 @@ import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
 import DraftSourcePicker from '../../Sales/DraftSourcePicker';
+import { cardClass, inputClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function BranchCounters({ api, branch, canManage, onClose }) {
   const { isDark } = useTheme();
@@ -18,8 +19,8 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
   const { payloadFor, clear } = useOperationIntent();
   const editable = canManage && branch.is_active;
   const dirty = form && JSON.stringify(form) !== original.current;
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   useEffect(() => {
     const request = new AbortController(); controller.current = request;
     setLoading(true); setError("");
@@ -69,9 +70,9 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
       <button type="button" disabled={saving} className={button} onClick={() => { setForm(null); setDiscard(false); setError(""); }}>Discard changes</button></div>}
     {form ? <form onSubmit={save} className="flex-1 min-h-0 flex flex-col gap-3">
       <fieldset disabled={saving} className="flex-1 min-h-0 overflow-auto space-y-4">
-        <label className="block">Permanent code<input required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,31}" disabled={form.version > 0} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} className={`block p-2 border rounded-lg ${panel}`} /></label>
-        <label className="block">Display name<input required maxLength={120} value={form.config.name} onChange={(event) => setConfig("name", event.target.value)} className={`block p-2 border rounded-lg ${panel}`} /></label>
-        <label className="block">Counter purpose<select required value={form.config.purpose} onChange={(event) => setConfig("purpose", event.target.value)} className={`block p-2 border rounded-lg ${panel}`}>
+        <label className="block">Permanent code<input required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,31}" disabled={form.version > 0} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} className={`block ${inputClass}`} /></label>
+        <label className="block">Display name<input required maxLength={120} value={form.config.name} onChange={(event) => setConfig("name", event.target.value)} className={`block ${inputClass}`} /></label>
+        <label className="block">Counter purpose<select required value={form.config.purpose} onChange={(event) => setConfig("purpose", event.target.value)} className={`block ${inputClass}`}>
           <option value="">Choose explicitly</option><option value="CHECKOUT">Checkout</option><option value="COLLECTION">Collection</option><option value="BOTH">Checkout and collection</option></select></label>
         <label className="flex gap-2"><input type="checkbox" checked={form.config.is_enabled} onChange={(event) => setConfig("is_enabled", event.target.checked)} />Available for future authorised workflows</label>
         <section className="space-y-2"><h2 className="font-semibold">Default stock area</h2>
@@ -84,7 +85,7 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
       </fieldset>
       <footer className="shrink-0 flex gap-2 border-t pt-3"><button type="submit" disabled={saving || !dirty} className={`${button} bg-indigo-600 text-white`}>{saving ? "Saving…" : "Save counter"}</button>
         <button type="button" disabled={saving} onClick={cancel} className={button}>Cancel counter edit</button></footer>
-    </form> : <><div className="flex-1 min-h-0 overflow-auto border rounded-lg">
+    </form> : <><div className={cardClass}>
       {loading ? <p role="status" className="p-4">Loading counters…</p> : error ? <p className="p-4">Counter list unavailable. Refresh to retry.</p> : !result.items.length ? <p className="p-4">No counters configured.</p> :
         <table className="w-full text-left text-sm"><thead className={`sticky top-0 ${panel}`}><tr>{["Code", "Name", "Purpose", "Configuration", "Revision", "Actions"].map((label) => <th className="p-3" key={label}>{label}</th>)}</tr></thead>
           <tbody>{result.items.map((row) => <tr key={row.counter_key} className="border-t"><td className="p-3">{row.code}</td><td className="p-3">{row.config.name}</td><td className="p-3">{row.config.purpose}</td><td className="p-3">{row.config.is_enabled ? "Available; release gates apply" : "Disabled"}</td><td className="p-3">{row.version}</td><td className="p-3">{editable && <button type="button" className={button} onClick={() => open(row)}>Edit<span className="sr-only"> {row.code}</span></button>}</td></tr>)}</tbody></table>}

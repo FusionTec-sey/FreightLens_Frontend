@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DraftSourcePicker from './DraftSourcePicker';
+import { pageClass, panelClass, secondaryButtonClass, rowActionClass } from '../../UI/UXComponent/RegisterShell';
 
 // Reuse paginated draft reads; selection never creates another catalogue/demand.
 export default function ReallocationTargetPicker({ api, source, onSelect, onClose }) {
@@ -25,17 +26,17 @@ export default function ReallocationTargetPicker({ api, source, onSelect, onClos
   }
   const lines = draft?.lines.filter(line => line.product_id === source.product_id && line.base_unit === source.base_unit &&
     !(draft.document_key === source.document_key && line.line_key === source.line_key)) || [];
-  return <section className="h-full min-h-0 flex flex-col gap-3">
+  return <section className={pageClass}>
     {error && <p role="alert">{error}</p>}
     {busy ? <p role="status">Checking destination access…</p> : draft ? <>
       <h2>Choose destination line · draft version {draft.version}</h2>
       <p>Same product, base unit and store only. The server checks current demand and reservation history before accepting the request.</p>
-      <div className="flex-1 min-h-0 overflow-auto">{lines.length ? lines.map(line => <div className="border rounded p-3" key={line.line_key}>
+      <div className="flex-1 min-h-0 overflow-auto space-y-3">{lines.length ? lines.map(line => <div className={panelClass} key={line.line_key}>
         <p>{line.product_name || `Product ${line.product_id}`} · Demand {line.base_quantity} {line.base_unit} · Reserved {line.reserved_quantity || '0'}</p>
-        <button type="button" className="border rounded p-2" onClick={() => onSelect({ document_key: draft.document_key, line_key: line.line_key, version: draft.version })}>Choose line {line.line_key}</button>
+        <button type="button" className={rowActionClass} onClick={() => onSelect({ document_key: draft.document_key, line_key: line.line_key, version: draft.version })}>Choose line {line.line_key}</button>
       </div>) : <p>No matching destination lines in this draft.</p>}</div>
-      <button type="button" className="border rounded p-2" onClick={() => setDraft(null)}>Choose another draft</button>
+      <button type="button" className={secondaryButtonClass} onClick={() => setDraft(null)}>Choose another draft</button>
     </> : <div className="flex-1 min-h-0"><DraftSourcePicker title="Choose destination draft" load={load} onSelect={open} onClose={onClose} /></div>}
-    {(draft || busy) && <button type="button" className="border rounded p-2" onClick={onClose}>Back to request</button>}
+    {(draft || busy) && <button type="button" className={secondaryButtonClass} onClick={onClose}>Back to request</button>}
   </section>;
 }

@@ -3,6 +3,7 @@ import { useTheme } from "../../../../context/ThemeContext";
 import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import StockSerials from "./StockSerials";
 import ReclassificationProposals from "./ReclassificationProposals";
+import { cardClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 // Keep decimal strings exact, including values beyond JavaScript's safe precision.
 export function displayQuantity(value) {
@@ -20,8 +21,8 @@ export default function LocationStock({ api, branch, location, onClose, canPropo
   const [error, setError] = useState("");
   const [serialBalance, setSerialBalance] = useState(null);
   const [proposalBalance, setProposalBalance] = useState(null);
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-40";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(""); setResult(null);
@@ -52,7 +53,7 @@ export default function LocationStock({ api, branch, location, onClose, canPropo
     <p className="text-sm shrink-0">This exact location only; child locations and other stores are not included. Available = on-hand − reserved − damaged − quarantined. Pickup plans do not reserve stock.</p>
     {(!branch.is_active || !location.is_active) && <p role="status" className="text-sm shrink-0">This branch or location is inactive. Quantities are shown for reference only.</p>}
     <p className="text-sm shrink-0">Not a checkout promise or a live stock feed. Refresh before reviewing; posting must recheck availability, batch matching and expiry. Each batch is a separate row. Legacy product totals are not imported here.</p>
-    <div className={`flex-1 min-h-0 overflow-auto border rounded-xl ${panel}`} aria-busy={loading}>
+    <div className={cardClass} aria-busy={loading}>
       {loading ? <p role="status" className="p-4">Loading stock…</p> : error ? <div role="alert" className="p-4"><p>{error}</p><button type="button" className={button} onClick={() => setRevision((n) => n + 1)}>Retry stock</button></div> : !result?.items.length ?
         <p className="p-4">No ledger balances recorded at this location yet. This does not mean physical stock is zero. Opening balances need a verified import or approved opening workflow.</p> :
         <table className="w-full text-sm text-left">

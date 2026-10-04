@@ -6,6 +6,7 @@ import PolicyReviewRequest from "./PolicyReviewRequest";
 import ActivePolicySummary from "./ActivePolicySummary";
 import UnitBarcodes from "./UnitBarcodes";
 import PolicyTransitionReadiness from "./PolicyTransitionReadiness";
+import { inputClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function InventoryPolicyDraft({ product, isDark, canEdit, onClose }) {
   const { token, selectedOrgId, orgId, permissions = [], isSuperAdmin } = useAuth();
@@ -33,8 +34,8 @@ function DraftForm({ api, product, isDark, canEdit, onClose, canRequestReview, c
   const [reload, setReload] = useState(0);
   const busy = useRef(false);
   const lifecycle = useRef(null);
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   useEffect(() => {
     const controller = new AbortController(); lifecycle.current = controller;
     setLoading(true); setError("");
@@ -93,15 +94,15 @@ function DraftForm({ api, product, isDark, canEdit, onClose, canRequestReview, c
           {!data.current_base_unit && <p role="alert">Set the product's catalogue unit before preparing inventory rules.</p>}
           <fieldset disabled={!canEdit || saving || reviewing} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label>Base unit (catalogue)<input readOnly value={form.base_unit} className={`block w-full p-2 border rounded ${panel}`} /></label>
-              <label>Quantity increment<select value={form.quantity_step} onChange={(e) => change({ quantity_step: e.target.value })} className={`block w-full p-2 border rounded ${panel}`}>{["1", "0.1", "0.01", "0.001", "0.0001", "0.00001", "0.000001"].map((step) => <option key={step}>{step}</option>)}</select></label>
-              <label>Tracking mode<select required value={form.tracking} onChange={(e) => change({ tracking: e.target.value, ...(e.target.value !== "BATCH" ? { require_expiry: false, require_shade: false, require_calibre: false } : {}), ...(e.target.value === "SERIAL" ? { quantity_step: "1" } : {}) })} className={`block w-full p-2 border rounded ${panel}`}><option value="">Choose explicitly</option><option value="UNTRACKED">Ordinary / untracked</option><option value="BATCH">Batch / lot</option><option value="SERIAL">Serial numbers</option></select></label>
+              <label>Base unit (catalogue)<input readOnly value={form.base_unit} className={`block w-full ${inputClass}`} /></label>
+              <label>Quantity increment<select value={form.quantity_step} onChange={(e) => change({ quantity_step: e.target.value })} className={`block w-full ${inputClass}`}>{["1", "0.1", "0.01", "0.001", "0.0001", "0.00001", "0.000001"].map((step) => <option key={step}>{step}</option>)}</select></label>
+              <label>Tracking mode<select required value={form.tracking} onChange={(e) => change({ tracking: e.target.value, ...(e.target.value !== "BATCH" ? { require_expiry: false, require_shade: false, require_calibre: false } : {}), ...(e.target.value === "SERIAL" ? { quantity_step: "1" } : {}) })} className={`block w-full ${inputClass}`}><option value="">Choose explicitly</option><option value="UNTRACKED">Ordinary / untracked</option><option value="BATCH">Batch / lot</option><option value="SERIAL">Serial numbers</option></select></label>
             </div>
             {form.tracking === "BATCH" && <div className="flex flex-wrap gap-4">{[["require_expiry", "Require expiry date"], ["require_shade", "Match tile shade"], ["require_calibre", "Match tile calibre"]].map(([key, label]) => <label key={key}><input type="checkbox" checked={form[key]} onChange={(e) => change({ [key]: e.target.checked })} /> {label}</label>)}</div>}
             <div><h3 className="font-semibold">Alternate units</h3><p className="text-sm">One alternate unit equals this many base units. Example: 1 BOX = 12 PCS. No conversion is inferred from packaging fields.</p></div>
             {form.conversions.map((row, index) => <div key={index} className="flex flex-wrap gap-2 items-end">
-              <label>Unit {index + 1}<input required maxLength={50} value={row.unit} onChange={(e) => change({ conversions: form.conversions.map((item, i) => i === index ? { ...item, unit: e.target.value } : item) })} className={`block p-2 border rounded ${panel}`} /></label>
-              <label>Base units per unit {index + 1}<input required inputMode="decimal" pattern="[0-9]+([.][0-9]{1,8})?" value={row.factor} onChange={(e) => change({ conversions: form.conversions.map((item, i) => i === index ? { ...item, factor: e.target.value } : item) })} className={`block p-2 border rounded ${panel}`} /></label>
+              <label>Unit {index + 1}<input required maxLength={50} value={row.unit} onChange={(e) => change({ conversions: form.conversions.map((item, i) => i === index ? { ...item, unit: e.target.value } : item) })} className={`block ${inputClass}`} /></label>
+              <label>Base units per unit {index + 1}<input required inputMode="decimal" pattern="[0-9]+([.][0-9]{1,8})?" value={row.factor} onChange={(e) => change({ conversions: form.conversions.map((item, i) => i === index ? { ...item, factor: e.target.value } : item) })} className={`block ${inputClass}`} /></label>
               <button type="button" className={button} onClick={() => change({ conversions: form.conversions.filter((_, i) => i !== index) })}>Remove unit {index + 1}</button>
             </div>)}
             <button type="button" disabled={form.conversions.length >= 16} className={button} onClick={() => change({ conversions: [...form.conversions, { unit: "", factor: "" }] })}>Add alternate unit</button>

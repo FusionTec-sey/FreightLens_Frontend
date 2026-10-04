@@ -9,6 +9,7 @@ import LocationStock from "./components/LocationStock";
 import BranchSettings from "./components/BranchSettings";
 import BranchCounters from "./components/BranchCounters";
 import ManagerCases from "./components/ManagerCases";
+import { cardClass, inputClass, surfaceClass } from '../../UI/UXComponent/RegisterShell';
 
 export default function InventoryLocationsPage() {
   const { token, selectedOrgId, orgId, permissions, isSuperAdmin, user } = useAuth();
@@ -45,7 +46,7 @@ function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageS
   const lifecycle = useRef(null);
   const heading = useRef(null);
   const buttonClass = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-40";
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
+  const panel = surfaceClass;
   const branchId = branch?.id;
 
   useEffect(() => {
@@ -156,8 +157,8 @@ function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageS
         {saveError.message && <p role="alert" className="text-red-500">{saveError.message}</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
           {field("code", "Code", 32)}{field("name", "Name", 120)}
-          {!branch && <><label className="flex flex-col gap-1">Branch type<select value={form.kind} disabled={saving} onChange={(e) => setForm({ ...form, kind: e.target.value })} className={`p-2 border rounded-lg ${panel}`}><option value="STORE">Store</option><option value="WAREHOUSE">Warehouse</option></select></label>
-            <label className="flex flex-col gap-1">Notes (optional)<textarea value={form.notes} maxLength={1000} disabled={saving} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={`p-2 border rounded-lg ${panel}`} /></label></>}
+          {!branch && <><label className="flex flex-col gap-1">Branch type<select value={form.kind} disabled={saving} onChange={(e) => setForm({ ...form, kind: e.target.value })} className={inputClass}><option value="STORE">Store</option><option value="WAREHOUSE">Warehouse</option></select></label>
+            <label className="flex flex-col gap-1">Notes (optional)<textarea value={form.notes} maxLength={1000} disabled={saving} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={inputClass} /></label></>}
         </div>
         <p className="text-sm">Codes are unique within {branch ? "this branch" : "this organisation"}. Editing and inactivation are not available yet; check the details before saving.</p>
       </div>
@@ -167,7 +168,7 @@ function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageS
       </footer>
     </form> : <>
       <p className="text-sm shrink-0">{branch ? "Create sites, then add zones within sites and bins within zones. Parent IDs identify locations even when they are on another page." : "Open a branch to manage its physical sites, zones and bins."}</p>
-      <div className={`flex-1 min-h-0 overflow-auto border rounded-xl ${panel}`} aria-busy={loading}>
+      <div className={cardClass} aria-busy={loading}>
         {loading ? <p role="status" className="p-4">Loading…</p> : error ? <div role="alert" className="p-4"><p>{error}</p><button type="button" className={buttonClass} onClick={() => setRevision((value) => value + 1)}>Retry</button></div> : !result.items.length ? <p className="p-4">No {branch ? "locations in this branch" : "branches in this organisation"} yet.</p> :
           <table className="w-full text-sm text-left">
             <thead className={`sticky top-0 ${panel}`}><tr>{["Code / ID", "Name", "Type", ...(branch ? ["Parent ID"] : []), "Status", "Actions"].map((title) => <th key={title} scope="col" className="p-3 whitespace-nowrap">{title}</th>)}</tr></thead>

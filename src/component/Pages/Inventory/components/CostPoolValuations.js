@@ -4,6 +4,7 @@ import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import CostAllocationPreview from "./CostAllocationPreview";
 import CostAllocationRegister from "./CostAllocationRegister";
+import { cardClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function CostPoolValuations({ api, pool, userId, onClose, canManage = false, canViewEvidence = false }) {
   const { isDark } = useTheme();
@@ -11,8 +12,8 @@ export default function CostPoolValuations({ api, pool, userId, onClose, canMana
   const [result, setResult] = useState(null), [error, setError] = useState("");
   const [selected, setSelected] = useState([]), [preview, setPreview] = useState(null);
   const [register, setRegister] = useState(null);
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "border rounded-lg px-3 py-2 cursor-pointer hover:bg-indigo-500/20";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   useEffect(() => {
     const controller = new AbortController(); setResult(null); setError(""); setSelected([]); setPreview(null);
     api.poolValuations(pool.id, page, limit, controller.signal).then(({ data }) => {
@@ -29,7 +30,7 @@ export default function CostPoolValuations({ api, pool, userId, onClose, canMana
     <p className="shrink-0 text-sm">Recorded opening and additional-cost values in SCR, not selling prices. Unreconciled records are not final accounts. Charge entries add value, not quantity, and cannot be selected as allocation sources.</p>
     <button type="button" className={`${button} shrink-0 self-start`} onClick={() => setRegister(api)}>Saved cost proposals</button>
     <div className="shrink-0"><button type="button" className={button} disabled={!selected.length || !data} onClick={() => setPreview({ api, poolId: pool.id, ids: selected })}>Preview additional-cost allocation</button><span className="text-sm ml-3">Select source rows on this page; changing pages clears selection.</span></div>
-    <div className="flex-1 min-h-0 overflow-auto border rounded-xl">
+    <div className={cardClass}>
       {error ? <p role="alert" className="p-4">{error} Use Refresh valuations to retry.</p> : !data ? <p role="status" className="p-4">Loading valuations…</p> : !data.items.length ? <p className="p-4">No recorded valuations. This does not mean stock has zero cost.</p> :
         <table className="w-full text-sm text-left"><thead className={`sticky top-0 ${panel}`}><tr>{["Select", "Product / source", "Version", "Opening quantity", "Goods SCR", "Additional SCR", "Pool quantity after", "Pool value SCR after", "Status / reason"].map(label => <th scope="col" key={label} className="p-3 whitespace-nowrap">{label}</th>)}</tr></thead>
           <tbody>{data.items.map(row => <tr key={row.id} className="border-t"><td className="p-3"><input type="checkbox" aria-label={`Select valuation ${row.id}`} disabled={row.kind === 'CHARGE'} checked={selected.includes(row.id)} onChange={e => setSelected(ids => e.target.checked ? [...ids, row.id] : ids.filter(id => id !== row.id))} /></td><td className="p-3">{row.product_name}<p>{row.kind || 'OPENING'} · Stock #{row.balance_id} · Movement {row.source_version}{row.source_valuation_id && ` · Source valuation #${row.source_valuation_id}`}</p></td><td className="p-3">{row.version}</td>

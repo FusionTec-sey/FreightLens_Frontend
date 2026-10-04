@@ -4,6 +4,8 @@ import { useTheme } from '../../../context/ThemeContext';
 import { customersApi } from '../../../services/customersApi';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import CustomerCreateForm from './CustomerCreateForm';
+import { Users } from 'lucide-react';
+import { Badge, EmptyState, LoadingState, RegisterHeader, cardClass, fieldLabelClass, hintClass, inputClass, messageClass, pageClass, panelClass, primaryButtonClass, rowActionClass, secondaryButtonClass, tableClass, tdClass, thClass, toolbarClass, trClass } from '../../UI/UXComponent/RegisterShell';
 
 // Optional selection mode reuses this register; consumers must revalidate the
 // returned company/key/version when saving their own authoritative document.
@@ -65,40 +67,40 @@ function CustomerRegister({ token, orgId, canCreate, onSelect }) {
       .catch(() => { if (live) setError('Customers could not be loaded. Check your access or refresh to retry.'); });
     return () => { live = false; controller.abort(); };
   }, [api, page, limit, refresh, search]);
-  const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
   if (creating && canCreate) return <CustomerCreateForm api={api} orgId={orgId} onClose={() => setCreating(false)}
     onSaved={receipt => { setSaved(receipt); setCreating(false); setSearch(''); setSearchInput(''); setPage(1); setRefresh(n => n + 1); }} />;
-  return <section className={`flex flex-col h-full min-h-0 p-4 gap-3 ${theme}`}>
-    <header className="shrink-0 flex flex-wrap justify-between gap-3">
-      <div><h1 className="text-xl font-bold">Customers</h1><p className="text-sm">Company customer identities. Balances, credit and profile editing are not enabled.</p></div>
-      <button type="button" className="border rounded px-4 py-2 hover:bg-indigo-500/20" onClick={() => setRefresh(n => n + 1)}>Refresh</button>
-      {canCreate && <button type="button" disabled={selecting} className="rounded bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-40" onClick={() => setCreating(true)}>New customer</button>}
-    </header>
-    {saved && <section aria-label="Customer save result" className="shrink-0 border rounded p-3 flex flex-wrap gap-3 items-center">
+  return <section className={pageClass}>
+    <RegisterHeader icon={Users} title="Customers" count={result?.total}
+      description="Company customer identities. Balances, credit and profile editing are not enabled."
+      actions={<>
+        <button type="button" className={secondaryButtonClass} onClick={() => setRefresh(n => n + 1)}>Refresh</button>
+        {canCreate && <button type="button" disabled={selecting} className={primaryButtonClass} onClick={() => setCreating(true)}>New customer</button>}
+      </>} />
+    {saved && <section aria-label="Customer save result" className={messageClass('success')}>
       <p role="status">Customer saved. {saved.search_indexed ? 'Search indexing confirmed.' : 'Search indexing unconfirmed; the saved customer can still be opened directly.'}</p>
-      <button type="button" disabled={selecting} className="border rounded px-3 py-2 disabled:opacity-40" onClick={() => selectCustomer(saved, true)}>Open saved customer</button>
-      <button type="button" className="border rounded px-3 py-2" onClick={() => setSaved(null)}>Dismiss result</button>
+      <button type="button" disabled={selecting} className={secondaryButtonClass} onClick={() => selectCustomer(saved, true)}>Open saved customer</button>
+      <button type="button" className={secondaryButtonClass} onClick={() => setSaved(null)}>Dismiss result</button>
     </section>}
-    <form className="shrink-0 flex flex-wrap gap-2 items-center" onSubmit={event => { event.preventDefault(); setSearch(searchInput.trim()); setPage(1); setRefresh(n => n + 1); }}>
-      <label>Search customers<input className={`border rounded p-2 ml-2 ${theme}`} maxLength={160} value={searchInput} onChange={event => setSearchInput(event.target.value)} placeholder="Name, phone or email" /></label>
-      <button type="submit" className="border rounded px-3 py-2">Search</button>
-      <button type="button" className="border rounded px-3 py-2" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>Clear search</button>
-      {search && <p className="text-xs">Search may lag recent saves; narrow your query if results are limited.</p>}
+    <form className={toolbarClass} onSubmit={event => { event.preventDefault(); setSearch(searchInput.trim()); setPage(1); setRefresh(n => n + 1); }}>
+      <label className="flex items-center gap-2"><span className={fieldLabelClass}>Search customers</span><input className={inputClass} maxLength={160} value={searchInput} onChange={event => setSearchInput(event.target.value)} placeholder="Name, phone or email" /></label>
+      <button type="submit" className={secondaryButtonClass}>Search</button>
+      <button type="button" className={secondaryButtonClass} onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>Clear search</button>
+      {search && <p className={hintClass}>Search may lag recent saves; narrow your query if results are limited.</p>}
     </form>
     {selectionError && <p role="alert">{selectionError}</p>}
     {selecting && <p role="status">Verifying customer selection…</p>}
-    <div className="flex-1 min-h-0 overflow-auto border rounded-xl">
-      {selected && <section aria-label="Customer details" className="border-b p-4 space-y-2">
-        <h2 className="font-semibold">{selected.name}</h2><p className="break-all text-xs">Customer reference: {selected.customer_key} · Version {selected.version}</p>
-        <ul>{selected.contacts.map((c, i) => <li key={i}>{c.kind}: {c.value} {c.label} {c.primary ? '(Primary)' : ''}</li>)}</ul>
-        <button type="button" className="border rounded px-3 py-2" onClick={() => setSelected(null)}>Close details</button>
+    <div className={cardClass}>
+      {selected && <section aria-label="Customer details" className={`${panelClass} m-3 space-y-3`}>
+        <div><h2 className="text-sm font-bold">{selected.name}</h2><p className={`${hintClass} break-all`}>Customer reference: {selected.customer_key} · Version {selected.version}</p></div>
+        <ul className="space-y-1 text-sm">{selected.contacts.map((c, i) => <li key={i} className="flex flex-wrap items-center gap-2"><Badge tone="slate">{c.kind}</Badge>{c.value} {c.label} {c.primary ? '(Primary)' : ''}</li>)}</ul>
+        <button type="button" className={secondaryButtonClass} onClick={() => setSelected(null)}>Close details</button>
       </section>}
-      {error ? <p role="alert" className="p-4">{error}</p> : !result ? <p role="status" className="p-4">Loading customers…</p> : !result.items.length ? <p className="p-4">No customers in this company.</p> :
-        <table className="w-full text-sm"><thead className={`sticky top-0 ${theme}`}><tr>{['Name', 'Type', 'Primary contact', 'Action'].map(label => <th key={label} className="p-3 text-left">{label}</th>)}</tr></thead>
-          <tbody>{result.items.map(customer => <tr key={customer.customer_key} className="border-t">
-            <td className="p-3">{customer.name}</td><td className="p-3">{customer.kind}</td><td className="p-3">{customer.contacts.find(c => c.primary)?.value}</td>
-            <td className="p-3"><button type="button" disabled={selecting} className="border rounded px-3 py-2 hover:bg-indigo-500/20 disabled:opacity-40" onClick={() => selectCustomer(customer, true)} aria-label={`View ${customer.name}`}>View</button>
-              {onSelect && <button type="button" disabled={selecting} className="border rounded px-3 py-2 hover:bg-indigo-500/20 disabled:opacity-40" onClick={() => selectCustomer(customer)} aria-label={`Select ${customer.name}`}>Select</button>}</td>
+      {error ? <p role="alert" className="p-4">{error}</p> : !result ? <LoadingState label="Loading customers…" /> : !result.items.length ? <EmptyState icon={Users} title="No customers in this company." hint="Create a customer to start a counter sale, or clear the search to browse every record." /> :
+        <table className={tableClass}><thead><tr>{['Name', 'Type', 'Primary contact', 'Action'].map(label => <th key={label} className={thClass}>{label}</th>)}</tr></thead>
+          <tbody>{result.items.map(customer => <tr key={customer.customer_key} className={trClass}>
+            <td className={tdClass}>{customer.name}</td><td className={tdClass}><Badge tone="indigo">{customer.kind}</Badge></td><td className={tdClass}>{customer.contacts.find(c => c.primary)?.value}</td>
+            <td className={tdClass}><button type="button" disabled={selecting} className={rowActionClass} onClick={() => selectCustomer(customer, true)} aria-label={`View ${customer.name}`}>View</button>
+              {onSelect && <button type="button" disabled={selecting} className={rowActionClass} onClick={() => selectCustomer(customer)} aria-label={`Select ${customer.name}`}>Select</button>}</td>
           </tr>)}</tbody></table>}
     </div>
     <div className="shrink-0"><PaginationToolbar page={page} pageSize={limit} totalPages={result?.pages || 1} totalCount={result?.total || 0} isDark={isDark}

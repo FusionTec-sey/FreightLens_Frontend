@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { panelClass } from '../../../UI/UXComponent/RegisterShell';
 
 const labels = { base_unit: "Base unit", quantity_step: "Quantity increment", tracking: "Tracking mode",
   require_expiry: "Expiry requirement", require_shade: "Shade requirement", require_calibre: "Calibre requirement", conversions: "Alternate units" };
@@ -29,7 +30,7 @@ export default function PolicyTransitionReadiness({ api, productId, button, disa
       if (!controller.signal.aborted) setState({ error: true });
     } finally { if (pending.current === controller) pending.current = null; }
   };
-  return <section aria-label="Policy transition readiness" className="border rounded-lg p-3 space-y-2 text-sm">
+  return <section aria-label="Policy transition readiness" className={`${panelClass} space-y-2 text-sm`}>
     <p>Check the saved draft before requesting review. Adding alternate units can preserve existing stock and barcodes when every original rule and factor remains unchanged. Other revisions require no stock history and no live codes. Every existing code must first complete reviewed retirement for those revisions; retired codes stay reserved and cannot be reused.</p>
     <button type="button" className={button} disabled={disabled || state?.loading} onClick={check}>{state?.loading ? "Checking transition…" : "Check transition readiness"}</button>
     {disabled ? <p>Save changes before checking this draft.</p> : state?.error ? <p role="alert">Readiness could not be verified. Retry the check; no policy was changed.</p> : state?.data && <div role="status">

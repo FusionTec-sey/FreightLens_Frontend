@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
+import { panelClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function PolicyActivation({ api, caseKey, expectedActiveVersion = 0, retirement = false, deadline = false, transition = "STANDARD", panel, button, onBusyChange, onActivated }) {
   const [confirmed, setConfirmed] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState("");
@@ -18,7 +19,7 @@ export default function PolicyActivation({ api, caseKey, expectedActiveVersion =
     } catch (err) { if (!controller.signal.aborted) setError(locationError(err).message); }
     finally { busy.current = false; if (!controller.signal.aborted) { setSaving(false); onBusyChange(false); } }
   };
-  return <section aria-label={deadline ? 'Reviewed reservation follow-up' : retirement ? "Reviewed barcode retirement" : "Reviewed policy activation"} className={`p-3 border rounded-lg space-y-3 ${panel}`}>
+  return <section aria-label={deadline ? 'Reviewed reservation follow-up' : retirement ? "Reviewed barcode retirement" : "Reviewed policy activation"} className={`${panelClass} space-y-3`}>
     <p>{deadline ? 'Record the exact approved follow-up date. Stock remains reserved; this does not cancel an order, release goods or move money.' : retirement ? "Permanently disable lookup for this exact code, retaining its original identity, units and audit history. No stock changes or reassignment. This action cannot be undone." : `${expectedActiveVersion ? `Replaces active policy version ${expectedActiveVersion} with a new immutable revision.` : "Initial policy activation."} ${transition === "EXTEND_UNITS" ? "Adds alternate units only. Existing quantities, factors, tracking rules, reservations and barcode meanings remain unchanged." : "Existing stock history or live registered barcodes block this action."} Activation does not create stock or enable checkout.`}</p>
     <label className="block"><input type="checkbox" checked={confirmed} disabled={saving} onChange={(event) => setConfirmed(event.target.checked)} /> {deadline ? 'Schedule the exact approved follow-up shown above' : retirement ? "Retire the exact approved barcode shown above" : "Activate the exact approved policy shown above"}</label>
     {error && <p role="alert">{error}</p>}

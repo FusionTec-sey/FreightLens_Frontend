@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
+import { PackageSearch } from 'lucide-react';
+import { Badge, EmptyState, LoadingState, RegisterHeader, cardClass, fieldLabelClass, inputClass, pageClass, rowActionClass, secondaryButtonClass, toolbarClass } from '../../UI/UXComponent/RegisterShell';
 
 // Shared paginated chooser for existing branches/products. Never loads a whole catalogue.
 export default function DraftSourcePicker({ title, load, onSelect, onClose, products = false }) {
@@ -15,21 +17,22 @@ export default function DraftSourcePicker({ title, load, onSelect, onClose, prod
       .catch(() => { if (live) setError('Choices could not be loaded. Retry or clear search to browse.'); });
     return () => { live = false; controller.abort(); };
   }, [load, page, limit, search, refresh]);
-  const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
-  return <section className={`h-full min-h-0 flex flex-col gap-3 p-3 ${theme}`} aria-label={title}>
-    <header className="shrink-0 flex flex-wrap gap-3 items-center"><h2 className="font-semibold">{title}</h2>
-      <button type="button" className="border rounded p-2" onClick={onClose}>Back to draft</button>
-      <button type="button" className="border rounded p-2" onClick={() => setRefresh(n => n + 1)}>Retry</button></header>
-    {products && <form className="shrink-0 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setSearch(query.trim()); setPage(1); setRefresh(n => n + 1); }}>
-      <label>Product name or SKU<input className={`border rounded p-2 ml-2 ${theme}`} value={query} maxLength={160} onChange={e => setQuery(e.target.value)} /></label>
-      <button type="submit" className="border rounded p-2">Search</button>
-      <button type="button" className="border rounded p-2" onClick={() => { setQuery(''); setSearch(''); setPage(1); }}>Clear search</button>
+  return <section className={pageClass} aria-label={title}>
+    <RegisterHeader icon={PackageSearch} title={title} count={result?.total}
+      actions={<>
+        <button type="button" className={secondaryButtonClass} onClick={onClose}>Back to draft</button>
+        <button type="button" className={secondaryButtonClass} onClick={() => setRefresh(n => n + 1)}>Retry</button>
+      </>} />
+    {products && <form className={toolbarClass} onSubmit={event => { event.preventDefault(); setSearch(query.trim()); setPage(1); setRefresh(n => n + 1); }}>
+      <label className="flex items-center gap-2"><span className={fieldLabelClass}>Product name or SKU</span><input className={inputClass} value={query} maxLength={160} onChange={e => setQuery(e.target.value)} /></label>
+      <button type="submit" className={secondaryButtonClass}>Search</button>
+      <button type="button" className={secondaryButtonClass} onClick={() => { setQuery(''); setSearch(''); setPage(1); }}>Clear search</button>
     </form>}
-    <div className="flex-1 min-h-0 overflow-auto border rounded">
-      {error ? <p role="alert" className="p-3">{error}</p> : !result ? <p role="status" className="p-3">Loading choices…</p> : !result.items.length ? <p className="p-3">No eligible records found.</p> :
-        <ul>{result.items.map(row => <li key={row.id} className="p-3 border-b flex flex-wrap items-center justify-between gap-3">
-          <div>{row.name} <span className="text-xs">{row.sku || row.code}</span>{products && !row.policy_version && <p className="text-xs">Reviewed inventory policy required before selection.</p>}</div>
-          <button type="button" className="border rounded px-3 py-2 hover:bg-indigo-500/20 disabled:opacity-40" disabled={products && !row.policy_version} onClick={() => onSelect(row)}>Select {row.name}</button>
+    <div className={cardClass}>
+      {error ? <p role="alert" className="p-3">{error}</p> : !result ? <LoadingState label="Loading choices…" /> : !result.items.length ? <EmptyState icon={PackageSearch} title="No eligible records found." hint="Clear the search to browse, or choose a record with a reviewed inventory policy." /> :
+        <ul>{result.items.map(row => <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4 hover:bg-indigo-50/60 dark:border-slate-800 dark:hover:bg-slate-800/70">
+          <div><span className="text-sm font-semibold">{row.name}</span> <span className="text-xs text-slate-500">{row.sku || row.code}</span>{products && !row.policy_version && <p className="mt-1"><Badge tone="amber">Reviewed inventory policy required before selection.</Badge></p>}</div>
+          <button type="button" className={rowActionClass} disabled={products && !row.policy_version} onClick={() => onSelect(row)}>Select {row.name}</button>
         </li>)}</ul>}
     </div>
     <PaginationToolbar page={page} pageSize={limit} totalPages={result?.pages || 1} totalCount={result?.total || 0} onPageChange={setPage}

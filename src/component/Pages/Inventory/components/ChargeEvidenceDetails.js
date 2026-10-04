@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { panelClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function ChargeEvidenceDetails({ api, item, button }) {
   const [error, setError] = useState(''), [loading, setLoading] = useState(false);
@@ -24,7 +25,7 @@ export default function ChargeEvidenceDetails({ api, item, button }) {
     finally { busy.current = false; if (!controller.signal.aborted) setLoading(false); }
   };
   const declaration = item.declaration;
-  return <section aria-label="Declared invoice evidence" className="space-y-2 border rounded-lg p-3">
+  return <section aria-label="Declared invoice evidence" className={`${panelClass} space-y-2`}>
     <p>Supplier: {item.supplier_name} · Invoice date: {declaration.invoice_date}</p>
     <p>Eligible amount: {declaration.source_currency} {declaration.eligible_amount} · SCR per source unit: {declaration.exchange_rate_to_scr}</p>
     <p>{item.source_version === 2

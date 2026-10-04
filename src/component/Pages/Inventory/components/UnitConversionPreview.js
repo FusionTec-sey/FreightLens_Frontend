@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { inputClass } from '../../../UI/UXComponent/RegisterShell';
 
 // Keyed by the full policy in the parent: editing any rule invalidates the result.
 export default function UnitConversionPreview({ api, productId, config, panel, button }) {
@@ -28,8 +29,8 @@ export default function UnitConversionPreview({ api, productId, config, panel, b
     <h3 className="font-semibold">Test unit conversion</h3>
     <p className="text-sm">Uses the current draft fields, including unsaved changes. No rounding, stock change or rule activation.</p>
     <div className="flex flex-wrap gap-3 items-end">
-      <label>Test quantity<input inputMode="decimal" value={quantity} onChange={(e) => { invalidate(); setQuantity(e.target.value); }} className={`block p-2 border rounded ${panel}`} /></label>
-      <label>Test unit<select value={unit} onChange={(e) => { invalidate(); setUnit(e.target.value); }} className={`block p-2 border rounded ${panel}`}>
+      <label>Test quantity<input inputMode="decimal" value={quantity} onChange={(e) => { invalidate(); setQuantity(e.target.value); }} className={`block ${inputClass}`} /></label>
+      <label>Test unit<select value={unit} onChange={(e) => { invalidate(); setUnit(e.target.value); }} className={`block ${inputClass}`}>
         {[config.base_unit, ...config.conversions.map((row) => row.unit)].map((name, index) => <option key={index} value={name}>{name || "Unnamed unit"}</option>)}
       </select></label>
       <button type="button" className={button} disabled={pending || !config.tracking || !quantity || !unit} onClick={preview}>{pending ? "Checking…" : "Check conversion"}</button>

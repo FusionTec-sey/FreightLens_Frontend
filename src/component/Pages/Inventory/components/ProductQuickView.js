@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import StockGaugeBar from "./StockGaugeBar";
 import { mediaUrl } from "../../../../utils/mediaUrl";
+import { secondaryButtonClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function ProductQuickView({
   product,
@@ -250,7 +251,7 @@ export default function ProductQuickView({
             </div>
           )}
 
-          <button type="button" className="px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20" onClick={() => setShowPolicy(true)}>Units & tracking draft</button>
+          <button type="button" className={secondaryButtonClass} onClick={() => setShowPolicy(true)}>Units & tracking draft</button>
 
           {/* Description */}
           {product.description && (

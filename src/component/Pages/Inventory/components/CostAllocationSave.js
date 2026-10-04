@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
 import { locationError } from "../../../../services/inventoryLocationsApi";
+import { inputClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function CostAllocationSave({ api, poolId, ids, result, panel, button, onBusy, onDirty, disabled = false }) {
   const [reference, setReference] = useState(""), [reason, setReason] = useState("");
@@ -28,8 +29,8 @@ export default function CostAllocationSave({ api, poolId, ids, result, panel, bu
   if (saved) return <p role="status">Saved unposted proposal: {saved}. A reference is not proof of a verified invoice.</p>;
   return <div className="space-y-2 border-t pt-3">
     <p>Save this exact calculation as an unposted proposal. Invoice evidence and independent review remain required before capitalisation.</p>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3"><label>Charge reference<input value={reference} maxLength={160} disabled={busy} onChange={e => setReference(e.target.value)} className={`block w-full border rounded p-2 ${panel}`} /></label>
-      <label>Allocation reason<input value={reason} maxLength={1000} disabled={busy} onChange={e => setReason(e.target.value)} className={`block w-full border rounded p-2 ${panel}`} /></label></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3"><label>Charge reference<input value={reference} maxLength={160} disabled={busy} onChange={e => setReference(e.target.value)} className={`block w-full ${inputClass}`} /></label>
+      <label>Allocation reason<input value={reason} maxLength={1000} disabled={busy} onChange={e => setReason(e.target.value)} className={`block w-full ${inputClass}`} /></label></div>
     {error && <p role="alert">{error}</p>}
     <button type="button" className={button} disabled={disabled || busy || !reference.trim() || !reason.trim()} onClick={save}>{busy ? 'Saving proposal…' : 'Save unposted proposal'}</button>
   </div>;

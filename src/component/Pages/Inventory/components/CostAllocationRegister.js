@@ -4,6 +4,7 @@ import { locationError } from '../../../../services/inventoryLocationsApi';
 import PolicyReviewRequest from './PolicyReviewRequest';
 import ManagerCases from './ManagerCases';
 import CostChargeEvidence from './CostChargeEvidence';
+import { cardClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function CostAllocationRegister({ api, pool, panel, button, isDark, onClose, userId, canManage = false, canViewEvidence = false }) {
   const [evidence, setEvidence] = useState(false);
@@ -33,7 +34,7 @@ export default function CostAllocationRegister({ api, pool, panel, button, isDar
     <header className="shrink-0 flex flex-wrap justify-between gap-3"><div><h1 className="text-xl font-bold">Saved cost proposals</h1><p>{pool.code} · Historical declarations, not posted charges. Review decisions are shown separately.</p></div>
       <div className="flex gap-2"><button type="button" disabled={busy} className={button} onClick={selected ? () => { if (dirty) setDiscard(true); else setSelected(null); } : onClose}>{selected ? 'Back to proposals' : 'Back to valuations'}</button><button type="button" disabled={busy || dirty} className={button} onClick={() => setReload(n => n + 1)}>Refresh cost proposals</button></div></header>
     {discard && <div role="alert">Discard the unsaved review request?<button type="button" className={button} onClick={() => setDiscard(false)}>Keep editing</button><button type="button" className={button} onClick={() => { setDiscard(false); setDirty(false); setSelected(null); }}>Discard review request</button></div>}
-    <div className="flex-1 min-h-0 overflow-auto border rounded-lg">{error ? <p role="alert" className="p-3">{error}</p> : !data ? <p role="status" className="p-3">Loading cost proposals…</p> : selected ? <article className="p-3 space-y-3"><h2>{data.charge_reference}</h2><p>{data.reason}</p><p>Declared SCR {data.total_scr} · {data.basis} · {data.status}</p>
+    <div className={cardClass}>{error ? <p role="alert" className="p-3">{error}</p> : !data ? <p role="status" className="p-3">Loading cost proposals…</p> : selected ? <article className="p-3 space-y-3"><h2>{data.charge_reference}</h2><p>{data.reason}</p><p>Declared SCR {data.total_scr} · {data.basis} · {data.status}</p>
       <table className="w-full text-sm text-left"><thead><tr><th>Product / stock</th><th>Original basis</th><th>Allocated SCR</th></tr></thead><tbody>{data.snapshot.lines.map(line => <tr key={line.valuation_id} className="border-t"><td className="p-3">{line.product_name} · #{line.balance_id}</td><td className="p-3 font-mono">{line.basis_value}</td><td className="p-3 font-mono">{line.allocated_scr}</td></tr>)}</tbody></table>
       {canManage && <PolicyReviewRequest key={selected} api={reviewApi} proposalKey={selected} version={1} costAllocation disabled={discard} panel={panel} button={button} onBusyChange={setBusy} onDirtyChange={setDirty} />}
       <button type="button" className={button} disabled={busy || dirty || discard} onClick={() => setCases(true)}>View allocation reviews</button>

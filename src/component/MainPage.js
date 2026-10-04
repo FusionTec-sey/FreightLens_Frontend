@@ -42,7 +42,7 @@ import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
 import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
 import CustomersPage from "./Pages/MasterData/CustomersPage";
 import SalesDraftsPage from "./Pages/Sales/SalesDraftsPage";
-import { SALES_DRAFTS_ROUTE } from "../utils/salesRoutes";
+import { SALES_DRAFTS_ROUTE, SALES_LOCAL_DRAFTS_ROUTE, SALES_OVERDUE_ROUTE, SALES_RELEASE_REVIEWS_ROUTE, SALES_DEADLINE_REVIEWS_ROUTE, SALES_REALLOCATION_REVIEWS_ROUTE } from "../utils/salesRoutes";
 import { CUSTOMERS_ROUTE } from "../utils/customerRoutes";
 import DocumentTypesMasterPage from "./Pages/MasterData/DocumentTypesMasterPage.js";
 import ReportTemplatesPage from "./Pages/ReportTemplates/ReportTemplatesPage.js";
@@ -190,6 +190,11 @@ export default function MainPage() {
             <Route path="/master-data/suppliers" element={<PrivateRoute><SuppliersMasterPage /></PrivateRoute>} />
             <Route path={CUSTOMERS_ROUTE} element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
             <Route path={SALES_DRAFTS_ROUTE} element={<PrivateRoute><SalesDraftsPage /></PrivateRoute>} />
+            <Route path={SALES_LOCAL_DRAFTS_ROUTE} element={<PrivateRoute><SalesDraftsPage view="LOCAL_DRAFTS" /></PrivateRoute>} />
+            <Route path={SALES_OVERDUE_ROUTE} element={<PrivateRoute><SalesDraftsPage view="OVERDUE" /></PrivateRoute>} />
+            <Route path={SALES_RELEASE_REVIEWS_ROUTE} element={<PrivateRoute><SalesDraftsPage view="RELEASE_REVIEWS" /></PrivateRoute>} />
+            <Route path={SALES_DEADLINE_REVIEWS_ROUTE} element={<PrivateRoute><SalesDraftsPage view="DEADLINE_REVIEWS" /></PrivateRoute>} />
+            <Route path={SALES_REALLOCATION_REVIEWS_ROUTE} element={<PrivateRoute><SalesDraftsPage view="REALLOCATION_REVIEWS" /></PrivateRoute>} />
             <Route path="/master-data/document-types" element={<PrivateRoute><DocumentTypesMasterPage /></PrivateRoute>} />
 
             {/* Customer-Configurable Report & Print Templates */}

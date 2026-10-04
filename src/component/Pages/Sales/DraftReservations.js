@@ -4,6 +4,8 @@ import { useTheme } from '../../../context/ThemeContext';
 import useOperationIntent from '../../../hooks/useOperationIntent';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import ReallocationTargetPicker from './ReallocationTargetPicker';
+import { AlarmClock, PackageCheck } from 'lucide-react';
+import { Badge, EmptyState, LoadingState, RegisterHeader, cardClass, fieldLabelClass, hintClass, inputClass, pageClass, panelClass, primaryButtonClass, rowActionClass, secondaryButtonClass, tableClass, tdClass, textareaClass, thClass, trClass } from '../../UI/UXComponent/RegisterShell';
 
 // Exact six-place comparison; never round stock through JavaScript Number.
 const scaled = value => {
@@ -84,8 +86,6 @@ export default function DraftReservations({ api, draft, canRequest, canRequestDe
       } else setError('Request not confirmed. Keep this screen open and retry the same request.');
     } finally { inFlight.current = false; if (!controller.signal.aborted) setBusy(false); }
   }
-  const panel = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
-  const button = 'border rounded px-3 py-2 hover:bg-indigo-500/20 disabled:opacity-40';
   async function openSource(row) {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setError('');
@@ -96,11 +96,14 @@ export default function DraftReservations({ api, draft, canRequest, canRequestDe
   }
   if (picking && reallocation && selected) return <ReallocationTargetPicker api={api} source={selected}
     onSelect={choice => { setTarget(choice); setPicking(false); }} onClose={() => setPicking(false)} />;
-  return <section className={`h-full min-h-0 flex flex-col p-4 gap-3 ${panel}`} aria-label="Draft reservations">
-    <header className="shrink-0"><h1 className="text-xl font-bold">{dueInbox ? 'Overdue reservation follow-up' : 'Reserved stock'}</h1><p>Review deadlines do not cancel holds. Approval does not release stock or authorise collection.</p>{dueInbox && <p>Current company, all stores. Oldest due first. Refresh for updated status; opening a draft rechecks access.</p>}</header>
-    <div className="flex-1 min-h-0 overflow-auto">
+  return <section className={pageClass} aria-label="Draft reservations">
+    <RegisterHeader icon={dueInbox ? AlarmClock : PackageCheck} count={result?.total}
+      title={dueInbox ? 'Overdue reservation follow-up' : 'Reserved stock'}
+      description="Review deadlines do not cancel holds. Approval does not release stock or authorise collection." />
+    {dueInbox && <p className={hintClass}>Current company, all stores. Oldest due first. Refresh for updated status; opening a draft rechecks access.</p>}
+    <div className={cardClass}>
       {error && <p role="alert" className="p-2">{error}</p>}
-      {selected ? <section className="space-y-3">
+      {selected ? <section className={`${panelClass} space-y-3`}>
         <h2 className="font-semibold">{reallocation ? 'Request reallocation review' : deadline ? 'Request follow-up date review' : 'Request release review'}</h2>
         <p>Remaining: {selected.remaining_quantity} {selected.base_unit} · Location {selected.location_id}</p>
         <p className="text-xs break-all">Reservation: {selected.reservation_key} · Draft version {selected.source_version}</p>
@@ -108,25 +111,25 @@ export default function DraftReservations({ api, draft, canRequest, canRequestDe
           <p className="text-sm">Keep this form open until confirmed. Navigation recovery is not yet available.</p>
           {pending && <p className="text-xs break-all">Request reference: {pending.operation_key}</p>}
           <fieldset disabled={busy || Boolean(pending) || conflict} className="space-y-3">
-            {(deadline || reallocation) && <label className="block">Next review ({Intl.DateTimeFormat().resolvedOptions().timeZone})<input type="datetime-local" className={`block border rounded p-2 ${panel}`} value={nextReview} onChange={e => setNextReview(e.target.value)} /></label>}
-            {!deadline && <label className="block">{reallocation ? 'Quantity to reallocate' : 'Quantity to release'} ({selected.base_unit})<input className={`block border rounded p-2 ${panel}`} inputMode="decimal" maxLength={25} value={quantity} onChange={e => setQuantity(e.target.value)} /></label>}
-            {reallocation && <section><button type="button" className={button} onClick={() => setPicking(true)}>Choose destination</button>{target && <p className="break-all">Destination: {target.document_key} · Line {target.line_key} · Version {target.version}</p>}<p>Same-store, same-stock-bucket draft demand only. A new hold is added without changing existing quantities or deadlines. Combined holds cannot exceed demand. Paid holds are not supported. Approval does not execute the move.</p></section>}
-            <label className="block">{reallocation ? 'Reallocation reason' : deadline ? 'Agreed follow-up reason' : 'Release reason'}<textarea className={`block w-full border rounded p-2 ${panel}`} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>
+            {(deadline || reallocation) && <label className="block"><span className={fieldLabelClass}>Next review ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span><input type="datetime-local" className={`block ${inputClass}`} value={nextReview} onChange={e => setNextReview(e.target.value)} /></label>}
+            {!deadline && <label className="block"><span className={fieldLabelClass}>{reallocation ? 'Quantity to reallocate' : 'Quantity to release'} ({selected.base_unit})</span><input className={`block ${inputClass}`} inputMode="decimal" maxLength={25} value={quantity} onChange={e => setQuantity(e.target.value)} /></label>}
+            {reallocation && <section className="space-y-2"><button type="button" className={secondaryButtonClass} onClick={() => setPicking(true)}>Choose destination</button>{target && <p className="break-all text-sm">Destination: {target.document_key} · Line {target.line_key} · Version {target.version}</p>}<p className={hintClass}>Same-store, same-stock-bucket draft demand only. A new hold is added without changing existing quantities or deadlines. Combined holds cannot exceed demand. Paid holds are not supported. Approval does not execute the move.</p></section>}
+            <label className="block"><span className={fieldLabelClass}>{reallocation ? 'Reallocation reason' : deadline ? 'Agreed follow-up reason' : 'Release reason'}</span><textarea className={textareaClass} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>
           </fieldset>
         </>}
-      </section> : !result ? !error && <p role="status">Loading reservations…</p> : !result.items.length ? <p>{dueInbox ? 'No overdue reservations in this company.' : 'No linked reservations for this draft.'}</p> :
-        <table className="w-full text-sm"><thead className={`sticky top-0 ${panel}`}><tr>{['Product / location', 'Original hold', 'Released', 'Remaining', 'Review due', 'Action'].map(label => <th className="p-2 text-left" key={label}>{label}</th>)}</tr></thead>
-          <tbody>{result.items.map(row => <tr key={row.reservation_key} className="border-t">
-            <td className="p-2">{row.product_name || draft?.lines.find(line => line.line_key === row.line_key)?.product_name || `Product ${row.product_id}`} · {row.location_name || `Location ${row.location_id}`}{dueInbox && <span className="block">{row.branch_name || `Store ${row.branch_id}`}</span>}</td>
-            <td className="p-2">{row.held_quantity} {row.base_unit}</td><td className="p-2">{row.released_before} {row.base_unit}</td><td className="p-2">{row.remaining_quantity} {row.base_unit}</td>
-            <td className="p-2">{new Date(row.review_at).toLocaleString()}{row.review_due && <strong className="block">Follow-up due — still held</strong>}</td><td className="p-2">{dueInbox && <button disabled={busy} className={button} onClick={() => openSource(row)}>Open draft</button>}{scaled(row.remaining_quantity) > zero && <>{canRequest && <button disabled={busy} className={button} onClick={() => { setSelected(row); setError(''); }}>Request release</button>}{canRequestDeadline && <button disabled={busy} className={button} onClick={() => { setSelected(row); setDeadline(true); setError(''); }}>Request follow-up</button>}{canRequestReallocation && <button disabled={busy} className={button} onClick={() => { setSelected(row); setReallocation(true); setError(''); }}>Request reallocation</button>}</>}</td>
+      </section> : !result ? !error && <LoadingState label="Loading reservations…" /> : !result.items.length ? <EmptyState icon={dueInbox ? AlarmClock : PackageCheck} title={dueInbox ? 'No overdue reservations in this company.' : 'No linked reservations for this draft.'} hint="Holds appear here once stock is reserved against a saved draft line." /> :
+        <table className={tableClass}><thead><tr>{['Product / location', 'Original hold', 'Released', 'Remaining', 'Review due', 'Action'].map(label => <th className={thClass} key={label}>{label}</th>)}</tr></thead>
+          <tbody>{result.items.map(row => <tr key={row.reservation_key} className={trClass}>
+            <td className={tdClass}><span className="font-semibold">{row.product_name || draft?.lines.find(line => line.line_key === row.line_key)?.product_name || `Product ${row.product_id}`}</span> · {row.location_name || `Location ${row.location_id}`}{dueInbox && <span className="block text-xs text-slate-500 dark:text-slate-400">{row.branch_name || `Store ${row.branch_id}`}</span>}</td>
+            <td className={tdClass}>{row.held_quantity} {row.base_unit}</td><td className={tdClass}>{row.released_before} {row.base_unit}</td><td className={`${tdClass} font-semibold`}>{row.remaining_quantity} {row.base_unit}</td>
+            <td className={tdClass}>{new Date(row.review_at).toLocaleString()}{row.review_due && <span className="mt-1 block"><Badge tone="rose">Follow-up due — still held</Badge></span>}</td><td className={tdClass}><div className="flex flex-wrap gap-1">{dueInbox && <button disabled={busy} className={rowActionClass} onClick={() => openSource(row)}>Open draft</button>}{scaled(row.remaining_quantity) > zero && <>{canRequest && <button disabled={busy} className={rowActionClass} onClick={() => { setSelected(row); setError(''); }}>Request release</button>}{canRequestDeadline && <button disabled={busy} className={rowActionClass} onClick={() => { setSelected(row); setDeadline(true); setError(''); }}>Request follow-up</button>}{canRequestReallocation && <button disabled={busy} className={rowActionClass} onClick={() => { setSelected(row); setReallocation(true); setError(''); }}>Request reallocation</button>}</>}</div></td>
           </tr>)}</tbody></table>}
     </div>
     <footer className="shrink-0 flex flex-wrap gap-2">
-      {selected ? discard ? <><p role="alert">Discard this unsaved {reallocation ? 'reallocation' : deadline ? 'follow-up' : 'release'} request?</p><button className={button} onClick={reset}>Discard request</button><button className={button} onClick={() => setDiscard(false)}>Keep editing</button></> : <>
-        {!saved && <button className={`${button} bg-indigo-600 text-white`} disabled={busy || conflict || !maySubmit} onClick={submit}>{busy ? 'Requesting…' : pending ? 'Retry same request' : reallocation ? 'Submit reallocation review' : deadline ? 'Submit follow-up review' : 'Submit release review'}</button>}
-        <button className={button} disabled={busy || Boolean(pending)} onClick={() => dirty && !conflict ? setDiscard(true) : reset()}>Back to reservations</button>
-      </> : <><button className={button} disabled={busy} onClick={onClose}>{dueInbox ? 'Back to sales drafts' : 'Back to draft'}</button><button className={button} disabled={busy} onClick={() => setRefresh(n => n + 1)}>Refresh reservations</button>
+      {selected ? discard ? <><p role="alert">Discard this unsaved {reallocation ? 'reallocation' : deadline ? 'follow-up' : 'release'} request?</p><button className={secondaryButtonClass} onClick={reset}>Discard request</button><button className={secondaryButtonClass} onClick={() => setDiscard(false)}>Keep editing</button></> : <>
+        {!saved && <button className={primaryButtonClass} disabled={busy || conflict || !maySubmit} onClick={submit}>{busy ? 'Requesting…' : pending ? 'Retry same request' : reallocation ? 'Submit reallocation review' : deadline ? 'Submit follow-up review' : 'Submit release review'}</button>}
+        <button className={secondaryButtonClass} disabled={busy || Boolean(pending)} onClick={() => dirty && !conflict ? setDiscard(true) : reset()}>Back to reservations</button>
+      </> : <><button className={secondaryButtonClass} disabled={busy} onClick={onClose}>{dueInbox ? 'Back to sales drafts' : 'Back to draft'}</button><button className={secondaryButtonClass} disabled={busy} onClick={() => setRefresh(n => n + 1)}>Refresh reservations</button>
         <PaginationToolbar page={page} pageSize={limit} totalPages={result?.pages || 1} totalCount={result?.total || 0} onPageChange={setPage} onPageSizeChange={value => { setLimit(value); setPage(1); }} isDark={isDark} />
       </>}
     </footer>

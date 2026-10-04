@@ -3,6 +3,7 @@ import { locationError } from '../../../../services/inventoryLocationsApi';
 import useOperationIntent from '../../../../hooks/useOperationIntent';
 import ManagerCases from './ManagerCases';
 import EvidenceChoice from './EvidenceChoice';
+import { inputClass } from '../../../UI/UXComponent/RegisterShell';
 
 const initial = { invoice_reference: '', invoice_date: '', source_currency: 'SCR', eligible_amount: '', exchange_rate_to_scr: '1', capitalisation_reason: '', reason: '' };
 export default function CostChargeEvidence({ api, pool, proposal, userId, canManage, onClose, panel, button, isDark }) {
@@ -56,10 +57,10 @@ export default function CostChargeEvidence({ api, pool, proposal, userId, canMan
         {saved ? <p role="status">Evidence review requested: {saved}</p> : canManage ? <fieldset disabled={saving || Boolean(discard)} className="space-y-3">
           <div className="flex flex-wrap gap-2"><button type="button" className={button} onClick={() => setPicker('supplier')}>{supplier ? `Supplier: ${supplier.label}` : 'Choose supplier'}</button>
             <button type="button" className={button} onClick={() => setPicker('invoice')}>{invoice ? `Invoice: ${invoice.label}` : 'Choose invoice document'}</button></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{[['invoice_reference', 'Invoice reference', 'text'], ['invoice_date', 'Invoice date', 'date'], ['source_currency', 'Source currency (3 letters)', 'text'], ['eligible_amount', 'Eligible amount in source currency', 'text'], ['exchange_rate_to_scr', 'SCR per one source currency unit', 'text']].map(([name, label, type]) => <label key={name} className="block">{label}<input required type={type} value={form[name]} maxLength={name === 'source_currency' ? 3 : 160} aria-invalid={Boolean(fields[name])} className={`block w-full border rounded-lg p-2 ${panel}`} onChange={event => change(name, event.target.value)} /></label>)}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{[['invoice_reference', 'Invoice reference', 'text'], ['invoice_date', 'Invoice date', 'date'], ['source_currency', 'Source currency (3 letters)', 'text'], ['eligible_amount', 'Eligible amount in source currency', 'text'], ['exchange_rate_to_scr', 'SCR per one source currency unit', 'text']].map(([name, label, type]) => <label key={name} className="block">{label}<input required type={type} value={form[name]} maxLength={name === 'source_currency' ? 3 : 160} aria-invalid={Boolean(fields[name])} className={`block w-full ${inputClass}`} onChange={event => change(name, event.target.value)} /></label>)}</div>
           <p>For SCR use rate 1. Enter a documented rate for foreign currency; rates are never inferred. The converted eligible amount must equal the complete saved allocation.</p>
           {form.source_currency !== 'SCR' && <button type="button" className={button} onClick={() => setPicker('fx')}>{fx ? `Exchange-rate document: ${fx.label}` : 'Choose exchange-rate document'}</button>}
-          {[['capitalisation_reason', 'Why this expense belongs in inventory cost'], ['reason', 'Review request reason']].map(([name, label]) => <label key={name} className="block">{label}<textarea required maxLength={1000} value={form[name]} className={`block w-full border rounded-lg p-2 ${panel}`} onChange={event => setForm({ ...form, [name]: event.target.value })} /></label>)}
+          {[['capitalisation_reason', 'Why this expense belongs in inventory cost'], ['reason', 'Review request reason']].map(([name, label]) => <label key={name} className="block">{label}<textarea required maxLength={1000} value={form[name]} className={`block w-full ${inputClass}`} onChange={event => setForm({ ...form, [name]: event.target.value })} /></label>)}
         </fieldset> : <p>View-only access. Open evidence reviews to inspect existing declarations.</p>}
       </div>
       {canManage && !saved && <footer className="shrink-0 border-t pt-3"><button type="submit" className={button} disabled={saving || Boolean(discard) || !supplier || !invoice || (form.source_currency !== 'SCR' && !fx)}>{saving ? 'Requesting…' : 'Request evidence review'}</button></footer>}

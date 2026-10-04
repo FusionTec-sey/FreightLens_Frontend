@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
 import { locationError } from "../../../../services/inventoryLocationsApi";
+import { inputClass, panelClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function ReclassificationEditor({ api, balance, panel, button, onClose, onSaved }) {
   const [policies, setPolicies] = useState(null), [error, setError] = useState("");
@@ -76,10 +77,10 @@ export default function ReclassificationEditor({ api, balance, panel, button, on
       {!policies ? error ? <button type="button" className={button} onClick={() => setReload(value => value + 1)}>Retry loading policies</button> : <p>Loading active and draft policies…</p> : !eligible ? <p role="status">A reviewed active ordinary-stock policy, an explicit batch/serial draft, and no reserved quantity are required. Return to stock and refresh after correcting the source.</p> : <>
         <p>Target: {target.tracking} · Base unit {target.base_unit} · Draft {policies.draft.version}</p>
         <p>On-hand {balance.on_hand} · Damaged {balance.damaged} · Quarantined {balance.quarantined}</p>
-        <label className="block">Proposal reason<textarea maxLength={500} disabled={saving} value={reason} onChange={event => setReason(event.target.value)} className={`block w-full border rounded-lg p-2 ${panel}`} /></label>
-        {target.tracking === "SERIAL" ? <label className="block">Serial manifest — one NUMBER | CONDITION per line<textarea rows={12} disabled={saving} value={serialText} onChange={event => setSerialText(event.target.value)} className={`block w-full border rounded-lg p-2 font-mono ${panel}`} /></label> : <>
-          {rows.map((row, index) => <fieldset key={row.key} className="border rounded-lg p-3"><legend>Batch {index + 1}</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[['code', 'Batch code'], ['shade', 'Shade'], ['calibre', 'Calibre'], ['expires_on', 'Expiry date'], ['on_hand', 'On-hand'], ['damaged', 'Damaged'], ['quarantined', 'Quarantined']].map(([field, label]) => <label key={field}>{label}<input type={field === "expires_on" ? "date" : "text"} disabled={saving} value={row[field]} onChange={event => change(index, field, event.target.value)} className={`block w-full border rounded-lg p-2 ${panel}`} /></label>)}
+        <label className="block">Proposal reason<textarea maxLength={500} disabled={saving} value={reason} onChange={event => setReason(event.target.value)} className={`block w-full ${inputClass}`} /></label>
+        {target.tracking === "SERIAL" ? <label className="block">Serial manifest — one NUMBER | CONDITION per line<textarea rows={12} disabled={saving} value={serialText} onChange={event => setSerialText(event.target.value)} className={`block w-full font-mono ${inputClass}`} /></label> : <>
+          {rows.map((row, index) => <fieldset key={row.key} className={panelClass}><legend>Batch {index + 1}</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[['code', 'Batch code'], ['shade', 'Shade'], ['calibre', 'Calibre'], ['expires_on', 'Expiry date'], ['on_hand', 'On-hand'], ['damaged', 'Damaged'], ['quarantined', 'Quarantined']].map(([field, label]) => <label key={field}>{label}<input type={field === "expires_on" ? "date" : "text"} disabled={saving} value={row[field]} onChange={event => change(index, field, event.target.value)} className={`block w-full ${inputClass}`} /></label>)}
           </div><button type="button" className={button} disabled={saving} onClick={() => setRows(old => old.filter(item => item.key !== row.key))}>Remove batch {index + 1}</button></fieldset>)}
           <button type="button" className={button} disabled={saving || rows.length >= 1000} onClick={add}>Add audited batch</button>
         </>}

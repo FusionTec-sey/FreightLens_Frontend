@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CUSTOMERS_ROUTE } from "../../utils/customerRoutes";
-import { SALES_DRAFTS_ROUTE } from "../../utils/salesRoutes";
+import { SALES_DRAFTS_ROUTE, SALES_LOCAL_DRAFTS_ROUTE, SALES_OVERDUE_ROUTE, SALES_RELEASE_REVIEWS_ROUTE, SALES_DEADLINE_REVIEWS_ROUTE, SALES_REALLOCATION_REVIEWS_ROUTE } from "../../utils/salesRoutes";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   ShoppingBag,
+  ShoppingCart,
   Shield,
   Boxes,
   Database,
@@ -124,6 +125,8 @@ function Sidebar({ onLinkClick }) {
 
   const isInventoryActive =
     (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
+
+  const isPosActive = location.pathname.startsWith("/sales/");
 
   const isMasterDataActive =
     isActive(CUSTOMERS_ROUTE) ||
@@ -396,7 +399,15 @@ function Sidebar({ onLinkClick }) {
   const canViewMasterData =
     hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
   const canViewCustomers = hasPermission("View_Customer") && hasPermission("View_Personal_Data");
-  const canViewSalesDrafts = hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft");
+  const canViewSalesDrafts = isSuperAdmin || (hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft"));
+  // Reservation review entries need the Inventory module as well; each screen
+  // re-checks on the backend, so these only decide sidebar visibility.
+  const canOpenReservationReleases = isSuperAdmin || (hasModule("INVENTORY") &&
+    (hasPermission("Request_ReservationRelease") || hasPermission("Review_ReservationRelease")));
+  const canOpenReservationDeadlines = isSuperAdmin || (hasModule("INVENTORY") &&
+    (hasPermission("Request_ReservationDeadline") || hasPermission("Review_ReservationDeadline") || hasPermission("Schedule_ReservationReview")));
+  const canOpenReservationReallocations = isSuperAdmin || (hasModule("INVENTORY") &&
+    (hasPermission("Request_ReservationReallocation") || hasPermission("Review_ReservationReallocation")));
   const canViewTenantConsole =
     hasPermission("View_TenantConsole") ||
     hasPermission("Manage_TenantConsole") ||
@@ -522,7 +533,25 @@ function Sidebar({ onLinkClick }) {
             })}
 
           {/* Purchase Orders Module */}
-          {canViewSalesDrafts && renderNavLink(SALES_DRAFTS_ROUTE, <ShoppingBag />, "Sales drafts", isActive(SALES_DRAFTS_ROUTE))}
+          {/* Point of Sale: counter demand, holds and their reviews */}
+          {canViewSalesDrafts &&
+            renderAccordion({
+              sectionKey: "pos",
+              icon: <ShoppingCart />,
+              label: "Point of Sale",
+              isSectionActive: isPosActive,
+              children: (
+                <>
+                  {renderSubLink(SALES_DRAFTS_ROUTE, "Sales drafts", isActive(SALES_DRAFTS_ROUTE))}
+                  {renderSubLink(SALES_LOCAL_DRAFTS_ROUTE, "Local drafts", isActive(SALES_LOCAL_DRAFTS_ROUTE))}
+                  {canViewCustomers && renderSubLink(CUSTOMERS_ROUTE, "Customers", isActive(CUSTOMERS_ROUTE))}
+                  {canOpenReservationDeadlines && renderSubLink(SALES_OVERDUE_ROUTE, "Overdue follow-up", isActive(SALES_OVERDUE_ROUTE))}
+                  {canOpenReservationReleases && renderSubLink(SALES_RELEASE_REVIEWS_ROUTE, "Reservation reviews", isActive(SALES_RELEASE_REVIEWS_ROUTE))}
+                  {canOpenReservationDeadlines && renderSubLink(SALES_DEADLINE_REVIEWS_ROUTE, "Follow-up reviews", isActive(SALES_DEADLINE_REVIEWS_ROUTE))}
+                  {canOpenReservationReallocations && renderSubLink(SALES_REALLOCATION_REVIEWS_ROUTE, "Reallocation reviews", isActive(SALES_REALLOCATION_REVIEWS_ROUTE))}
+                </>
+              ),
+            })}
           {canViewOrdersMenu &&
             renderAccordion({
               sectionKey: "orders",

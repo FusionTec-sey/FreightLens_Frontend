@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { useTheme } from "../../../../context/ThemeContext";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
+import { inputClass, secondaryButtonClass, surfaceClass } from '../../../UI/UXComponent/RegisterShell';
 
 const blank = { timezone_name: null, weekday_cutoff: null, weekend_cutoff: null, trading_weekdays: null, date_overrides: [] };
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function BranchSettings({ api, branch, canManage, onClose }) {
-  const { isDark } = useTheme();
   const [record, setRecord] = useState(null);
   const [config, setConfig] = useState(blank);
   const [loading, setLoading] = useState(true);
@@ -21,8 +20,8 @@ export default function BranchSettings({ api, branch, canManage, onClose }) {
   const { payloadFor, clear } = useOperationIntent();
   const dirty = record && JSON.stringify(config) !== JSON.stringify(record.config);
   const editable = canManage && branch.is_active;
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40";
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,7 +66,7 @@ export default function BranchSettings({ api, branch, canManage, onClose }) {
   };
   const input = (key, label, type = "text") => <label className="flex flex-col gap-1">{label}
     <input type={type} value={config[key] || ""} maxLength={100} aria-invalid={!!error.fields[key]}
-      onChange={(event) => change(key, event.target.value || null)} className={`p-2 border rounded-lg ${panel}`} />
+      onChange={(event) => change(key, event.target.value || null)} className={inputClass} />
     {error.fields[key] && <span className="text-red-500">{error.fields[key]}</span>}
   </label>;
 
@@ -104,10 +103,10 @@ export default function BranchSettings({ api, branch, canManage, onClose }) {
             <h2 className="font-semibold">Holiday and exceptional dates</h2>
             <p className="text-sm">Overrides refer to business dates. Open selected public holidays explicitly; no public-holiday calendar is assumed. Maximum 366 configured exceptions.</p>
             {config.date_overrides.map((row, index) => <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 border p-3 rounded-lg">
-              <label>Date<input type="date" required aria-label={`Exception date ${index + 1}`} value={row.business_date} className={`block p-2 border rounded-lg ${panel}`}
+              <label>Date<input type="date" required aria-label={`Exception date ${index + 1}`} value={row.business_date} className={`block ${inputClass}`}
                 onChange={(event) => change("date_overrides", config.date_overrides.map((item, i) => i === index ? { ...item, business_date: event.target.value } : item))} /></label>
               <label className="flex gap-2 items-center"><input type="checkbox" checked={row.is_open} onChange={(event) => change("date_overrides", config.date_overrides.map((item, i) => i === index ? { ...item, is_open: event.target.checked } : item))} />Open for trading</label>
-              <label>Reason<input required maxLength={200} value={row.reason} aria-label={`Exception reason ${index + 1}`} className={`block p-2 border rounded-lg ${panel}`}
+              <label>Reason<input required maxLength={200} value={row.reason} aria-label={`Exception reason ${index + 1}`} className={`block ${inputClass}`}
                 onChange={(event) => change("date_overrides", config.date_overrides.map((item, i) => i === index ? { ...item, reason: event.target.value } : item))} /></label>
               <button type="button" className={button} onClick={() => change("date_overrides", config.date_overrides.filter((_, i) => i !== index))}>Remove exception</button>
             </div>)}

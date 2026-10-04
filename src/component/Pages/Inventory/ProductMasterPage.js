@@ -55,6 +55,7 @@ import { toast } from "react-toastify";
 import { useOptions } from "../../../hooks/useOptions";
 import { COUNTRIES, getCountryFlag, formatCountryDisplay } from "../../../utils/countries";
 import { mediaUrl } from "../../../utils/mediaUrl";
+import { secondaryButtonClass } from '../../UI/UXComponent/RegisterShell';
 
 const UOM_OPTIONS = [
   "PCS",
@@ -4338,7 +4339,7 @@ export default function ProductMasterPage() {
                   type="button"
                   disabled={isDeletingCategory}
                   onClick={() => setCategoryToDelete(null)}
-                  className="px-4 py-2 border rounded-xl text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  className={secondaryButtonClass}
                 >
                   Cancel
                 </button>

@@ -5,6 +5,8 @@ import { locationError } from "../../../../services/inventoryLocationsApi";
 import PolicyActivation from "./PolicyActivation";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
 import ChargeEvidenceDetails from './ChargeEvidenceDetails';
+import { ClipboardCheck } from 'lucide-react';
+import { Badge, EmptyState, LoadingState, RegisterHeader, cardClass, dangerButtonClass, fieldLabelClass, hintClass, messageClass, pageClass, primaryButtonClass, rowActionClass, secondaryButtonClass, selectClass, surfaceClass, tableClass, tdClass, textareaClass, thClass, trClass } from '../../../UI/UXComponent/RegisterShell';
 
 export default function ManagerCases({ api, userId, onClose, canActivate = false, standalone = false, retirement = false, reclassification = false, reviewDetails = null, costAllocation = false, chargeEvidence = false, canReview = true, reservationRelease = false, reservationDeadline = false, reservationReallocation = false }) {
   const reservationCase = reservationRelease || reservationDeadline || reservationReallocation;
@@ -20,8 +22,9 @@ export default function ManagerCases({ api, userId, onClose, canActivate = false
     const warn = event => { if (reason) { event.preventDefault(); event.returnValue = ''; } };
     window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn);
   }, [reason]);
-  const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
-  const button = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40";
+  // Kept as props for PolicyActivation and ChargeEvidenceDetails, now on shell tokens.
+  const panel = surfaceClass;
+  const button = secondaryButtonClass;
   useEffect(() => {
     const request = new AbortController(); controller.current = request;
     setLoading(true); setError("");
@@ -44,17 +47,23 @@ export default function ManagerCases({ api, userId, onClose, canActivate = false
   };
   const self = selected && (String(selected.requestor_id) === String(userId) || (costAllocation && String(selected.creator_id) === String(userId)));
   const caseSubject = reservationReallocation ? 'reservation reallocation' : reservationDeadline ? 'reservation follow-up' : reservationRelease ? 'reservation release' : chargeEvidence ? 'charge evidence' : costAllocation ? "cost allocation" : reclassification ? "reclassification proposal" : retirement ? "barcode retirement" : "policy";
-  return <section aria-label="Inventory manager cases" className={`h-full min-h-0 flex flex-col gap-3 p-4 ${panel}`}>
-    <header className="shrink-0 flex flex-wrap justify-between gap-3"><div><h1 className="text-xl font-bold">{reservationReallocation ? 'Approvals — reservation reallocation' : reservationDeadline ? 'Approvals — reservation follow-up' : reservationRelease ? 'Approvals — reservation releases' : chargeEvidence ? 'Reviews — charge evidence' : costAllocation ? "Approvals — cost allocations" : reclassification ? "Approvals — stock proposals" : retirement ? "Approvals — barcode retirement" : standalone ? "Approvals — inventory policies" : "Inventory manager cases"}</h1>
-      <p className="text-sm">Exact saved-source reviews. Approval is not execution and cannot be reused for changed details.</p></div>
-      <div className="flex gap-2"><button type="button" className={button} disabled={saving} onClick={selected ? () => { if (reason) setDiscard(true); else { setSelected(null); setError(""); } } : onClose}>{selected ? "Back to cases" : reservationCase ? 'Back to drafts' : reclassification || costAllocation ? "Back to proposal" : "Branches & locations"}</button>
-        {!selected && <button type="button" className={button} onClick={() => setReload((value) => value + 1)}>Refresh cases</button>}</div></header>
-    {error && <p role="alert">{error}</p>}
-    {discard && <div role="alert">Discard the unsaved decision reason?
-      <button type="button" className={button} disabled={saving} onClick={() => setDiscard(false)}>Keep reviewing</button>
-      <button type="button" className={button} disabled={saving} onClick={() => { setDiscard(false); setSelected(null); setReason(""); setError(""); }}>Discard decision draft</button></div>}
-    {selected ? <><div className="flex-1 min-h-0 overflow-auto space-y-3">
-      <h2 className="font-semibold">{selected.charge_reference || selected.product_name} · {reservationCase ? 'draft' : reclassification || costAllocation ? "proposal" : retirement ? "identity" : "policy"} version {selected.source_version}</h2>
+  return <section aria-label="Inventory manager cases" className={pageClass}>
+    <RegisterHeader icon={ClipboardCheck} count={selected ? undefined : rows.total}
+      title={reservationReallocation ? 'Approvals — reservation reallocation' : reservationDeadline ? 'Approvals — reservation follow-up' : reservationRelease ? 'Approvals — reservation releases' : chargeEvidence ? 'Reviews — charge evidence' : costAllocation ? "Approvals — cost allocations" : reclassification ? "Approvals — stock proposals" : retirement ? "Approvals — barcode retirement" : standalone ? "Approvals — inventory policies" : "Inventory manager cases"}
+      description="Exact saved-source reviews. Approval is not execution and cannot be reused for changed details."
+      actions={<>
+        <button type="button" className={secondaryButtonClass} disabled={saving} onClick={selected ? () => { if (reason) setDiscard(true); else { setSelected(null); setError(""); } } : onClose}>{selected ? "Back to cases" : reservationCase ? 'Back to drafts' : reclassification || costAllocation ? "Back to proposal" : "Branches & locations"}</button>
+        {!selected && <button type="button" className={secondaryButtonClass} onClick={() => setReload((value) => value + 1)}>Refresh cases</button>}
+      </>} />
+    {error && <p role="alert" className={messageClass('error')}>{error}</p>}
+    {discard && <div role="alert" className={messageClass('error')}>Discard the unsaved decision reason?
+      <button type="button" className={secondaryButtonClass} disabled={saving} onClick={() => setDiscard(false)}>Keep reviewing</button>
+      <button type="button" className={secondaryButtonClass} disabled={saving} onClick={() => { setDiscard(false); setSelected(null); setReason(""); setError(""); }}>Discard decision draft</button></div>}
+    {selected ? <><div className={`${cardClass} space-y-3 p-4`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-bold">{selected.charge_reference || selected.product_name} · {reservationCase ? 'draft' : reclassification || costAllocation ? "proposal" : retirement ? "identity" : "policy"} version {selected.source_version}</h2>
+        <Badge tone={selected.status === 'APPROVED' ? 'emerald' : selected.status === 'REJECTED' ? 'rose' : 'amber'}>{selected.status}</Badge>
+      </div>
       {reservationDeadline && <section><p>Current follow-up: {selected.review_at} · Revision {selected.deadline_version}</p><p>Requested next review: {selected.next_review_at}</p><p>Held: {selected.held_quantity} · Released: {selected.released_before} {selected.base_unit}</p><p className="break-all">Draft: {selected.document_key} · Line: {selected.line_key}</p><p>Approval does not change the date until explicitly scheduled. No stock or customer money is released.</p></section>}
       {reservationReallocation && <section className="space-y-2"><p>Requested reallocation: {selected.quantity} {selected.base_unit}</p><p className="break-all">From draft: {selected.document_key} · Line: {selected.line_key}</p><p className="break-all">To draft: {selected.target.document_key} · Line: {selected.target.line_key} · Version {selected.target.version}</p><p>Destination follow-up: {selected.target_review_at}</p><p>Held: {selected.held_quantity} · Previously released: {selected.released_before} {selected.base_unit}</p><p>Approval alone does not move stock. Execution requires the authorised stock runtime. Only same-store unconfirmed draft demand is eligible; no paid holds or automatic cross-store allocation.</p></section>}
       {reservationReallocation && <p>{selected.target_hold_snapshot ? `Destination before this request: ${selected.target_hold_snapshot.remaining} ${selected.base_unit} remaining across ${selected.target_hold_snapshot.count} historical holds. Existing quantities and deadlines stay unchanged; this creates a separate hold.` : 'This older request has no destination-hold snapshot. A fresh request is required before approval or execution.'}</p>}
@@ -64,28 +73,28 @@ export default function ManagerCases({ api, userId, onClose, canActivate = false
       {chargeEvidence && <ChargeEvidenceDetails key={selected.case_key} api={api} item={selected} button={button} />}
       {costAllocation && <>{!chargeEvidence && <p>Approval records an allocation decision only. Supplier invoice and exchange-rate evidence require a separate verification review before financial posting. This screen cannot verify or post a charge.</p>}<p>Declaration: {selected.declaration_reason} · Creator #{selected.creator_id}</p><p>SCR {selected.snapshot.total_scr} · {selected.snapshot.basis}</p><table className="w-full text-sm text-left"><thead><tr><th>Product / stock / valuation</th><th>Basis</th><th>Allocated SCR</th></tr></thead><tbody>{selected.snapshot.lines.map(line => <tr key={line.valuation_id}><td className="p-2">{line.product_name} · #{line.balance_id} · #{line.valuation_id}</td><td className="p-2">{line.basis_value} {selected.snapshot.basis === 'BASE_QUANTITY' ? line.base_unit : 'SCR'}</td><td className="p-2">{line.allocated_scr}</td></tr>)}</tbody></table></>}
       {!reservationCase && !reclassification && !costAllocation && <p>{retirement ? "Review permanently disabling this barcode. Its code, product and unit history will not be deleted or reassigned." : selected.transition === "EXTEND_UNITS" ? "Reviewed alternate-unit extension. Existing stock rules and barcode meanings must remain unchanged." : selected.expected_active_version ? `Reviewed transition from active policy ${selected.expected_active_version}; stock history and barcode checks still apply.` : "Initial activation review; no stock is created."}</p>}
-      {!reservationCase && !costAllocation && <pre className="whitespace-pre-wrap break-words border rounded-lg p-3 text-sm">{JSON.stringify(selected.config, null, 2)}</pre>}
-      {selected.review_reason && <p>Review: {selected.review_reason} · Reviewer #{selected.reviewer_id}</p>}
-      {self && <p>{costAllocation ? "You cannot review a proposal you created or requested." : "You cannot review your own request."}</p>}
-      {selected.status === "REQUESTED" && canReview && <label className="block">Decision reason<textarea maxLength={1000} disabled={saving || self} value={reason} onChange={(event) => setReason(event.target.value)} className={`block border rounded-lg p-2 w-full ${panel}`} /></label>}
-    </div>{selected.status === "APPROVED" && canActivate && !reservationReallocation && !reservationRelease && !reclassification && !costAllocation && <footer className="shrink-0">
+      {!reservationCase && !costAllocation && <pre className="whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs dark:border-slate-700 dark:bg-slate-800">{JSON.stringify(selected.config, null, 2)}</pre>}
+      {selected.review_reason && <p className={messageClass('muted')}>Review: {selected.review_reason} · Reviewer #{selected.reviewer_id}</p>}
+      {self && <p className={messageClass('error')}>{costAllocation ? "You cannot review a proposal you created or requested." : "You cannot review your own request."}</p>}
+      {selected.status === "REQUESTED" && canReview && <label className="block"><span className={fieldLabelClass}>Decision reason</span><textarea maxLength={1000} disabled={saving || self} value={reason} onChange={(event) => setReason(event.target.value)} className={textareaClass} /></label>}
+    </div>{selected.status === "APPROVED" && canActivate && !reservationReallocation && !reservationRelease && !reclassification && !costAllocation && <footer className="shrink-0 pt-3">
       <PolicyActivation retirement={retirement} deadline={reservationDeadline} key={selected.case_key} api={api} caseKey={selected.case_key}
         expectedActiveVersion={selected.expected_active_version} transition={selected.transition}
         panel={panel} button={button} onBusyChange={setSaving} onActivated={() => { setSelected(null); setReload((value) => value + 1); }} />
-    </footer>}{selected.status === "REQUESTED" && canReview && <footer className="shrink-0 flex gap-3 border-t pt-3">
-      <button type="button" className={button} disabled={saving || discard || self || !reason.trim()} onClick={() => review("APPROVED")}>{reservationReallocation ? 'Approve exact reallocation' : reservationDeadline ? 'Approve exact follow-up' : reservationRelease ? 'Approve exact release' : chargeEvidence ? 'Verify invoice and FX evidence' : costAllocation ? "Approve exact allocation" : reclassification ? "Approve exact proposal" : retirement ? "Approve barcode retirement" : "Approve exact policy"}</button>
-      <button type="button" className={button} disabled={saving || discard || self || !reason.trim()} onClick={() => review("REJECTED")}>Reject request</button></footer>}</> : <>
+    </footer>}{selected.status === "REQUESTED" && canReview && <footer className="shrink-0 flex flex-wrap gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+      <button type="button" className={primaryButtonClass} disabled={saving || discard || self || !reason.trim()} onClick={() => review("APPROVED")}>{reservationReallocation ? 'Approve exact reallocation' : reservationDeadline ? 'Approve exact follow-up' : reservationRelease ? 'Approve exact release' : chargeEvidence ? 'Verify invoice and FX evidence' : costAllocation ? "Approve exact allocation" : reclassification ? "Approve exact proposal" : retirement ? "Approve barcode retirement" : "Approve exact policy"}</button>
+      <button type="button" className={dangerButtonClass} disabled={saving || discard || self || !reason.trim()} onClick={() => review("REJECTED")}>Reject request</button></footer>}</> : <>
       <div className="shrink-0 space-y-2">
-        <label className="flex flex-wrap items-center gap-2">Case view
-          <select aria-label="Case view" value={view} onChange={(event) => { setView(event.target.value); setPage(1); }} className={`border rounded-lg p-2 ${panel}`}>
+        <label className="flex flex-wrap items-center gap-2"><span className={fieldLabelClass}>Case view</span>
+          <select aria-label="Case view" value={view} onChange={(event) => { setView(event.target.value); setPage(1); }} className={selectClass}>
             <option value="NEEDS_MY_REVIEW">Needs my review</option><option value="MY_REQUESTS">My requests</option><option value="ALL">All cases</option>
           </select>
         </label>
-        <p className="text-sm">{view === "NEEDS_MY_REVIEW" ? "Undecided requests from other users in this company. Shared with eligible reviewers; not an exclusive assignment. Current source rules are rechecked when deciding." : view === "MY_REQUESTS" ? "Your requests and their recorded decisions in this company." : `All ${caseSubject} cases in this company, including decisions and completed actions.`}</p>
+        <p className={hintClass}>{view === "NEEDS_MY_REVIEW" ? "Undecided requests from other users in this company. Shared with eligible reviewers; not an exclusive assignment. Current source rules are rechecked when deciding." : view === "MY_REQUESTS" ? "Your requests and their recorded decisions in this company." : `All ${caseSubject} cases in this company, including decisions and completed actions.`}</p>
       </div>
-      <div className="flex-1 min-h-0 overflow-auto border rounded-lg">{loading ? <p role="status" className="p-4">Loading manager cases…</p> : error ? <p className="p-4">Case list unavailable. Refresh to retry.</p> : !rows.items.length ? <p className="p-4">{view === "NEEDS_MY_REVIEW" ? `No ${caseSubject} requests waiting for your review.` : view === "MY_REQUESTS" ? `You have no ${caseSubject} review requests in this company.` : `No ${caseSubject} review cases.`}</p> :
-        <table className="w-full text-sm text-left"><thead className={`sticky top-0 ${panel}`}><tr>{[reservationCase ? 'Reservation' : costAllocation ? "Charge reference" : retirement ? "Barcode" : "Product", reservationCase ? 'Draft version' : costAllocation ? "Proposal version" : retirement ? "Identity version" : "Policy version", "Status", "Requested", "Action"].map((label) => <th className="p-3" key={label}>{label}</th>)}</tr></thead><tbody>
-          {rows.items.map((row) => <tr key={row.case_key} className="border-t"><td className="p-3">{row.charge_reference || row.product_name}</td><td className="p-3">{row.source_version}</td><td className="p-3">{row.status}</td><td className="p-3">{row.requested_at}</td><td className="p-3"><button type="button" className={button} onClick={() => { setSelected(row); setReason(""); clear(); }}>Review case<span className="sr-only"> {row.charge_reference || row.product_name}</span></button></td></tr>)}
+      <div className={cardClass}>{loading ? <div role="status"><LoadingState label="Loading manager cases…" /></div> : error ? <EmptyState icon={ClipboardCheck} title="Case list unavailable. Refresh to retry." /> : !rows.items.length ? <EmptyState icon={ClipboardCheck} title={view === "NEEDS_MY_REVIEW" ? `No ${caseSubject} requests waiting for your review.` : view === "MY_REQUESTS" ? `You have no ${caseSubject} review requests in this company.` : `No ${caseSubject} review cases.`} hint="Requests appear here once a colleague submits one for review." /> :
+        <table className={tableClass}><thead><tr>{[reservationCase ? 'Reservation' : costAllocation ? "Charge reference" : retirement ? "Barcode" : "Product", reservationCase ? 'Draft version' : costAllocation ? "Proposal version" : retirement ? "Identity version" : "Policy version", "Status", "Requested", "Action"].map((label) => <th className={thClass} key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.items.map((row) => <tr key={row.case_key} className={trClass}><td className={`${tdClass} font-semibold`}>{row.charge_reference || row.product_name}</td><td className={tdClass}>v{row.source_version}</td><td className={tdClass}><Badge tone={row.status === 'APPROVED' ? 'emerald' : row.status === 'REJECTED' ? 'rose' : 'amber'}>{row.status}</Badge></td><td className={tdClass}>{row.requested_at}</td><td className={tdClass}><button type="button" className={rowActionClass} onClick={() => { setSelected(row); setReason(""); clear(); }}>Review case<span className="sr-only"> {row.charge_reference || row.product_name}</span></button></td></tr>)}
         </tbody></table>}</div>
       <div className="shrink-0"><PaginationToolbar page={page} pageSize={limit} totalPages={loading || error ? 1 : rows.pages} totalCount={loading || error ? 0 : rows.total} onPageChange={setPage}
         onPageSizeChange={(value) => { setLimit(value); setPage(1); }} isDark={isDark} /></div>

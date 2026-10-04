@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { useTheme } from '../../../context/ThemeContext';
 import useOperationIntent from '../../../hooks/useOperationIntent';
 import CustomersPage from '../MasterData/CustomersPage';
 import DraftSourcePicker from './DraftSourcePicker';
 import { recoveryScope, writeRecovery, removeRecovery } from '../../../services/salesDraftRecovery';
+import { FilePlus2 } from 'lucide-react';
+import { RegisterHeader, fieldLabelClass, hintClass, inputClass, messageClass, pageClass, panelClass, primaryButtonClass, secondaryButtonClass, selectClass } from '../../UI/UXComponent/RegisterShell';
 
 export default function SalesDraftEditor({ api, orgId, userId, initial, recovery, onSaved, onClose }) {
-  const { isDark } = useTheme();
   const recovered = recovery?.snapshot;
   if (recovered) initial = { ...recovered.draft, document_key: recovery.key, version: recovered.expected_version,
     lines: recovered.draft.lines.map((line, index) => ({ ...line, units: recovered.units[index] })) };
@@ -103,9 +103,8 @@ export default function SalesDraftEditor({ api, orgId, userId, initial, recovery
       else setError('Save outcome is unconfirmed. Entries are locked; retry the same request to avoid duplicate saves.');
     } finally { inFlight.current = false; if (alive.current) setBusy(false); }
   }
-  const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
   const locked = busy || Boolean(pending) || conflict;
-  if (picker === 'customer') return <section className="h-full min-h-0 flex flex-col"><button type="button" className="shrink-0 border rounded p-2" onClick={() => setPicker(null)}>Back to draft</button>
+  if (picker === 'customer') return <section className={pageClass}><button type="button" className={`${secondaryButtonClass} shrink-0`} onClick={() => setPicker(null)}>Back to draft</button>
     <div className="flex-1 min-h-0"><CustomersPage onSelect={choice => { if (String(choice.orgId) === String(orgId)) { setCustomer(choice); setDirty(true); setPicker(null); } }} /></div></section>;
   if (picker) return <DraftSourcePicker title={picker === 'branch' ? 'Select selling store' : 'Add product'} products={picker === 'product'} load={picker === 'branch' ? api.branches : api.products} onClose={() => setPicker(null)}
     onSelect={choice => {
@@ -114,29 +113,34 @@ export default function SalesDraftEditor({ api, orgId, userId, initial, recovery
         expected_policy_version: choice.policy_version, unit: choice.base_unit, units: choice.units, quantity: '1' }]);
       setDirty(true); setPicker(null);
     }} />;
-  return <section className={`h-full min-h-0 flex flex-col gap-3 p-4 ${theme}`}>
-    <header className="shrink-0 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-xl font-bold">{initial ? 'Edit sales draft' : 'New sales draft'}</h1><p className="text-sm">Demand only. Saving does not confirm a sale, reserve stock or receive payment.</p></div>
-      <div className="flex gap-2"><button type="button" disabled={busy || Boolean(pending)} className="border rounded px-3 py-2 disabled:opacity-40" onClick={() => dirty ? setDiscard(true) : onClose()}>Cancel</button>
-        <button type="button" disabled={busy || localSaving} className="border rounded px-3 py-2 disabled:opacity-40" onClick={keepLocal}>Keep locally and close</button>
-        <button type="button" disabled={busy || conflict} className="rounded bg-indigo-600 text-white px-3 py-2 disabled:opacity-40" onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same save' : 'Save draft'}</button></div></header>
-    {error && <p role="alert" className="shrink-0 text-sm">{error}</p>}
-    <p role="status" className="shrink-0 text-sm">{localSaving ? 'Saving local recovery…' : localError ? 'Local recovery unavailable. Keep this editor open.' : dirty || pending ? 'Recovery saved on this browser for this company and user. It is not a confirmed sale.' : 'Edits will be retained locally without customer names, contacts or payment details.'}</p>
-    {localError && <p role="alert">{localError} <button className="border rounded p-2" onClick={() => persist.current(snapshot()).catch(() => {})}>Retry local recovery</button></p>}
-    {discard && <section role="alertdialog" aria-label="Discard draft edits" className="shrink-0 border rounded p-3"><p>Discard unsaved edits? Previously saved versions remain unchanged.</p>
-      <button type="button" className="border rounded p-2 mr-2" onClick={() => setDiscard(false)}>Keep editing</button><button type="button" className="border rounded p-2" onClick={discardLocal}>Discard edits</button></section>}
+  return <section className={pageClass}>
+    <RegisterHeader icon={FilePlus2} title={initial ? 'Edit sales draft' : 'New sales draft'}
+      description="Demand only. Saving does not confirm a sale, reserve stock or receive payment."
+      actions={<>
+        <button type="button" disabled={busy || Boolean(pending)} className={secondaryButtonClass} onClick={() => dirty ? setDiscard(true) : onClose()}>Cancel</button>
+        <button type="button" disabled={busy || localSaving} className={secondaryButtonClass} onClick={keepLocal}>Keep locally and close</button>
+        <button type="button" disabled={busy || conflict} className={primaryButtonClass} onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same save' : 'Save draft'}</button>
+      </>} />
+    {error && <p role="alert" className={messageClass('error')}>{error}</p>}
+    <p role="status" className={messageClass('muted')}>{localSaving ? 'Saving local recovery…' : localError ? 'Local recovery unavailable. Keep this editor open.' : dirty || pending ? 'Recovery saved on this browser for this company and user. It is not a confirmed sale.' : 'Edits will be retained locally without customer names, contacts or payment details.'}</p>
+    {localError && <p role="alert" className={messageClass('error')}>{localError} <button className={secondaryButtonClass} onClick={() => persist.current(snapshot()).catch(() => {})}>Retry local recovery</button></p>}
+    {discard && <section role="alertdialog" aria-label="Discard draft edits" className={`${panelClass} shrink-0 space-y-3`}><p className="text-sm">Discard unsaved edits? Previously saved versions remain unchanged.</p>
+      <div className="flex flex-wrap gap-2"><button type="button" className={secondaryButtonClass} onClick={() => setDiscard(false)}>Keep editing</button><button type="button" className={secondaryButtonClass} onClick={discardLocal}>Discard edits</button></div></section>}
     <div className="flex-1 min-h-0 overflow-auto space-y-3">
-      <div className="flex flex-wrap gap-3"><button type="button" disabled={locked} className="border rounded p-3 disabled:opacity-40" onClick={() => setPicker('customer')}>{customer ? `Customer: ${customer.profile?.name || customer.customerKey}` : 'Select customer'}</button>
-        <button type="button" disabled={locked} className="border rounded p-3 disabled:opacity-40" onClick={() => setPicker('branch')}>{branch ? `Store: ${branch.name || branch.id}` : 'Select selling store'}</button></div>
-      {lines.map((line, index) => <section key={line.line_key} className="border rounded p-3 flex flex-wrap gap-3 items-center">
-        <span>{line.name || `Product ${line.product_id}`} · Policy v{line.expected_policy_version}</span>
-        {line.reserved_quantity && <span className="text-xs">Reserved: {line.reserved_quantity} {line.base_unit}. Held quantities and ownership are protected on save.</span>}
-        <label>Quantity {index + 1}<input disabled={locked} inputMode="decimal" className={`border rounded p-2 ml-2 w-36 ${theme}`} value={line.quantity} onChange={event => editLine(index, { quantity: event.target.value })} /></label>
-        <label>Unit {index + 1}<select disabled={locked} className={`border rounded p-2 ml-2 ${theme}`} value={line.unit} onChange={event => editLine(index, { unit: event.target.value })}>{line.units.map(unit => <option key={unit}>{unit}</option>)}</select></label>
-        <button type="button" disabled={locked} className="border rounded p-2 disabled:opacity-40" onClick={() => { setLines(rows => rows.filter((_, i) => i !== index)); setDirty(true); }}>Remove line {index + 1}</button>
+      <div className="grid gap-3 md:grid-cols-2"><button type="button" disabled={locked} className={`${panelClass} text-left disabled:opacity-40`} onClick={() => setPicker('customer')}>{customer ? `Customer: ${customer.profile?.name || customer.customerKey}` : 'Select customer'}</button>
+        <button type="button" disabled={locked} className={`${panelClass} text-left disabled:opacity-40`} onClick={() => setPicker('branch')}>{branch ? `Store: ${branch.name || branch.id}` : 'Select selling store'}</button></div>
+      {lines.map((line, index) => <section key={line.line_key} className={`${panelClass} flex flex-wrap items-end gap-3`}>
+        <div className="min-w-[14rem] flex-1">
+          <p className="text-sm font-semibold">{line.name || `Product ${line.product_id}`} · Policy v{line.expected_policy_version}</p>
+          {line.reserved_quantity && <p className={hintClass}>Reserved: {line.reserved_quantity} {line.base_unit}. Held quantities and ownership are protected on save.</p>}
+        </div>
+        <label className="block"><span className={fieldLabelClass}>Quantity {index + 1}</span><input disabled={locked} inputMode="decimal" className={`block w-36 ${inputClass}`} value={line.quantity} onChange={event => editLine(index, { quantity: event.target.value })} /></label>
+        <label className="block"><span className={fieldLabelClass}>Unit {index + 1}</span><select disabled={locked} className={`block ${selectClass}`} value={line.unit} onChange={event => editLine(index, { unit: event.target.value })}>{line.units.map(unit => <option key={unit}>{unit}</option>)}</select></label>
+        <button type="button" disabled={locked} className={secondaryButtonClass} onClick={() => { setLines(rows => rows.filter((_, i) => i !== index)); setDirty(true); }}>Remove line {index + 1}</button>
       </section>)}
-      {!lines.length && <p>No products selected.</p>}
-      <button type="button" disabled={locked || lines.length >= 100} className="border rounded px-3 py-2 disabled:opacity-40" onClick={() => setPicker('product')}>Add product</button>
-      <p className="text-xs">Maximum 100 lines. Unit increments and current source versions are checked again by the server. Recover edits through Local drafts on this browser; recovery does not grant offline posting rights.</p>
+      {!lines.length && <p className={`${panelClass} text-center text-sm text-slate-500 dark:text-slate-400`}>No products selected.</p>}
+      <button type="button" disabled={locked || lines.length >= 100} className={secondaryButtonClass} onClick={() => setPicker('product')}>Add product</button>
+      <p className={hintClass}>Maximum 100 lines. Unit increments and current source versions are checked again by the server. Recover edits through Local drafts on this browser; recovery does not grant offline posting rights.</p>
     </div>
   </section>;
 }
