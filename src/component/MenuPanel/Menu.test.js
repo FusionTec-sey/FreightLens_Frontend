@@ -4,6 +4,7 @@ import "@testing-library/jest-dom";
 import { useLocation } from "react-router-dom";
 import Sidebar from "./Menu";
 import { useAuth } from "../../context/AuthContext";
+jest.mock("axios", () => ({ get: jest.fn(), patch: jest.fn(), post: jest.fn() }));
 jest.mock("../../context/AuthContext", () => ({ useAuth: jest.fn() }));
 jest.mock("react-router-dom", () => ({ useLocation: jest.fn(), useNavigate: () => jest.fn(),
   Link: ({ to, children, ...props }) => <a href={to} {...props}>{children}</a> }), { virtual: true });

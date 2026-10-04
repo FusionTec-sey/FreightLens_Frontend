@@ -26,6 +26,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import logo from "../../assets/Images/Freightliner.png";
+import NotificationsButton from "./NotificationsButton";
 import { INVENTORY_LOCATIONS_ROUTE, INVENTORY_POOLS_ROUTE, INVENTORY_APPROVALS_ROUTE, INVENTORY_BARCODE_REVIEWS_ROUTE } from "../../utils/inventoryRoutes";
 
 function Sidebar({ onLinkClick }) {
@@ -734,6 +735,7 @@ function Sidebar({ onLinkClick }) {
         </div>
 
         {/* Controls: Theme & Logout */}
+        <NotificationsButton isDark={isDark} canOpenCases={canViewInventory} />
         {canViewInventory && (isSuperAdmin || hasPermission("Review_InventoryPolicy")) && <Link
           to={INVENTORY_APPROVALS_ROUTE} title="My review queue" aria-label="My review queue"
           className="block rounded-lg px-2 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-800">
