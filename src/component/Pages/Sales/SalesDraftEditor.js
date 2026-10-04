@@ -18,12 +18,14 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
   const { isDark } = useTheme();
   const recovered = recovery?.snapshot;
   if (recovered) initial = { ...recovered.draft, document_key: recovery.key, version: recovered.expected_version,
+    source_reference: recovered.source_reference,
     lines: recovered.draft.lines.map((line, index) => ({ ...line, units: recovered.units[index] })) };
+  const sourceReference = initial?.source_reference || null;
   const [key] = useState(() => initial?.document_key || window.crypto.randomUUID());
   const [customer, setCustomer] = useState(initial?.customer_key ? { customerKey: initial.customer_key, version: initial.expected_customer_version, profile: { name: initial.customer_name } } : null);
   const [branch, setBranch] = useState(initial?.branch_id ? { id: initial.branch_id, name: initial.branch_name } : null);
   const [lines, setLines] = useState(() => (initial?.lines || []).map(line => ({ ...line, name: line.product_name, units: line.units || [...new Set([line.unit, line.base_unit])] })));
-  const [picker, setPicker] = useState(null); const [dirty, setDirty] = useState(Boolean(recovery));
+  const [picker, setPicker] = useState(null); const [dirty, setDirty] = useState(Boolean(recovery || sourceReference));
   const [mobilePane, setMobilePane] = useState('cart');
   const [showValidation, setShowValidation] = useState(false);
   const [focusRequest, setFocusRequest] = useState(null);
@@ -39,7 +41,8 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
   const { payloadFor } = useOperationIntent();
   const expectedVersion = initial?.version || 0;
   function snapshot(pendingSave = pending) {
-    return { expected_version: expectedVersion, conflict, pending: pendingSave, units: lines.map(line => line.units), draft: {
+    return { expected_version: expectedVersion, conflict, pending: pendingSave, source_reference: sourceReference,
+      units: lines.map(line => line.units), draft: {
       customer_key: customer?.customerKey || null, expected_customer_version: customer?.version || null, branch_id: branch?.id || null,
       lines: lines.map(line => ({ line_key: line.line_key, product_id: line.product_id, expected_policy_version: line.expected_policy_version, quantity: line.quantity, unit: line.unit })),
     } };
@@ -183,13 +186,16 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
       setDirty(true); setPicker(null);
     }} />;
   return <section className={`sales-workspace ${pageClass}`}>
-    <RegisterHeader icon={FileText} title={initial ? 'Edit sales draft' : 'New sales draft'} description="Demand only. Saving does not confirm a sale, reserve stock or receive payment." actions={<>
+    <RegisterHeader icon={FileText} title={sourceReference ? 'Copy sales draft' : initial?.version ? 'Edit sales draft' : 'New sales draft'} description="Demand only. Saving does not confirm a sale, reserve stock or receive payment." actions={<>
       <button type="button" disabled={busy || Boolean(pending)} className={secondaryButtonClass} onClick={() => dirty ? setDiscard(true) : onClose()}>Cancel</button>
       <button type="button" disabled={busy || localSaving || Boolean(savedReceipt)} className={secondaryButtonClass} onClick={keepLocal}>Keep locally and close</button>
       {savedReceipt ? <button type="button" disabled={busy} className={primaryButtonClass} onClick={retryCleanup}>{busy ? 'Finishing…' : 'Retry local cleanup'}</button>
         : <button type="button" disabled={busy || conflict} className={primaryButtonClass} onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same save' : 'Save draft'}</button>}
     </>} />
     <div className="sales-editor-body">
+    {sourceReference && <p role="status" className="shrink-0 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+      New draft copied from {sourceReference.document_key} v{sourceReference.version}. This source reference stays in local recovery only; the current server save does not record copy provenance. Customer, store, product policies and units are revalidated on save. No payment, reservation, approval or collection state was copied.
+    </p>}
     {error && <p role="alert" className="shrink-0 text-sm">{error}</p>}
     <p role="status" className="shrink-0 text-sm">{savedReceipt ? `Server confirmed draft version ${savedReceipt.version}. Only local recovery cleanup remains; no money or stock was posted.` : localSaving ? 'Saving local recovery…' : localError ? 'Local recovery unavailable. Keep this editor open.' : dirty || pending ? 'Recovery saved on this browser for this company and user. It is not a confirmed sale.' : 'Edits will be retained locally without customer names, contacts or payment details.'}</p>
     {localError && <p role="alert">{localError} {!savedReceipt && <button type="button" className="border rounded p-2" onClick={() => persist.current(snapshot()).catch(() => {})}>Retry local recovery</button>}</p>}

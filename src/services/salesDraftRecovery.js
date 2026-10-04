@@ -5,6 +5,15 @@ const lockName = 'freightlens.sales-recovery.v1';
 const sequenceKey = 'freightlens.sales-recovery-sequence.v1';
 const text = value => typeof value === 'string' && value.length <= 128 ? value : null;
 const positive = value => Number.isSafeInteger(value) && value > 0 ? value : null;
+function sourceReference(value) {
+  if (value == null) return null;
+  const key = text(value.document_key);
+  const version = positive(value.version);
+  if (!key || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key) || !version) {
+    throw new Error('Invalid copy source reference.');
+  }
+  return { document_key: key, version };
+}
 export function recoveryScope(orgId, userId) {
   if (!positive(Number(orgId)) || !positive(Number(userId))) throw new Error('Select an authenticated company and user for recovery.');
   return `${Number(orgId)}:${Number(userId)}`;
@@ -29,6 +38,7 @@ export function recoverySnapshot(value) {
   if (pending && (!pending.operation_key || pending.expected_version !== value.expected_version ||
     JSON.stringify(pending.draft) !== JSON.stringify(draft))) throw new Error('Pending save does not match the recoverable draft.');
   return { expected_version: value.expected_version, draft, pending, conflict: Boolean(value.conflict),
+    source_reference: sourceReference(value.source_reference),
     units: draft.lines.map((line, index) => [...new Set([line.unit, ...(value.units?.[index] || [])])].filter(unit => text(unit)).slice(0, 17)) };
 }
 function decode(raw, scope, key) {

@@ -19,6 +19,7 @@ import { SALES_DRAFTS_ROUTE } from '../../../utils/salesRoutes';
 import { FileText } from 'lucide-react';
 import { RegisterHeader, pageClass, cardClass, primaryButtonClass, secondaryButtonClass, Badge } from '../../UI/UXComponent/RegisterShell';
 import PriceFloorCases from './PriceFloorCases';
+import { copySalesDraft } from './copySalesDraft';
 
 export default function SalesDraftsPage({ view = 'DRAFTS' }) {
   const { token, selectedOrgId, orgId, userId, permissions = [], isSuperAdmin, hasModule } = useAuth();
@@ -93,6 +94,7 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const [detailError, setDetailError] = useState('');
+  const [copyError, setCopyError] = useState('');
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saved, setSaved] = useState(null);
@@ -118,7 +120,7 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
   async function open(row) {
     request.current?.abort();
     const controller = new AbortController(); request.current = controller;
-    setSelected(null); setDetailError(''); setLoadingDetail(true);
+    setSelected(null); setDetailError(''); setCopyError(''); setLoadingDetail(true);
     try {
       const { data } = await api.read(row.document_key, controller.signal);
       if (controller.signal.aborted) return;
@@ -177,6 +179,7 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
       {branchFilter && <button type="button" className={secondaryButtonClass} onClick={() => { setBranchFilter(null); setPage(1); }}>Clear store filter</button>}
     </div>
     {saved && <section className="shrink-0 flex flex-wrap gap-3 items-center"><p role="status">Draft version {saved.version} saved. No stock or money posted.{saved.search_indexed === false && ' Search update pending; browse or open the saved draft directly.'}</p><button type="button" className="border rounded p-2" onClick={() => open(saved)}>Open saved draft</button><button type="button" className="border rounded p-2" onClick={() => setSaved(null)}>Dismiss result</button></section>}
+    {copyError && <p role="alert" className="shrink-0 text-sm text-rose-700 dark:text-rose-300">{copyError}</p>}
     <div className="flex min-h-0 min-w-0 flex-1 gap-3">
     <div className={`${selected ? 'hidden lg:flex sales-register-sidebar lg:flex-none' : 'flex flex-1'} min-h-0 min-w-0 flex-col gap-3`}>
     <div className={cardClass}>
@@ -190,6 +193,10 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
     </div>
     {selected && <SalesDraftDetails key={selected.document_key} draft={selected} api={api} onClose={() => setSelected(null)}
       onEdit={canManage ? () => setEditing(selected) : undefined}
+      onCopy={canManage ? () => {
+        try { setCopyError(''); setEditing(copySalesDraft(selected, () => window.crypto.randomUUID())); }
+        catch (failure) { setCopyError(failure.message || 'This draft could not be copied.'); }
+      } : undefined}
       onAllocate={canAllocate ? () => setAllocation(selected) : undefined}
       onOtherStore={canOpenOtherStore && canRequestOtherStore ? () => setOtherStoreRequest(selected) : undefined}
       canRequestFloor={canRequestFloor}

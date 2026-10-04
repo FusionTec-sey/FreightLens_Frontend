@@ -10,7 +10,7 @@ const operationKey = () => window.crypto?.randomUUID?.()
     const r = Math.floor(Math.random() * 16); return (c === 'x' ? r : (r & 3) | 8).toString(16);
   });
 
-export default function SalesDraftDetails({ draft, api, onClose, onEdit, onAllocate, onOtherStore, onReservations, canRequestFloor = false, canPreparePricing = false }) {
+export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy, onAllocate, onOtherStore, onReservations, canRequestFloor = false, canPreparePricing = false }) {
   const [panel, setPanel] = useState('items');
   const [pricing, setPricing] = useState(null);
   const [pricingError, setPricingError] = useState('');
@@ -130,6 +130,7 @@ export default function SalesDraftDetails({ draft, api, onClose, onEdit, onAlloc
     </div>}
     {panel === 'items' && <footer className="shrink-0 flex flex-wrap gap-2 border-t border-slate-200 p-3 dark:border-slate-700">
       {onEdit && <button type="button" className={primaryButtonClass} onClick={onEdit}>Edit draft</button>}
+      {onCopy && <button type="button" className={secondaryButtonClass} onClick={onCopy}>Copy into new draft</button>}
       {onReservations && <button type="button" className={secondaryButtonClass} onClick={onReservations}>Reserved stock</button>}
       {onAllocate && <button type="button" className={secondaryButtonClass} onClick={onAllocate}>Allocate same-store stock</button>}
       {onOtherStore && <button type="button" className={secondaryButtonClass} onClick={onOtherStore}>Request other-store stock</button>}
