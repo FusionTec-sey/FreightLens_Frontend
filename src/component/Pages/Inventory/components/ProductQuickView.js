@@ -9,7 +9,6 @@ import {
   Weight,
   ExternalLink,
   Copy,
-  PlusCircle,
   Truck,
   DollarSign,
   Tag,
@@ -24,10 +23,8 @@ export default function ProductQuickView({
   canViewVendor = false,
   canViewFinancials = false,
   canEdit = false,
-  canAdjustStock = false,
   onClose,
   onOpenDetail,
-  onAdjustStock,
   onDuplicate,
 }) {
   const [showPolicy, setShowPolicy] = useState(false);
@@ -146,24 +143,24 @@ export default function ProductQuickView({
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Stock Status
               </span>
-              {canAdjustStock && (
-                <button
-                  type="button"
-                  onClick={() => onAdjustStock && onAdjustStock(product)}
-                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <PlusCircle size={12} />
-                  Adjust
-                </button>
-              )}
             </div>
             <StockGaugeBar
-              currentStock={product.current_stock}
+              currentStock={product.stock_on_hand}
               minStock={product.min_stock_quantity}
               maxStock={product.max_stock_quantity}
-              unit={product.unit || "PCS"}
+              unit={product.stock_base_unit || product.unit || "PCS"}
               isDark={isDark}
             />
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+              {[["On hand", product.stock_on_hand], ["Reserved", product.stock_reserved],
+                ["Available", product.stock_available], ["Damaged", product.stock_damaged],
+                ["Quarantined", product.stock_quarantined]].map(([label, value]) =>
+                <div key={label} className="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+                  <p className="text-[10px] uppercase text-slate-400">{label}</p>
+                  <p className="font-mono">{value ?? "Unavailable"}</p>
+                </div>)}
+            </div>
+            {product.stock_status === "MIXED_UNITS" && <p role="alert" className="mt-2 text-xs text-amber-700 dark:text-amber-300">Incompatible base units were not summed. Inventory reconciliation is required.</p>}
           </div>
 
           {/* Specifications Grid */}

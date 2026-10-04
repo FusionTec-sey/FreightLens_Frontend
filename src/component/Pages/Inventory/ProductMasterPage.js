@@ -37,7 +37,6 @@ import {
   Image as ImageIcon,
   Maximize2,
   RefreshCw,
-  SlidersHorizontal,
   Copy,
   Calculator,
   Download,
@@ -46,7 +45,6 @@ import {
   Hash,
 } from "lucide-react";
 import StockGaugeBar from "./components/StockGaugeBar";
-import StockAdjustModal from "./components/StockAdjustModal";
 import ProductQuickView from "./components/ProductQuickView";
 import BulkActionToolbar from "./components/BulkActionToolbar";
 import { useTheme } from "../../../context/ThemeContext";
@@ -196,12 +194,6 @@ export default function ProductMasterPage() {
     );
   }, [isRoot, permissions]);
 
-  const canAdjustStock = useMemo(() => {
-    if (isRoot) return true;
-    const perms = Array.isArray(permissions) ? permissions : [];
-    return perms.includes("Administrator") || perms.includes("Adjust_Stock");
-  }, [isRoot, permissions]);
-
   const canExport = useMemo(() => {
     if (isRoot) return true;
     const perms = Array.isArray(permissions) ? permissions : [];
@@ -223,7 +215,6 @@ export default function ProductMasterPage() {
   // ── Multi-Select & Quick Action UI State ─────────────────────────────────────
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
-  const [stockAdjustProduct, setStockAdjustProduct] = useState(null);
   const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   // ── Screen Navigation Mode: "products" | "categories" | "product_detail" ─────
@@ -484,7 +475,7 @@ export default function ProductMasterPage() {
     packaging_specs: {},
     unit_cost: "",
     currency: "USD",
-    current_stock: 0,
+    current_stock: null,
     min_stock_quantity: 0,
     max_stock_quantity: "",
     order_threshold_qty: "",
@@ -834,11 +825,11 @@ export default function ProductMasterPage() {
     const selectedProds = products.filter((p) => selectedProductIds.includes(p.id));
     if (selectedProds.length === 0) return;
 
-    let csvContent = "SKU,Code,Name,Category,Unit,Current Stock,Min Stock,Status\n";
+    let csvContent = "SKU,Code,Name,Category,Selling Unit,Stock Status,Stock Base Unit,On Hand,Reserved,Available,Damaged,Quarantined,Min Stock,Status\n";
     selectedProds.forEach((p) => {
       csvContent += `"${p.sku || ""}","${p.code || ""}","${(p.name || "").replace(/"/g, '""')}","${
         p.category_name || ""
-      }","${p.unit || "PCS"}",${p.current_stock || 0},${p.min_stock_quantity || 0},"${p.status || "active"}"\n`;
+      }","${p.unit || "PCS"}","${p.stock_status || "NO_BALANCE"}","${p.stock_base_unit || ""}","${p.stock_on_hand ?? ""}","${p.stock_reserved ?? ""}","${p.stock_available ?? ""}","${p.stock_damaged ?? ""}","${p.stock_quarantined ?? ""}",${p.min_stock_quantity || 0},"${p.status || "active"}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -1051,7 +1042,7 @@ export default function ProductMasterPage() {
         packaging_specs: p.packaging_specs || {},
         unit_cost: p.unit_cost !== null && p.unit_cost !== undefined ? p.unit_cost : "",
         currency: p.currency || "USD",
-        current_stock: p.current_stock || 0,
+        current_stock: p.stock_on_hand ?? null,
         min_stock_quantity: p.min_stock_quantity || 0,
         max_stock_quantity: p.max_stock_quantity !== null && p.max_stock_quantity !== undefined ? p.max_stock_quantity : "",
         order_threshold_qty: p.order_threshold_qty !== null && p.order_threshold_qty !== undefined ? p.order_threshold_qty : "",
@@ -1365,7 +1356,6 @@ export default function ProductMasterPage() {
         packaging_specs: formData.packaging_specs || {},
         unit_cost: formData.unit_cost !== "" ? parseFloat(formData.unit_cost) : null,
         currency: formData.currency || "USD",
-        current_stock: parseFloat(formData.current_stock) || 0.0,
         min_stock_quantity: parseFloat(formData.min_stock_quantity) || 0.0,
         max_stock_quantity: formData.max_stock_quantity !== "" ? parseFloat(formData.max_stock_quantity) : null,
         order_threshold_qty: formData.order_threshold_qty !== "" ? parseFloat(formData.order_threshold_qty) : null,
@@ -1812,11 +1802,11 @@ export default function ProductMasterPage() {
                         isDark ? "bg-slate-800/60 border-slate-700" : "bg-slate-50 border-slate-200"
                       }`}
                     >
-                      <div className="text-xs uppercase font-bold text-slate-400">On-Hand Stock</div>
+                      <div className="text-xs uppercase font-bold text-slate-400">On-hand stock</div>
                       <div className="text-2xl font-extrabold font-mono mt-1">
-                        {formData?.current_stock?.toLocaleString()} {formData?.unit}
+                        {formData?.stock_on_hand ?? "Unavailable"} {formData?.stock_base_unit || ""}
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Physical baseline inventory</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">Available {formData?.stock_available ?? "Unavailable"} · Reserved {formData?.stock_reserved ?? "Unavailable"}</div>
                     </div>
 
                     <div
@@ -2883,18 +2873,14 @@ export default function ProductMasterPage() {
                       Stock Thresholds & Reorder Rules
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                      <div>
-                        <label className="block text-xs font-bold mb-1">Baseline On-Hand Stock</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={formData?.current_stock}
-                          onChange={(e) => setFormData({ ...formData, current_stock: e.target.value })}
-                          className={`w-full px-3.5 py-2.5 border rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
-                          }`}
-                        />
-                        <p className="text-[10px] text-slate-400 mt-1">Physical stock currently on warehouse shelves</p>
+                      <div className="sm:col-span-3">
+                        <span className="block text-xs font-bold mb-2">Authoritative location-balance summary</span>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{[
+                          ["On hand", formData?.stock_on_hand], ["Reserved", formData?.stock_reserved],
+                          ["Available", formData?.stock_available], ["Damaged", formData?.stock_damaged],
+                          ["Quarantined", formData?.stock_quarantined],
+                        ].map(([label, value]) => <div key={label} className="rounded-lg border border-slate-200 p-2 dark:border-slate-700"><p className="text-[10px] uppercase text-slate-500">{label}</p><p className="font-mono text-sm">{value ?? "Unavailable"}</p></div>)}</div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">{formData?.stock_status === "MIXED_UNITS" ? "Reconciliation required: incompatible base units were not summed." : `Company-wide physical balances · ${formData?.stock_base_unit || "No balance yet"}.`}</p>
                       </div>
 
                       <div>
@@ -4149,9 +4135,10 @@ export default function ProductMasterPage() {
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap">
                             <div className="flex items-baseline gap-1 text-xs font-bold font-mono">
-                              <span>{p.qty_on_hand ?? p.current_stock ?? 0}</span>
-                              <span className="text-[10px] font-semibold text-slate-400 font-sans">{p.unit || "PCS"}</span>
+                              <span>{p.stock_available ?? "Unavailable"}</span>
+                              <span className="text-[10px] font-semibold text-slate-400 font-sans">{p.stock_base_unit || p.unit || "PCS"} available</span>
                             </div>
+                            <div className="text-[10px] text-slate-500">On hand {p.stock_on_hand ?? "Unavailable"} · Reserved {p.stock_reserved ?? "Unavailable"}</div>
                             {p.qty_on_order > 0 && (
                               <div className="mt-1">
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
@@ -4803,18 +4790,15 @@ export default function ProductMasterPage() {
                     {/* Column 4: Stock Health & Pipeline */}
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <StockGaugeBar
-                        currentStock={p.current_stock}
+                        currentStock={p.stock_on_hand}
                         minStock={p.min_stock_quantity}
                         maxStock={p.max_stock_quantity}
-                        unit={p.unit || "PCS"}
+                        unit={p.stock_base_unit || p.unit || "PCS"}
                         isDark={isDark}
-                        onClick={(e) => {
-                          if (canAdjustStock) {
-                            e.stopPropagation();
-                            setStockAdjustProduct(p);
-                          }
-                        }}
                       />
+                      <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                        Available {p.stock_available ?? "Unavailable"} · Reserved {p.stock_reserved ?? "Unavailable"}
+                      </div>
                       {p.qty_on_order > 0 && (
                         <div className="mt-1">
                           <span
@@ -4872,18 +4856,6 @@ export default function ProductMasterPage() {
                         >
                           <Eye size={15} />
                         </button>
-
-                        {/* Quick Stock Adjust Button */}
-                        {canAdjustStock && (
-                          <button
-                            type="button"
-                            onClick={() => setStockAdjustProduct(p)}
-                            title="Quick Adjust Stock"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          >
-                            <SlidersHorizontal size={15} />
-                          </button>
-                        )}
 
                         {/* Edit Specs Direct Link */}
                         <button
@@ -4948,20 +4920,6 @@ export default function ProductMasterPage() {
                                 >
                                   <Copy size={13} />
                                   <span>Duplicate</span>
-                                </button>
-                              )}
-
-                              {canAdjustStock && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenRowMenuId(null);
-                                    setStockAdjustProduct(p);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
-                                >
-                                  <SlidersHorizontal size={13} />
-                                  <span>Adjust Stock</span>
                                 </button>
                               )}
 
@@ -5186,16 +5144,6 @@ export default function ProductMasterPage() {
         onBulkDelete={handleBulkDelete}
       />
 
-      {/* Stock Adjust Modal */}
-      {stockAdjustProduct && (
-        <StockAdjustModal
-          product={stockAdjustProduct}
-          isDark={isDark}
-          onClose={() => setStockAdjustProduct(null)}
-          onSuccess={() => fetchProducts()}
-        />
-      )}
-
       {/* Product Quick View Slide-over Drawer */}
       {quickViewProduct && (
         <ProductQuickView
@@ -5204,15 +5152,10 @@ export default function ProductMasterPage() {
           canViewVendor={canViewVendor}
           canViewFinancials={canViewFinancials}
           canEdit={canEditProduct}
-          canAdjustStock={canAdjustStock}
           onClose={() => setQuickViewProduct(null)}
           onOpenDetail={(prod) => {
             setQuickViewProduct(null);
             handleOpenProductDetail(prod, "products");
-          }}
-          onAdjustStock={(prod) => {
-            setQuickViewProduct(null);
-            setStockAdjustProduct(prod);
           }}
           onDuplicate={(prod) => {
             setQuickViewProduct(null);

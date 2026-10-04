@@ -7,9 +7,10 @@ import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import { toast } from "react-toastify";
 import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
+import ReceiptManifestPanel from './ReceiptManifestPanel';
 
 export default function GoodsReceivingPage() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
 
   const [receipts, setReceipts] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -256,7 +257,7 @@ export default function GoodsReceivingPage() {
             setPageSize(newSize);
             setPage(1);
           }}
-          isDark={theme?.mode === "dark"}
+          isDark={isDark}
         />
       )}
 
@@ -415,8 +416,8 @@ export default function GoodsReceivingPage() {
       {/* Viewing Receipt Modal */}
       {viewingReceipt && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-800">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex max-h-[90vh] flex-col bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-800">
+            <div className="shrink-0 flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
               <div>
                 <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded">
                   {viewingReceipt.receipt_number}
@@ -428,7 +429,7 @@ export default function GoodsReceivingPage() {
               </button>
             </div>
 
-            <div className="py-4 space-y-4">
+            <div className="min-h-0 overflow-y-auto py-4 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-xs text-gray-400 font-semibold uppercase">Warehouse</span>
@@ -470,6 +471,7 @@ export default function GoodsReceivingPage() {
                 </div>
               </div>
 
+              <ReceiptManifestPanel receipt={viewingReceipt} isDark={isDark} />
               {viewingReceipt.notes && (
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-xs">
                   <span className="font-bold">Notes:</span> {viewingReceipt.notes}

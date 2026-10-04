@@ -8,6 +8,10 @@ export function inventoryLocationsApi(token, orgId) {
   const path = (branchId) => `/inventory/branches${branchId ? `/${branchId}/locations` : ""}`;
   return {
     staffAssignments: (branchId, page, limit, signal) => client.get(`/inventory/branches/${branchId}/staff-assignments`, { headers, params: { page, limit }, signal }),
+    stockAdjustmentCases: (balanceId, page, limit, signal, view = "ALL") => client.get("/inventory/stock-adjustment-cases", { headers, params: { balance_id: balanceId, page, limit, view }, signal }),
+    requestStockAdjustment: (body, signal) => client.post("/inventory/stock-adjustment-cases", body, { headers, signal }),
+    reviewStockAdjustment: (caseKey, body, signal) => client.post(`/inventory/stock-adjustment-cases/${caseKey}/review`, body, { headers, signal }),
+    executeStockAdjustment: (caseKey, body, signal) => client.post(`/inventory/stock-adjustment-cases/${caseKey}/execute`, body, { headers, signal }),
     saveStaffAssignment: (branchId, userId, body, signal) => client.put(`/inventory/branches/${branchId}/staff-assignments/${userId}`, body, { headers, signal }),
     evidenceSuppliers: (page, limit, signal) => client.get('/inventory/cost-evidence/suppliers', { headers, params: { page, limit }, signal }),
     evidenceDocuments: (page, limit, signal) => client.get('/inventory/cost-evidence/documents', { headers, params: { page, limit }, signal }),
@@ -51,6 +55,12 @@ export function inventoryLocationsApi(token, orgId) {
     create: (branchId, data, signal) => client.post(path(branchId), data, { headers, signal }),
     listPools: (page, limit, signal) => client.get("/inventory/cost-pools", { headers, params: { page, limit }, signal }),
     poolValuations: (poolId, page, limit, signal) => client.get(`/inventory/cost-pools/${poolId}/valuations`, { headers, params: { page, limit }, signal }),
+    reconciliationReadiness: (poolId, page, limit, signal) => client.get(`/inventory/cost-pools/${poolId}/reconciliation-readiness`, { headers, params: { page, limit }, signal }),
+    requestCostReconciliation: (body, signal) => client.post('/inventory/cost-reconciliation/cases', body, { headers, signal }),
+    costReconciliationCases: (poolId, productId, page, limit, view, signal) => client.get('/inventory/cost-reconciliation/cases', { headers, params: { cost_pool_id: poolId, product_id: productId || undefined, page, limit, view }, signal }),
+    reviewCostReconciliation: (caseKey, body, signal) => client.post(`/inventory/cost-reconciliation/cases/${caseKey}/review`, body, { headers, signal }),
+    closeCostReconciliation: (caseKey, body, signal) => client.post(`/inventory/cost-reconciliation/cases/${caseKey}/close`, body, { headers, signal }),
+    costReconciliationCheckpoints: (poolId, productId, page, limit, signal) => client.get('/inventory/cost-reconciliation/checkpoints', { headers, params: { cost_pool_id: poolId, product_id: productId || undefined, page, limit }, signal }),
     previewCostAllocation: (poolId, body, signal) => client.post(`/inventory/cost-pools/${poolId}/allocate-cost-preview`, body, { headers, signal }),
     saveCostAllocation: (poolId, body, signal) => client.post(`/inventory/cost-pools/${poolId}/allocation-proposals`, body, { headers, signal }),
     costAllocations: (poolId, page, limit, signal) => client.get(`/inventory/cost-pools/${poolId}/allocation-proposals`, { headers, params: { page, limit }, signal }),

@@ -3,6 +3,7 @@ import { useTheme } from "../../../../context/ThemeContext";
 import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import StockSerials from "./StockSerials";
 import ReclassificationProposals from "./ReclassificationProposals";
+import StockAdjustmentCases from "./StockAdjustmentCases";
 
 // Keep decimal strings exact, including values beyond JavaScript's safe precision.
 export function displayQuantity(value) {
@@ -10,7 +11,8 @@ export function displayQuantity(value) {
   return value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value;
 }
 
-export default function LocationStock({ api, branch, location, onClose, canPropose = false, canReview = false, userId }) {
+export default function LocationStock({ api, branch, location, onClose, canPropose = false, canReview = false,
+  canRequestAdjustment = false, canReviewAdjustment = false, canExecuteAdjustment = false, userId }) {
   const { isDark } = useTheme();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
@@ -20,6 +22,7 @@ export default function LocationStock({ api, branch, location, onClose, canPropo
   const [error, setError] = useState("");
   const [serialBalance, setSerialBalance] = useState(null);
   const [proposalBalance, setProposalBalance] = useState(null);
+  const [adjustmentBalance, setAdjustmentBalance] = useState(null);
   const panel = isDark ? "bg-slate-900 text-slate-100 border-slate-700" : "bg-white text-slate-900 border-slate-200";
   const button = "px-3 py-2 border rounded-lg cursor-pointer hover:bg-indigo-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:opacity-40";
   useEffect(() => {
@@ -38,6 +41,9 @@ export default function LocationStock({ api, branch, location, onClose, canPropo
 
   if (proposalBalance?.api === api) return <ReclassificationProposals key={proposalBalance.row.id} api={api} balance={proposalBalance.row} canPropose={canPropose} canReview={canReview} userId={userId}
     onClose={() => setProposalBalance(null)} />;
+  if (adjustmentBalance?.api === api) return <StockAdjustmentCases key={adjustmentBalance.row.id} api={api} balance={adjustmentBalance.row}
+    userId={userId} canRequest={canRequestAdjustment} canReview={canReviewAdjustment} canExecute={canExecuteAdjustment}
+    onStockChanged={() => setRevision((n) => n + 1)} onClose={() => { setAdjustmentBalance(null); setRevision((n) => n + 1); }} />;
   if (serialBalance) return <StockSerials key={serialBalance.id} api={api} branch={branch} location={location} balance={serialBalance}
     onClose={() => { setSerialBalance(null); setRevision((n) => n + 1); }} />;
   return <section aria-label="Location stock" className={`h-full min-h-0 min-w-0 flex flex-col gap-3 p-4 ${panel}`}>
@@ -62,7 +68,8 @@ export default function LocationStock({ api, branch, location, onClose, canPropo
             <td className="p-3 min-w-48">{row.tracking_policy === "BATCH" ? <><div className="font-mono">{row.batch_code}</div><div>Shade: {row.batch_shade || "Not recorded"}</div><div>Calibre: {row.batch_calibre || "Not recorded"}</div><div>Expiry: {row.expires_on || "Not recorded"}</div></> : row.tracking_policy === "SERIAL" ? <><div>Serial tracked</div><button type="button" className={button} onClick={() => setSerialBalance(row)}>View serials</button></> : "Ordinary / untracked"}</td>
             <td className="p-3 whitespace-nowrap">{row.base_unit}<div className="text-xs">{row.unit_policy_status === "SNAPSHOTTED" ? `Increment: ${displayQuantity(row.quantity_step)}` : "Unit rules need review — posting blocked"}</div></td>
             {["on_hand", "reserved", "available", "damaged", "quarantined"].map((key) => <td key={key} className="p-3 text-right whitespace-nowrap tabular-nums">{displayQuantity(row[key])}</td>)}
-            <td className="p-3 whitespace-nowrap">{row.version}<div><button type="button" className={button} onClick={() => setProposalBalance({ api, row })}>Reclassification proposals</button></div></td>
+            <td className="p-3 whitespace-nowrap">{row.version}<div className="mt-1 flex flex-col items-start gap-1"><button type="button" className={button} onClick={() => setProposalBalance({ api, row })}>Reclassification proposals</button>
+              {(canRequestAdjustment || canReviewAdjustment || canExecuteAdjustment) && <button type="button" className={button} onClick={() => setAdjustmentBalance({ api, row })}>Adjustment cases</button>}</div></td>
           </tr>)}</tbody>
         </table>}
     </div>

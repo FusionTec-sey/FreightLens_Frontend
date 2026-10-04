@@ -44,6 +44,26 @@ test("proposal reads pin company and exact stock record", () => {
   expect(client.get).toHaveBeenLastCalledWith("/inventory/reclassification-proposals/demo-key", { headers, signal });
 });
 
+test("stock adjustment operations stay company-pinned and bind the exact balance", () => {
+  const api = inventoryLocationsApi("adjustment-token", 7), signal = new AbortController().signal;
+  const headers = { Authorization: "Bearer adjustment-token", "X-Active-Org": "7" };
+  const request = { operation_key: "request-key", balance_id: 3, expected_source_version: 8,
+    target_on_hand: "11.000000", target_damaged: "1.000000", target_quarantined: "0.000000",
+    reason: "Verified physical count" };
+  const decision = { operation_key: "review-key", expected_version: 2, outcome: "APPROVED", reason: "Count witnessed" };
+  const execution = { operation_key: "execute-key" };
+  api.stockAdjustmentCases(3, 2, 25, signal, "NEEDS_MY_REVIEW");
+  expect(client.get).toHaveBeenLastCalledWith("/inventory/stock-adjustment-cases", {
+    headers, params: { balance_id: 3, page: 2, limit: 25, view: "NEEDS_MY_REVIEW" }, signal,
+  });
+  api.requestStockAdjustment(request, signal);
+  expect(client.post).toHaveBeenLastCalledWith("/inventory/stock-adjustment-cases", request, { headers, signal });
+  api.reviewStockAdjustment("case-key", decision, signal);
+  expect(client.post).toHaveBeenLastCalledWith("/inventory/stock-adjustment-cases/case-key/review", decision, { headers, signal });
+  api.executeStockAdjustment("case-key", execution, signal);
+  expect(client.post).toHaveBeenLastCalledWith("/inventory/stock-adjustment-cases/case-key/execute", execution, { headers, signal });
+});
+
 test("personal review queue is company-pinned and sends no caller-selected user ID", () => {
   const api = inventoryLocationsApi("test-token", 7), signal = new AbortController().signal;
   api.managerCases(2, 25, signal, "NEEDS_MY_REVIEW");
@@ -141,6 +161,18 @@ test("cost pool configuration keeps explicit organisation and auth headers", () 
   const headers = { Authorization: "Bearer pool-token", "X-Active-Org": "9" };
   api.listPools(2, 25, signal);
   expect(client.get).toHaveBeenLastCalledWith("/inventory/cost-pools", { headers, params: { page: 2, limit: 25 }, signal });
+  api.reconciliationReadiness(8, 3, 10, signal);
+  expect(client.get).toHaveBeenLastCalledWith("/inventory/cost-pools/8/reconciliation-readiness", { headers, params: { page: 3, limit: 10 }, signal });
+  api.requestCostReconciliation({ cost_pool_id: 8, product_id: 4 }, signal);
+  expect(client.post).toHaveBeenLastCalledWith('/inventory/cost-reconciliation/cases', { cost_pool_id: 8, product_id: 4 }, { headers, signal });
+  api.costReconciliationCases(8, 4, 2, 10, 'NEEDS_MY_REVIEW', signal);
+  expect(client.get).toHaveBeenLastCalledWith('/inventory/cost-reconciliation/cases', { headers, params: { cost_pool_id: 8, product_id: 4, page: 2, limit: 10, view: 'NEEDS_MY_REVIEW' }, signal });
+  api.reviewCostReconciliation('case', { outcome: 'APPROVED' }, signal);
+  expect(client.post).toHaveBeenLastCalledWith('/inventory/cost-reconciliation/cases/case/review', { outcome: 'APPROVED' }, { headers, signal });
+  api.closeCostReconciliation('case', { operation_key: 'close' }, signal);
+  expect(client.post).toHaveBeenLastCalledWith('/inventory/cost-reconciliation/cases/case/close', { operation_key: 'close' }, { headers, signal });
+  api.costReconciliationCheckpoints(8, null, 1, 25, signal);
+  expect(client.get).toHaveBeenLastCalledWith('/inventory/cost-reconciliation/checkpoints', { headers, params: { cost_pool_id: 8, product_id: undefined, page: 1, limit: 25 }, signal });
   api.branchPool(11, signal);
   expect(client.get).toHaveBeenLastCalledWith("/inventory/branches/11/cost-pool", { headers, signal });
   api.createPool({ code: "MAIN", name: "Main" }, signal);

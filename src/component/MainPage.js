@@ -42,11 +42,12 @@ import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
 import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
 import CustomersPage from "./Pages/MasterData/CustomersPage";
 import SalesDraftsPage from "./Pages/Sales/SalesDraftsPage";
+import SalesPricingPage from "./Pages/Sales/SalesPricingPage";
 import { COUNT_PLANS_ROUTE, COUNT_SESSIONS_ROUTE, COUNT_MY_ROUNDS_ROUTE, COUNT_DISCREPANCIES_ROUTE } from "../utils/countRoutes";
 import CountPlansPage from "./Pages/Counts/CountPlansPage";
 import CountSessionsPage from "./Pages/Counts/CountSessionsPage";
 import CountDiscrepanciesPage from "./Pages/Counts/CountDiscrepanciesPage";
-import { SALES_VIEWS } from "../utils/salesRoutes";
+import { SALES_PRICING_ROUTE, SALES_VIEWS } from "../utils/salesRoutes";
 import { CUSTOMERS_ROUTE } from "../utils/customerRoutes";
 import DocumentTypesMasterPage from "./Pages/MasterData/DocumentTypesMasterPage.js";
 import ReportTemplatesPage from "./Pages/ReportTemplates/ReportTemplatesPage.js";
@@ -194,6 +195,7 @@ export default function MainPage() {
             <Route path="/master-data/suppliers" element={<PrivateRoute><SuppliersMasterPage /></PrivateRoute>} />
             <Route path={CUSTOMERS_ROUTE} element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
             {Object.entries(SALES_VIEWS).map(([path, view]) => <Route key={path} path={path} element={<PrivateRoute><SalesDraftsPage key={view} view={view} /></PrivateRoute>} />)}
+            <Route path={SALES_PRICING_ROUTE} element={<PrivateRoute requiredModules={["SALES"]} requiredPermissions={["View_Product", "View_Financials"]}><SalesPricingPage /></PrivateRoute>} />
             <Route path={COUNT_PLANS_ROUTE} element={<PrivateRoute><CountPlansPage /></PrivateRoute>} />
             <Route path={COUNT_SESSIONS_ROUTE} element={<PrivateRoute><CountSessionsPage /></PrivateRoute>} />
             <Route path={COUNT_MY_ROUNDS_ROUTE} element={<PrivateRoute><CountSessionsPage mine /></PrivateRoute>} />

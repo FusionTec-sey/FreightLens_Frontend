@@ -14,13 +14,17 @@ export default function StockGaugeBar({
   showLabel = true,
   onClick = null,
 }) {
-  const current = Number(currentStock) || 0;
+  const hasCurrent = currentStock !== null && currentStock !== undefined
+    && currentStock !== "" && Number.isFinite(Number(currentStock));
+  const current = hasCurrent ? Number(currentStock) : 0;
   const min = Number(minStock) || 0;
   const max = maxStock && Number(maxStock) > 0 ? Number(maxStock) : (min > 0 ? min * 3 : 100);
 
   // Status computation
-  let status = "healthy"; // 'critical' | 'low' | 'healthy' | 'overstock'
-  if (current <= 0) {
+  let status = "healthy"; // 'unavailable' | 'critical' | 'low' | 'healthy' | 'overstock'
+  if (!hasCurrent) {
+    status = "unavailable";
+  } else if (current <= 0) {
     status = "critical";
   } else if (min > 0 && current <= min) {
     status = "low";
@@ -33,6 +37,14 @@ export default function StockGaugeBar({
 
   // Visual styling
   const config = {
+    unavailable: {
+      bar: "bg-slate-400",
+      bgTrack: isDark ? "bg-slate-800" : "bg-slate-200",
+      text: isDark ? "text-slate-400" : "text-slate-600",
+      badge: isDark ? "bg-slate-800 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-600 border-slate-200",
+      label: "Unavailable",
+      icon: AlertCircle,
+    },
     critical: {
       bar: "bg-rose-500",
       bgTrack: isDark ? "bg-rose-950/40" : "bg-rose-100",
@@ -73,11 +85,14 @@ export default function StockGaugeBar({
     <div
       onClick={onClick}
       className={`group flex flex-col gap-1 w-full min-w-[120px] max-w-[180px] ${onClick ? "cursor-pointer" : ""}`}
-      title={`Current: ${current} ${unit} | Min: ${min} ${unit}${maxStock ? ` | Max: ${maxStock} ${unit}` : ""}`}
+      title={hasCurrent
+        ? `On hand: ${current} ${unit} | Min: ${min} ${unit}${maxStock ? ` | Max: ${maxStock} ${unit}` : ""}`
+        : "Authoritative stock total is unavailable until base-unit reconciliation."}
     >
       <div className="flex items-center justify-between text-xs">
         <span className="font-semibold tabular-nums text-slate-800 dark:text-slate-200">
-          {current.toLocaleString()} <span className="font-normal text-[10px] text-slate-500 dark:text-slate-400">{unit}</span>
+          {hasCurrent ? current.toLocaleString() : "Unavailable"}{" "}
+          {hasCurrent && <span className="font-normal text-[10px] text-slate-500 dark:text-slate-400">{unit}</span>}
         </span>
         {showLabel && (
           <span

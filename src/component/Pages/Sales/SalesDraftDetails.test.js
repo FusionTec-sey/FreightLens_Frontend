@@ -1,18 +1,32 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SalesDraftDetails from './SalesDraftDetails';
+jest.mock('../../../context/ThemeContext', () => ({ useTheme: () => ({ isDark: false }) }));
 
 const draft = { document_key: 'synthetic-draft', customer_key: 'synthetic-customer', branch_id: 2, version: 3,
   lines: [{ line_key: 'line-1', product_id: 7, product_name: 'Sample tiles', sku: 'SAMPLE-TILE',
     quantity: '2.5', unit: 'BOX', base_quantity: '10', base_unit: 'PCS', reserved_quantity: '4', expected_policy_version: 2 }] };
 
+test('shows current branch label and saved revision attribution without inventing salesperson assignment', () => {
+  render(<SalesDraftDetails draft={{ ...draft, branch_name: 'Synthetic store', created_by: 12, created_at: '2026-10-04T10:00:00Z' }} onClose={jest.fn()} />);
+  expect(screen.getByText('Synthetic store')).toBeInTheDocument();
+  expect(screen.getByText('Branch reference 2')).toBeInTheDocument();
+  expect(screen.getByText('Staff reference 12')).toBeInTheDocument();
+  expect(screen.getByText('This revision saved by')).toBeInTheDocument();
+  expect(document.querySelector('time')).toHaveAttribute('datetime', '2026-10-04T10:00:00Z');
+  expect(screen.queryByText(/Assigned salesperson/)).not.toBeInTheDocument();
+});
+
 test('inspection preserves exact units and does not expose unavailable write actions', () => {
   render(<SalesDraftDetails draft={draft} onClose={jest.fn()} />);
   expect(screen.getByText('2.5 BOX')).toBeInTheDocument();
   expect(screen.getByText('Reserved: 4 PCS')).toBeInTheDocument();
-  expect(screen.getByText('Payment: not recorded by this draft.')).toBeInTheDocument();
-  expect(screen.getByText('Collection: not authorised by this draft.')).toBeInTheDocument();
+  expect(screen.getByText('Demand')).toBeInTheDocument();
+  expect(screen.getByText('Reservations')).toBeInTheDocument();
+  expect(screen.getByText('Not recorded')).toBeInTheDocument();
+  expect(screen.getByText('Not authorised')).toBeInTheDocument();
+  expect(screen.getByLabelText('Draft identity')).toHaveTextContent('synthetic-draft');
   expect(screen.queryByRole('button', { name: 'Edit draft' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Allocate same-store stock' })).not.toBeInTheDocument();
 });
@@ -26,4 +40,81 @@ test('opening details and expanding policy information have no business side eff
   expect(allocate).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   expect(close).toHaveBeenCalledTimes(1);
+});
+
+test('history hides current-draft mutation actions until returning to current items', async () => {
+  const api = { history: jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } }) };
+  render(<SalesDraftDetails draft={draft} api={api} onEdit={jest.fn()} onAllocate={jest.fn()} onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Revision history' }));
+  await screen.findByText('No revisions on this page.');
+  expect(screen.queryByRole('button', { name: 'Edit draft' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Allocate same-store stock' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Items', exact: true }));
+  expect(screen.getByRole('button', { name: 'Edit draft' })).toBeInTheDocument();
+});
+
+const pricing = { document_key: 'synthetic-draft', draft_version: 3, status: 'READY', currency: 'SCR',
+  policy: 'best-eligible-tax-inclusive-invoice-round-v1', priced_at: '2026-10-04T10:30:00Z',
+  gross_total_scr: '2200.00', net_total_scr: '1913.04', tax_total_scr: '286.96',
+  requires_floor_approval: true, posting_enabled: false, lines: [{ line_key: 'line-1', product_id: 7,
+    quantity: '2.5', selected_source: 'CUSTOMER_AGREEMENT', selected_reference_key: 'agreement-1',
+    selected_version: 2, gross_unit_scr: '1100.000000', store_price_key: 'store-price-1',
+    store_price_version: 3, store_gross_unit_scr: '1200.000000', floor_gross_unit_scr: '1150.000000',
+    requires_floor_approval: true, tax_code: 'VAT15', tax_version: 1, tax_treatment: 'STANDARD',
+    tax_rate: '0.15000000', gross_scr: '2200.00', net_scr: '1913.04', tax_scr: '286.96' }] };
+
+test('loads authoritative unit pricing and keeps preview distinct from posting', async () => {
+  const api = { pricingPreview: jest.fn().mockResolvedValue({ data: pricing }) };
+  render(<SalesDraftDetails draft={draft} api={api} onClose={jest.fn()} />);
+  expect(await screen.findByText('SCR 1100.000000')).toBeInTheDocument();
+  expect(screen.getByText('Line total SCR 2200.00')).toBeInTheDocument();
+  expect(screen.getByText(/customer agreement/)).toBeInTheDocument();
+  expect(screen.getByText(/included tax SCR 286.96/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Draft totals')).toHaveTextContent('SCR 2200.00');
+  expect(screen.getByLabelText('Draft totals')).toHaveTextContent('Preview only—no payment, invoice or stock posting');
+  expect(screen.getByRole('alert')).toHaveTextContent('below its approval floor');
+  expect(api.pricingPreview).toHaveBeenCalledWith('synthetic-draft', expect.any(AbortSignal));
+});
+
+test('shows an actionable incomplete-pricing state and retries without changing the draft', async () => {
+  const failure = { response: { data: { detail: 'Pricing configuration incomplete: BOX price is missing' } } };
+  const api = { pricingPreview: jest.fn().mockRejectedValueOnce(failure).mockResolvedValueOnce({ data: pricing }) };
+  render(<SalesDraftDetails draft={draft} api={api} onClose={jest.fn()} />);
+  expect(await screen.findByText(/BOX price is missing/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry pricing' }));
+  expect(await screen.findByText('Line total SCR 2200.00')).toBeInTheDocument();
+  expect(api.pricingPreview).toHaveBeenCalledTimes(2);
+});
+
+test('requests exact below-floor review and preserves the operation identity', async () => {
+  const api = { pricingPreview: jest.fn().mockResolvedValue({ data: pricing }),
+    requestFloorCase: jest.fn().mockResolvedValue({ data: { case_key: 'floor-case', version: 1, status: 'REQUESTED' } }) };
+  render(<SalesDraftDetails draft={draft} api={api} canRequestFloor onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Request price-floor review' }));
+  fireEvent.change(screen.getByLabelText('Reason for manager review'), { target: { value: 'Customer signed terms' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Request exact review' }));
+  await waitFor(() => expect(api.requestFloorCase).toHaveBeenCalledTimes(1));
+  expect(api.requestFloorCase.mock.calls[0][0]).toMatchObject({ document_key: 'synthetic-draft',
+    expected_draft_version: 3, reason: 'Customer signed terms' });
+  expect(api.requestFloorCase.mock.calls[0][0].operation_key).toMatch(/^[0-9a-f-]{36}$/);
+  expect(await screen.findByText(/No sale, payment or stock movement was posted/)).toBeInTheDocument();
+});
+
+test('prepares immutable pricing with the approved case without presenting it as a sale', async () => {
+  const prepared = { pricing_snapshot_key: 'snapshot-1', document_key: draft.document_key,
+    draft_version: 3, gross_total_scr: '2200.00', pricing_fingerprint: 'a'.repeat(64) };
+  const api = { pricingPreview: jest.fn().mockResolvedValue({ data: pricing }),
+    latestPricingSnapshot: jest.fn().mockRejectedValue({ response: { status: 404 } }),
+    preparePricingSnapshot: jest.fn().mockResolvedValue({ data: prepared }) };
+  render(<SalesDraftDetails draft={draft} api={api} canPreparePricing onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Prepare exact pricing' }));
+  fireEvent.change(screen.getByLabelText('Approved price-floor case'), { target: { value: 'approved-floor-case' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare exact pricing' }));
+  await waitFor(() => expect(api.preparePricingSnapshot).toHaveBeenCalledTimes(1));
+  expect(api.preparePricingSnapshot.mock.calls[0][0]).toBe('synthetic-draft');
+  expect(api.preparePricingSnapshot.mock.calls[0][1]).toMatchObject({
+    expected_draft_version: 3, floor_case_key: 'approved-floor-case' });
+  expect(api.preparePricingSnapshot.mock.calls[0][1].operation_key).toMatch(/^[0-9a-f-]{36}$/);
+  expect(await screen.findByText(/Exact pricing prepared for draft v3/)).toBeInTheDocument();
+  expect(screen.getByText(/No invoice, payment, stock movement or collection authority was created/)).toBeInTheDocument();
 });

@@ -78,8 +78,25 @@ test("customer-only access opens Sales without granting drafts or reviews", () =
   expect(screen.getByRole('button', { name: 'Sales' })).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('link', { name: 'Customers' })).toHaveAttribute('aria-current', 'page');
   expect(screen.queryByRole('link', { name: 'Sales drafts' })).not.toBeInTheDocument();
-  expect(screen.queryByText('Reservation reviews')).not.toBeInTheDocument();
+  expect(screen.queryByText('Manager reviews')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Master Data' })).not.toBeInTheDocument();
+});
+
+test('financial product access exposes pricing without granting customer or draft registers', () => {
+  access.permissions = ['View_Product', 'View_Financials'];
+  show('/sales/pricing');
+  expect(screen.getByRole('button', { name: 'Sales' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('link', { name: 'Pricing & tax' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.queryByRole('link', { name: 'Customers' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Sales drafts' })).not.toBeInTheDocument();
+});
+
+test('price-floor permission exposes the manager review route under Sales', () => {
+  access.permissions = ['View_Product', 'View_Financials', 'View_SalesDraft', 'Review_PriceFloorException'];
+  show('/sales/reviews/price-floors');
+  expect(screen.getByRole('button', { name: 'Sales' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByText('Manager reviews')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Price-floor reviews' })).toHaveAttribute('aria-current', 'page');
 });
 
 test('count deep links restore the count accordion', () => {

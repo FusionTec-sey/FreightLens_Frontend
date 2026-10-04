@@ -18,6 +18,9 @@ export default function InventoryLocationsPage() {
   return <LocationWorkspace key={activeOrg} orgId={activeOrg} token={token}
     userId={userId} canReview={isSuperAdmin || permissions.includes("Review_InventoryPolicy")}
     canPropose={isSuperAdmin || permissions.includes("Request_InventoryReview")}
+    canRequestAdjustment={isSuperAdmin || permissions.includes("Request_StockAdjustment")}
+    canReviewAdjustment={isSuperAdmin || permissions.includes("Review_StockAdjustment")}
+    canExecuteAdjustment={isSuperAdmin || permissions.includes("Execute_StockAdjustment")}
     canActivate={isSuperAdmin || permissions.includes("Activate_InventoryPolicy")}
     canManageSettings={isSuperAdmin || permissions.includes("Manage_BranchSettings")}
     canViewStaff={isSuperAdmin || permissions.includes("View_User")}
@@ -26,7 +29,8 @@ export default function InventoryLocationsPage() {
     canManage={isSuperAdmin || permissions.includes("Manage_InventoryLocation")} />;
 }
 
-function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageSettings, canViewStaff, canManageStaff, canReview, canActivate, canPropose, userId }) {
+function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageSettings, canViewStaff, canManageStaff, canReview, canActivate, canPropose,
+  canRequestAdjustment, canReviewAdjustment, canExecuteAdjustment, userId }) {
   const { isDark } = useTheme();
   const api = useMemo(() => inventoryLocationsApi(token, orgId), [token, orgId]);
   const [branch, setBranch] = useState(null);
@@ -135,6 +139,7 @@ function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageS
     onClose={() => { setShowSettings(false); requestAnimationFrame(() => heading.current?.focus()); }} />;
 
   if (stockLocation) return <LocationStock key={stockLocation.id} api={api} branch={branch} location={stockLocation} canPropose={canPropose} canReview={canReview} userId={userId}
+    canRequestAdjustment={canRequestAdjustment} canReviewAdjustment={canReviewAdjustment} canExecuteAdjustment={canExecuteAdjustment}
     onClose={() => { setStockLocation(null); requestAnimationFrame(() => heading.current?.focus()); }} />;
 
   if (showPools) return <CostPoolSetup api={api} branch={branch} orgId={orgId} canManage={canManagePools}

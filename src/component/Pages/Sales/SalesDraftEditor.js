@@ -12,6 +12,7 @@ import SalesDraftSummary from './SalesDraftSummary';
 import './salesWorkspace.css';
 import { nudgeSalesQuantity, salesQuantityError } from '../../../utils/salesQuantity';
 import { recoveryScope, writeRecovery, removeRecovery } from '../../../services/salesDraftRecovery';
+import { useDraftNavigationGuard } from '../../../context/DraftNavigationContext';
 
 export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, initial, recovery, onSaved, onClose }) {
   const { isDark } = useTheme();
@@ -20,7 +21,7 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
     lines: recovered.draft.lines.map((line, index) => ({ ...line, units: recovered.units[index] })) };
   const [key] = useState(() => initial?.document_key || window.crypto.randomUUID());
   const [customer, setCustomer] = useState(initial?.customer_key ? { customerKey: initial.customer_key, version: initial.expected_customer_version, profile: { name: initial.customer_name } } : null);
-  const [branch, setBranch] = useState(initial?.branch_id ? { id: initial.branch_id } : null);
+  const [branch, setBranch] = useState(initial?.branch_id ? { id: initial.branch_id, name: initial.branch_name } : null);
   const [lines, setLines] = useState(() => (initial?.lines || []).map(line => ({ ...line, name: line.product_name, units: line.units || [...new Set([line.unit, line.base_unit])] })));
   const [picker, setPicker] = useState(null); const [dirty, setDirty] = useState(Boolean(recovery));
   const [mobilePane, setMobilePane] = useState('cart');
@@ -58,6 +59,14 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
     return task;
   };
   const latestSnapshot = useRef(null); latestSnapshot.current = snapshot();
+  useDraftNavigationGuard({
+    active: dirty || Boolean(pending) || busy || Boolean(savedReceipt),
+    prepareToLeave: async () => {
+      if (inFlight.current) throw new Error('Wait for the current save attempt before leaving.');
+      if (receiptRef.current) throw new Error('The draft is saved. Finish local recovery cleanup before leaving.');
+      await persist.current(latestSnapshot.current);
+    },
+  });
   useEffect(() => {
     if (dirty || pending) persist.current(latestSnapshot.current).catch(() => {});
   }, [customer, branch, lines, dirty, pending, conflict]);
@@ -180,6 +189,7 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
       {savedReceipt ? <button type="button" disabled={busy} className={primaryButtonClass} onClick={retryCleanup}>{busy ? 'Finishing…' : 'Retry local cleanup'}</button>
         : <button type="button" disabled={busy || conflict} className={primaryButtonClass} onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same save' : 'Save draft'}</button>}
     </>} />
+    <div className="sales-editor-body">
     {error && <p role="alert" className="shrink-0 text-sm">{error}</p>}
     <p role="status" className="shrink-0 text-sm">{savedReceipt ? `Server confirmed draft version ${savedReceipt.version}. Only local recovery cleanup remains; no money or stock was posted.` : localSaving ? 'Saving local recovery…' : localError ? 'Local recovery unavailable. Keep this editor open.' : dirty || pending ? 'Recovery saved on this browser for this company and user. It is not a confirmed sale.' : 'Edits will be retained locally without customer names, contacts or payment details.'}</p>
     {localError && <p role="alert">{localError} {!savedReceipt && <button type="button" className="border rounded p-2" onClick={() => persist.current(snapshot()).catch(() => {})}>Retry local recovery</button>}</p>}
@@ -231,6 +241,7 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
       <button type="button" disabled={locked || lines.length >= 100} className="sales-mobile-tabs border rounded m-2 px-3 py-2 disabled:opacity-40" onClick={() => setMobilePane('products')}>Add product</button>
       </footer>
       </section>
+    </div>
     </div>
   </section>;
 }

@@ -649,7 +649,7 @@ export default function OrderForm({ editData, fromTemplate, orderStatuses = [], 
                   <option value="">-- Add item from Product Master catalog --</option>
                   {inventoryProducts.map((p) => (
                     <option key={p.id} value={p.id}>
-                      [{p.sku}] {p.name} {p.brand ? `(${p.brand})` : ""} — Stock: {p.current_stock} {p.unit}
+                      [{p.sku}] {p.name} {p.brand ? `(${p.brand})` : ""} — Available: {p.stock_available ?? "Unavailable"} {p.stock_base_unit || ""}
                     </option>
                   ))}
                 </select>

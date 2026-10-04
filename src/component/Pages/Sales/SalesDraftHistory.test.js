@@ -35,3 +35,14 @@ test('unmount cancels history and ignores late response', async () => {
   expect(signal.aborted).toBe(true);
   await act(async () => resolve({ data: result }));
 });
+
+test('explicit inspection opens exact saved version and returns to history', async () => {
+  const api = { history: jest.fn().mockResolvedValue({ data: result }),
+    revision: jest.fn().mockResolvedValue({ data: { ...result.items[0], read_only: true, lines: [] } }) };
+  render(<SalesDraftHistory api={api} documentKey="synthetic-draft" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Inspect version 2' }));
+  expect(await screen.findByText(/Saved version 2/)).toBeInTheDocument();
+  expect(api.revision).toHaveBeenCalledWith('synthetic-draft', 2, expect.anything());
+  fireEvent.click(screen.getByRole('button', { name: 'Back to revisions' }));
+  expect(screen.getByText('Version 2 · Draft saved')).toBeInTheDocument();
+});

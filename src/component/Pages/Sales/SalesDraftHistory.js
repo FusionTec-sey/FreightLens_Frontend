@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import { secondaryButtonClass } from '../../UI/UXComponent/RegisterShell';
+import SalesDraftRevision from './SalesDraftRevision';
 
 export default function SalesDraftHistory({ api, documentKey }) {
   const { isDark } = useTheme();
   const [page, setPage] = useState(1), [limit, setLimit] = useState(25);
   const [refresh, setRefresh] = useState(0);
+  const [selectedVersion, setSelectedVersion] = useState(null);
   const [result, setResult] = useState(null), [error, setError] = useState('');
   useEffect(() => {
     const controller = new AbortController();
@@ -18,6 +20,8 @@ export default function SalesDraftHistory({ api, documentKey }) {
     });
     return () => controller.abort();
   }, [api, documentKey, page, limit, refresh]);
+  if (selectedVersion !== null) return <SalesDraftRevision key={`${documentKey}:${selectedVersion}`} api={api}
+    documentKey={documentKey} version={selectedVersion} onClose={() => setSelectedVersion(null)} />;
   return <section aria-label="Sales draft revision history" className="flex min-h-0 flex-1 flex-col gap-3">
     <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
       <p className="text-xs">Saved draft revisions only. This is not payment, reservation or handover history.</p>
@@ -31,6 +35,7 @@ export default function SalesDraftHistory({ api, documentKey }) {
           <p>{row.customer_name || 'Customer name unavailable'} · Customer profile v{row.customer_version}</p>
           <p className="break-all font-mono text-xs">{row.customer_key}</p>
           <p>Branch {row.branch_id}</p>
+          <button type="button" className={secondaryButtonClass} onClick={() => setSelectedVersion(row.version)}>Inspect version {row.version}</button>
         </li>)}</ol>}
     </div>
     <div className="shrink-0 px-3 pb-3"><PaginationToolbar page={page} pageSize={limit} totalPages={result?.pages || 1} totalCount={result?.total || 0} isDark={isDark}

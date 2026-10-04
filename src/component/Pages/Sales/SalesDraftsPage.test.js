@@ -15,6 +15,21 @@ const list = jest.fn(); const read = jest.fn();
 const row = { document_key: 'demo-draft', version: 1, branch_id: 2, status: 'DRAFT' };
 const auth = { token: 'synthetic', orgId: 1, userId: 10, hasModule: () => true,
   permissions: ['View_SalesDraft', 'View_Product', 'View_Customer', 'View_Personal_Data'] };
+
+test('search submits to server and clearing recovers from unavailable search', async () => {
+  render(<SalesDraftsPage />);
+  await screen.findByRole('button', { name: 'View draft demo-draft' });
+  fireEvent.change(screen.getByLabelText('Search drafts'), { target: { value: '  Synthetic  ' } });
+  expect(list.mock.calls.at(-1)[3]).toEqual({ branch_id: undefined });
+  list.mockRejectedValueOnce({ response: { status: 503 } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search', exact: true }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Sales search is unavailable or out of date');
+  expect(list.mock.calls.at(-1)).toEqual([1, 25, expect.anything(), { branch_id: undefined, search: 'Synthetic' }]);
+  expect(screen.queryByRole('button', { name: 'View draft demo-draft' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+  expect(await screen.findByRole('button', { name: 'View draft demo-draft' })).toBeInTheDocument();
+  expect(list.mock.calls.at(-1)[3]).toEqual({ branch_id: undefined });
+});
 test('other-store reviews use their dedicated permission and show exact scope without execution', async () => {
   const otherStoreCases = jest.fn().mockResolvedValue({ data: { items: [{ case_key: 'case', version: 1,
     status: 'REQUESTED', source_version: 1, requestor_id: 20, product_id: 3, selling_branch_id: 2,
@@ -59,8 +74,8 @@ test('opens authoritative details and distinguishes demand from confirmed sale',
   expect(screen.getByLabelText('Sales draft details')).toHaveTextContent('Reserved: 20 PCS');
   expect(read).toHaveBeenCalledWith('demo-draft', expect.anything());
   expect(screen.getByText('Draft — not an invoice')).toBeInTheDocument();
-  expect(screen.getByText('Payment: not recorded by this draft.')).toBeInTheDocument();
-  expect(screen.getByText('Collection: not authorised by this draft.')).toBeInTheDocument();
+  expect(screen.getByText('Not recorded')).toBeInTheDocument();
+  expect(screen.getByText('Not authorised')).toBeInTheDocument();
 });
 
 test('allocation entry is permission gated and checks runtime before enabling writes', async () => {

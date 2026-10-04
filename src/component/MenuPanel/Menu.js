@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CUSTOMERS_ROUTE } from "../../utils/customerRoutes";
 import { COUNT_PLANS_ROUTE, COUNT_SESSIONS_ROUTE, COUNT_MY_ROUNDS_ROUTE, COUNT_DISCREPANCIES_ROUTE } from "../../utils/countRoutes";
-import { SALES_DRAFTS_ROUTE, salesViewRoute } from "../../utils/salesRoutes";
+import { SALES_DRAFTS_ROUTE, SALES_PRICING_ROUTE, salesViewRoute } from "../../utils/salesRoutes";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -408,6 +408,7 @@ function Sidebar({ onLinkClick }) {
     hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
   const canViewCustomers = isSuperAdmin || (hasPermission("View_Customer") && hasPermission("View_Personal_Data"));
   const canViewSalesDrafts = isSuperAdmin || (hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft"));
+  const canViewSalesPricing = isSuperAdmin || (hasModule("SALES") && hasPermission("View_Product") && hasPermission("View_Financials"));
   const canCountPlans = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('View_CountPlan'));
   const canEnterCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Enter_CountResult'));
   const canAssignCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Assign_CountSession'));
@@ -415,6 +416,9 @@ function Sidebar({ onLinkClick }) {
   const salesReviewAccess = suffix => isSuperAdmin || (hasModule('INVENTORY') && ['Request_', 'Review_', 'Execute_'].some(prefix => permissions.includes(prefix + suffix)));
   const canViewCounts = canCountPlans || canEnterCounts || canAssignCounts || canReviewCounts;
   const canViewSalesReviews = ['ReservationRelease', 'ReservationReallocation', 'OtherStoreFulfilment', 'ReservationDeadline'].some(salesReviewAccess) || (hasModule('INVENTORY') && permissions.includes('Schedule_ReservationReview'));
+  const canViewPriceFloorReviews = isSuperAdmin || (hasModule('SALES') && hasPermission('View_Product') &&
+    hasPermission('View_Financials') && hasPermission('View_SalesDraft') &&
+    ['Request_PriceFloorException', 'Review_PriceFloorException'].some(permission => permissions.includes(permission)));
   const canViewTenantConsole =
     hasPermission("View_TenantConsole") ||
     hasPermission("Manage_TenantConsole") ||
@@ -501,21 +505,23 @@ function Sidebar({ onLinkClick }) {
 
           {renderNavLink("/dashboard", <LayoutDashboard />, "Overview", isActive("/dashboard"))}
 
-          {(canViewSalesDrafts || canViewCustomers) && renderSectionHeader("Sales")}
-          {(canViewSalesDrafts || canViewCustomers) && renderAccordion({ sectionKey: 'sales', icon: <ShoppingBag />, label: 'Sales', isSectionActive: isSalesActive, children: <>
+          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewSalesReviews || canViewPriceFloorReviews) && renderSectionHeader("Sales")}
+          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewSalesReviews || canViewPriceFloorReviews) && renderAccordion({ sectionKey: 'sales', icon: <ShoppingBag />, label: 'Sales', isSectionActive: isSalesActive, children: <>
             {canViewSalesDrafts && renderSubLink(SALES_DRAFTS_ROUTE, 'Sales drafts', isActive(SALES_DRAFTS_ROUTE))}
+            {canViewSalesPricing && renderSubLink(SALES_PRICING_ROUTE, 'Pricing & tax', isActive(SALES_PRICING_ROUTE))}
             {canViewCustomers && renderSubLink(CUSTOMERS_ROUTE, 'Customers', isActive(CUSTOMERS_ROUTE))}
             {canViewSalesDrafts && <>
             {(isSuperAdmin || permissions.includes('Manage_SalesDraft')) && renderSubLink(salesViewRoute('LOCAL_DRAFTS'), 'Local draft recovery', isActive(salesViewRoute('LOCAL_DRAFTS')))}
             {(isSuperAdmin || (hasModule('INVENTORY') && ['Review_ReservationDeadline', 'Schedule_ReservationReview'].some(p => permissions.includes(p)))) && renderSubLink(salesViewRoute('OVERDUE'), 'Overdue follow-up', isActive(salesViewRoute('OVERDUE')))}
-            {canViewSalesReviews && <details open={isSalesReviewActive} className="ml-3 text-sm">
-              <summary className="cursor-pointer rounded-lg px-3 py-2 text-slate-600 dark:text-slate-400">Reservation reviews</summary>
+            </>}
+            {(canViewSalesReviews || canViewPriceFloorReviews) && <details open={isSalesReviewActive} className="ml-3 text-sm">
+              <summary className="cursor-pointer rounded-lg px-3 py-2 text-slate-600 dark:text-slate-400">Manager reviews</summary>
             {salesReviewAccess('ReservationRelease') && renderSubLink(salesViewRoute('RELEASE_REVIEWS'), 'Release reviews', isActive(salesViewRoute('RELEASE_REVIEWS')))}
             {salesReviewAccess('ReservationReallocation') && renderSubLink(salesViewRoute('REALLOCATION_REVIEWS'), 'Reallocation reviews', isActive(salesViewRoute('REALLOCATION_REVIEWS')))}
             {salesReviewAccess('OtherStoreFulfilment') && renderSubLink(salesViewRoute('OTHER_STORE_REVIEWS'), 'Other-store reviews', isActive(salesViewRoute('OTHER_STORE_REVIEWS')))}
             {(salesReviewAccess('ReservationDeadline') || (hasModule('INVENTORY') && permissions.includes('Schedule_ReservationReview'))) && renderSubLink(salesViewRoute('DEADLINE_REVIEWS'), 'Follow-up reviews', isActive(salesViewRoute('DEADLINE_REVIEWS')))}
+            {canViewPriceFloorReviews && renderSubLink(salesViewRoute('PRICE_FLOOR_REVIEWS'), 'Price-floor reviews', isActive(salesViewRoute('PRICE_FLOOR_REVIEWS')))}
             </details>}
-            </>}
           </> })}
 
           {(canViewInventory || canViewCounts) && renderSectionHeader("Inventory")}

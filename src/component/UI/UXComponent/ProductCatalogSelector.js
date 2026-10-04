@@ -54,7 +54,6 @@ export default function ProductCatalogSelector({
     unit: "PCS",
     unit_cost: "",
     default_supplier_id: null,
-    current_stock: 0,
     min_stock_quantity: 0,
   });
 
@@ -165,7 +164,6 @@ export default function ProductCatalogSelector({
       unit: "PCS",
       unit_cost: "",
       default_supplier_id: null,
-      current_stock: 0,
       min_stock_quantity: 0,
     });
     setCreateError("");
@@ -191,7 +189,6 @@ export default function ProductCatalogSelector({
         unit: (newProductData.unit || "PCS").toUpperCase(),
         unit_cost: newProductData.unit_cost ? parseFloat(newProductData.unit_cost) : undefined,
         default_supplier_id: newProductData.default_supplier_id || undefined,
-        current_stock: parseFloat(newProductData.current_stock) || 0,
         min_stock_quantity: parseFloat(newProductData.min_stock_quantity) || 0,
         status: "active",
       };
@@ -220,7 +217,13 @@ export default function ProductCatalogSelector({
         category_name: created.category_name,
         default_supplier_id: created.default_supplier_id,
         supplier_name: created.supplier_name,
-        current_stock: created.current_stock || 0,
+        stock_status: created.stock_status,
+        stock_base_unit: created.stock_base_unit,
+        stock_on_hand: created.stock_on_hand,
+        stock_reserved: created.stock_reserved,
+        stock_available: created.stock_available,
+        stock_damaged: created.stock_damaged,
+        stock_quarantined: created.stock_quarantined,
         min_stock_quantity: created.min_stock_quantity || 0,
       };
 
@@ -401,9 +404,13 @@ export default function ProductCatalogSelector({
               </div>
             ) : (
               filteredProducts.map((prod) => {
-                const stock = parseFloat(prod.current_stock) || 0;
+                const hasComparableStock = prod.stock_status !== "MIXED_UNITS"
+                  && prod.stock_available !== null && prod.stock_available !== undefined;
+                const stock = hasComparableStock ? parseFloat(prod.stock_available) : null;
+                const onHand = prod.stock_on_hand ?? "Unavailable";
+                const reserved = prod.stock_reserved ?? "Unavailable";
                 const minStock = parseFloat(prod.min_stock_quantity) || 0;
-                const isLow = minStock > 0 && stock <= minStock;
+                const isLow = stock !== null && minStock > 0 && stock <= minStock;
 
                 return (
                   <div
@@ -501,7 +508,7 @@ export default function ProductCatalogSelector({
                       {/* Live Stock Level Pill */}
                       <div
                         className={`text-right px-2 py-1 rounded-lg border text-[10px] font-mono font-bold ${
-                          stock > 0
+                          stock !== null && stock > 0
                             ? isLow
                               ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
                               : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
@@ -509,8 +516,9 @@ export default function ProductCatalogSelector({
                         }`}
                       >
                         <div>
-                          {stock} {prod.unit || "PCS"}
+                          Available {stock === null ? "Unavailable" : stock} {prod.stock_base_unit || ""}
                         </div>
+                        <div className="text-[9px] font-normal">On hand {onHand} · Reserved {reserved}</div>
                         {canShowPrices && prod.unit_cost && (
                           <div className="text-[9px] text-slate-400">
                             {currencySymbol} {parseFloat(prod.unit_cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -818,9 +826,9 @@ export default function ProductCatalogSelector({
                   Current On-Hand
                 </div>
                 <div className="text-base font-mono font-black text-emerald-500">
-                  {selectedStockProduct.current_stock || 0}
+                  {selectedStockProduct.stock_on_hand ?? "Unavailable"}
                   <span className="text-xs font-normal text-slate-400 ml-1">
-                    {selectedStockProduct.unit || "PCS"}
+                    {selectedStockProduct.stock_base_unit || ""}
                   </span>
                 </div>
               </div>
@@ -842,7 +850,7 @@ export default function ProductCatalogSelector({
               </div>
             </div>
 
-            {/* Future Warehouse Locations Note */}
+            {/* Authoritative stock-location note */}
             <div
               className={`p-2.5 rounded-xl border text-[10px] flex items-start gap-2 ${
                 isDark ? "bg-indigo-950/20 border-indigo-900/40 text-indigo-300" : "bg-indigo-50/60 border-indigo-100 text-indigo-700"
@@ -850,9 +858,11 @@ export default function ProductCatalogSelector({
             >
               <MapPin size={14} className="flex-none mt-0.5 text-indigo-500" />
               <div>
-                <span className="font-bold">Warehouse & Inventory Management:</span>
+                <span className="font-bold">Location allocation:</span>
                 <p className="mt-0.5 opacity-90">
-                  Allocated to Central Warehouse. Additional multi-location batching and container tracking will sync seamlessly as inventory operations scale.
+                  Stock is allocated from eligible locations in the salesperson&apos;s working store,
+                  preferring their configured picking area when possible. Another store requires an
+                  explicit authorised choice.
                 </p>
               </div>
             </div>
