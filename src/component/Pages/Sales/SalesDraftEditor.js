@@ -4,10 +4,12 @@ import { useTheme } from '../../../context/ThemeContext';
 import useOperationIntent from '../../../hooks/useOperationIntent';
 import CustomersPage from '../MasterData/CustomersPage';
 import { FileText } from 'lucide-react';
-import { RegisterHeader, pageClass, panelClass, primaryButtonClass, secondaryButtonClass } from '../../UI/UXComponent/RegisterShell';
+import { RegisterHeader, pageClass, primaryButtonClass, secondaryButtonClass } from '../../UI/UXComponent/RegisterShell';
 import DraftSourcePicker from './DraftSourcePicker';
 import DraftBarcodeEntry from './DraftBarcodeEntry';
 import SalesProductImage from './SalesProductImage';
+import SalesDraftSummary from './SalesDraftSummary';
+import './salesWorkspace.css';
 import { nudgeSalesQuantity, salesQuantityError } from '../../../utils/salesQuantity';
 import { recoveryScope, writeRecovery, removeRecovery } from '../../../services/salesDraftRecovery';
 
@@ -171,7 +173,7 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
       setBranch(choice);
       setDirty(true); setPicker(null);
     }} />;
-  return <section className={pageClass}>
+  return <section className={`sales-workspace ${pageClass}`}>
     <RegisterHeader icon={FileText} title={initial ? 'Edit sales draft' : 'New sales draft'} description="Demand only. Saving does not confirm a sale, reserve stock or receive payment." actions={<>
       <button type="button" disabled={busy || Boolean(pending)} className={secondaryButtonClass} onClick={() => dirty ? setDiscard(true) : onClose()}>Cancel</button>
       <button type="button" disabled={busy || localSaving || Boolean(savedReceipt)} className={secondaryButtonClass} onClick={keepLocal}>Keep locally and close</button>
@@ -187,23 +189,24 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
         {showValidation && !customer && <p id="draft-customer-error" className="text-sm text-rose-700 dark:text-rose-300">Select a customer before saving.</p>}</div>
         <div><button type="button" disabled={locked} aria-describedby={showValidation && !branch ? 'draft-branch-error' : undefined} className="border rounded p-3 disabled:opacity-40" onClick={() => setPicker('branch')}>{branch ? `Store: ${branch.name || branch.id}` : 'Select selling store'}</button>
         {showValidation && !branch && <p id="draft-branch-error" className="text-sm text-rose-700 dark:text-rose-300">Select the selling store before saving.</p>}</div></div>
-    <nav className="shrink-0 flex gap-2 lg:hidden" aria-label="Draft workspace panels">
+    <nav className="sales-mobile-tabs shrink-0 flex gap-2" aria-label="Draft workspace panels">
       <button type="button" aria-pressed={mobilePane === 'products'} className={secondaryButtonClass} onClick={() => setMobilePane('products')}>Products</button>
       <button type="button" aria-pressed={mobilePane === 'cart'} className={secondaryButtonClass} onClick={() => setMobilePane('cart')}>Cart</button>
     </nav>
     {inventoryApi && <DraftBarcodeEntry api={inventoryApi} disabled={locked || lines.length >= 100} onSelect={addProduct} />}
-    <div className="flex min-h-0 min-w-0 flex-1 gap-3">
-      <div className={`${mobilePane === 'products' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 lg:flex rounded-2xl border border-slate-200 dark:border-slate-700`}>
+    <div className="sales-catalog-layout">
+      <div className={`sales-catalog-pane ${mobilePane === 'products' ? 'flex' : 'hidden'} rounded-2xl border border-slate-200 dark:border-slate-700`}>
         <DraftSourcePicker title="Products" products embedded load={api.products}
           disabled={locked || lines.length >= 100} onSelect={addProduct} />
       </div>
-      <section aria-label="Draft cart" className={`${mobilePane === 'cart' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col lg:flex lg:max-w-[50%]`}>
-      <div className="flex-1 min-h-0 overflow-auto space-y-3">
-      {lines.map((line, index) => <section key={line.line_key} className={`${panelClass} flex flex-wrap gap-3 items-center`}>
-        <SalesProductImage source={line} />
-        <span>{line.name || `Product ${line.product_id}`} · Policy v{line.expected_policy_version}</span>
-        {line.reserved_quantity && <span className="text-xs">Reserved: {line.reserved_quantity} {line.base_unit}. Held quantities and ownership are protected on save.</span>}
-        <div className="flex flex-wrap items-end gap-2">
+      <section aria-label="Draft cart" className={`sales-cart-pane ${mobilePane === 'cart' ? 'flex' : 'hidden'} flex-col rounded-2xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700`}>
+      <h2 className="shrink-0 border-b p-3 font-semibold">Cart <span className="text-sm font-normal">· {lines.length} lines</span></h2>
+      <div className="flex-1 min-h-0 overflow-auto">
+      {lines.map((line, index) => <section key={line.line_key} className="sales-cart-line">
+        <SalesProductImage source={line} size="small" />
+        <span className="text-sm font-medium">{line.name || `Product ${line.product_id}`}<span className="block text-xs font-normal text-slate-500">{line.sku || 'No SKU'} · Policy v{line.expected_policy_version}</span></span>
+        {line.reserved_quantity && <span className="col-span-2 text-xs">Reserved: {line.reserved_quantity} {line.base_unit}. Held quantities remain protected.</span>}
+        <div className="sales-cart-line-controls">
           <button type="button" aria-label={`Decrease line ${index + 1} by one ${line.unit}`}
             className="min-h-[44px] min-w-[44px] border rounded text-xl disabled:opacity-40"
             disabled={locked || nudgeSalesQuantity(line.quantity, -1) === null} onClick={() => nudgeLine(line.line_key, -1)}>−</button>
@@ -218,14 +221,14 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
             disabled={locked || nudgeSalesQuantity(line.quantity, 1) === null} onClick={() => nudgeLine(line.line_key, 1)}>+</button>
         </div>
         {showValidation && salesQuantityError(line.quantity) && <p id={`draft-quantity-error-${index}`} className="w-full text-sm text-rose-700 dark:text-rose-300">{salesQuantityError(line.quantity)}</p>}
-        <label>Unit {index + 1}<select disabled={locked} className={`border rounded p-2 ml-2 ${theme}`} value={line.unit} onChange={event => editLine(index, { unit: event.target.value })}>{line.units.map(unit => <option key={unit}>{unit}</option>)}</select></label>
-        <button type="button" disabled={locked} className="border rounded p-2 disabled:opacity-40" onClick={() => { setLines(rows => rows.filter((_, i) => i !== index)); setDirty(true); }}>Remove line {index + 1}</button>
+        <div className="sales-cart-line-controls"><label>Unit {index + 1}<select disabled={locked} className={`border rounded p-2 ml-2 ${theme}`} value={line.unit} onChange={event => editLine(index, { unit: event.target.value })}>{line.units.map(unit => <option key={unit}>{unit}</option>)}</select></label>
+        <button type="button" disabled={locked} className="border rounded p-2 disabled:opacity-40" onClick={() => { setLines(rows => rows.filter((_, i) => i !== index)); setDirty(true); }}>Remove line {index + 1}</button></div>
       </section>)}
       {!lines.length && <p className={showValidation ? 'text-rose-700 dark:text-rose-300' : ''}>{showValidation ? 'Add at least one product before saving.' : 'No products selected.'}</p>}
       </div>
-      <footer className="shrink-0 border-t border-slate-200 p-3 dark:border-slate-700 space-y-2">
-      <button type="button" disabled={locked || lines.length >= 100} className="border rounded px-3 py-2 disabled:opacity-40 lg:hidden" onClick={() => setMobilePane('products')}>Add product</button>
-      <p className="text-xs">Maximum 100 lines. Unit increments and current source versions are checked again by the server. Recover edits through Local drafts on this browser; recovery does not grant offline posting rights.</p>
+      <footer className="shrink-0">
+      <SalesDraftSummary compact />
+      <button type="button" disabled={locked || lines.length >= 100} className="sales-mobile-tabs border rounded m-2 px-3 py-2 disabled:opacity-40" onClick={() => setMobilePane('products')}>Add product</button>
       </footer>
       </section>
     </div>

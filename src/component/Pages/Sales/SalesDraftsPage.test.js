@@ -9,6 +9,8 @@ jest.mock('../../../context/ThemeContext', () => ({ useTheme: () => ({ isDark: f
 jest.mock('../../../services/salesDraftsApi', () => ({ salesDraftsApi: jest.fn() }));
 jest.mock('../../../services/customersApi', () => ({ customersApi: jest.fn() }));
 jest.mock('axios', () => ({ create: jest.fn(() => ({})) }));
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }), { virtual: true });
 const list = jest.fn(); const read = jest.fn();
 const row = { document_key: 'demo-draft', version: 1, branch_id: 2, status: 'DRAFT' };
 const auth = { token: 'synthetic', orgId: 1, userId: 10, hasModule: () => true,
@@ -22,10 +24,11 @@ test('other-store reviews use their dedicated permission and show exact scope wi
     existing_holds: { count: 0, remaining: '0' }, review_at: '2027-01-01T08:00:00Z', reason: 'Explicit selection',
   }], total: 1, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, otherStoreCases });
-  const view = render(<SalesDraftsPage />);
-  expect(screen.queryByText('Other-store reviews')).not.toBeInTheDocument();
+  const view = render(<SalesDraftsPage view="OTHER_STORE_REVIEWS" />);
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  expect(otherStoreCases).not.toHaveBeenCalled();
   useAuth.mockReturnValue({ ...auth, user: { id: 10 }, permissions: [...auth.permissions, 'Review_OtherStoreFulfilment'] });
-  view.rerender(<SalesDraftsPage />); fireEvent.click(screen.getByText('Other-store reviews'));
+  view.rerender(<SalesDraftsPage view="OTHER_STORE_REVIEWS" />);
   fireEvent.click(await screen.findByRole('button', { name: /Review case/ }));
   expect(screen.getByText(/Selling store #2/)).toHaveTextContent('Fulfilment store #4');
   expect(screen.getByText(/Requested: 2 BOX/)).toHaveTextContent('24 PCS');
@@ -38,7 +41,7 @@ test('other-store requester sees own requests without a decision control', async
   const otherStoreCases = jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, otherStoreCases });
   useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Request_OtherStoreFulfilment'] });
-  render(<SalesDraftsPage />); fireEvent.click(screen.getByText('Other-store reviews'));
+  render(<SalesDraftsPage view="OTHER_STORE_REVIEWS" />);
   expect(await screen.findByText('You have no other-store fulfilment review requests in this company.')).toBeInTheDocument();
   expect(otherStoreCases).toHaveBeenCalledWith(1, 25, expect.anything(), 'MY_REQUESTS');
 });
@@ -55,7 +58,9 @@ test('opens authoritative details and distinguishes demand from confirmed sale',
   expect(await screen.findByLabelText('Sales draft details')).toHaveTextContent('Base quantity 24 PCS');
   expect(screen.getByLabelText('Sales draft details')).toHaveTextContent('Reserved: 20 PCS');
   expect(read).toHaveBeenCalledWith('demo-draft', expect.anything());
-  expect(screen.getByText(/no confirmed sale/)).toBeInTheDocument();
+  expect(screen.getByText('Draft — not an invoice')).toBeInTheDocument();
+  expect(screen.getByText('Payment: not recorded by this draft.')).toBeInTheDocument();
+  expect(screen.getByText('Collection: not authorised by this draft.')).toBeInTheDocument();
 });
 
 test('allocation entry is permission gated and checks runtime before enabling writes', async () => {
@@ -103,7 +108,7 @@ test('follow-up reviewers reach their own case API without release permissions',
   const deadlineCases = jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, deadlineCases });
   useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Review_ReservationDeadline'] });
-  render(<SalesDraftsPage />); fireEvent.click(screen.getByText('Follow-up reviews'));
+  render(<SalesDraftsPage view="DEADLINE_REVIEWS" />);
   expect(await screen.findByText('No reservation follow-up requests waiting for your review.')).toBeInTheDocument();
   expect(deadlineCases).toHaveBeenCalledWith(1, 25, expect.anything(), 'NEEDS_MY_REVIEW');
 });
@@ -111,10 +116,11 @@ test('follow-up reviewers reach their own case API without release permissions',
 test('reallocation review navigation is permission gated and uses its own API', async () => {
   const reallocationCases = jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, reallocationCases });
-  const view = render(<SalesDraftsPage />);
-  expect(screen.queryByText('Reallocation reviews')).not.toBeInTheDocument();
+  const view = render(<SalesDraftsPage view="REALLOCATION_REVIEWS" />);
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  expect(reallocationCases).not.toHaveBeenCalled();
   useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Review_ReservationReallocation'] });
-  view.rerender(<SalesDraftsPage />); fireEvent.click(screen.getByText('Reallocation reviews'));
+  view.rerender(<SalesDraftsPage view="REALLOCATION_REVIEWS" />);
   expect(await screen.findByText('No reservation reallocation requests waiting for your review.')).toBeInTheDocument();
   expect(reallocationCases).toHaveBeenCalledWith(1, 25, expect.anything(), 'NEEDS_MY_REVIEW');
 });
@@ -123,7 +129,7 @@ test('overdue inbox drills through a fresh permission-checked draft read', async
   const dueReservations = jest.fn().mockResolvedValue({ data: { items: [{ ...row, reservation_key: 'hold', product_id: 1, product_name: 'Demo tile', remaining_quantity: '2', review_at: '2026-10-01T08:00:00Z', review_due: true }], total: 1, pages: 1 } });
   salesDraftsApi.mockReturnValue({ list, read, dueReservations });
   useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Review_ReservationDeadline'] });
-  render(<SalesDraftsPage />); fireEvent.click(screen.getByText('Overdue follow-up'));
+  render(<SalesDraftsPage view="OVERDUE" />);
   fireEvent.click(await screen.findByText('Open draft'));
   expect(await screen.findByLabelText('Sales draft details')).toBeInTheDocument();
   expect(read).toHaveBeenCalledWith('demo-draft', expect.anything());

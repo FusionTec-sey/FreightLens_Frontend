@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CostChargeEvidence from './CostChargeEvidence';
 jest.mock('axios', () => ({ create: jest.fn(() => ({})) }));
+jest.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ permissions: [], isSuperAdmin: false }) }));
 jest.mock('../../../../context/ThemeContext', () => ({ useTheme: () => ({ isDark: false }) }));
 let api;
 const proposal = { proposal_key: 'proposal', charge_reference: 'CHARGE', total_scr: '12.340000' };

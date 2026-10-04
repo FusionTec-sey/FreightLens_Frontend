@@ -7,6 +7,7 @@ import { customersApi } from '../../../services/customersApi';
 jest.mock('../../../context/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../../../context/ThemeContext', () => ({ useTheme: () => ({ isDark: false }) }));
 jest.mock('../../../services/customersApi', () => ({ customersApi: jest.fn() }));
+jest.mock('axios', () => ({ create: jest.fn(() => ({})) }));
 jest.mock('react-toastify', () => ({ toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() } }));
 const profile = { customer_key: 'synthetic', name: 'Demo Customer', kind: 'PERSON', version: 1,
   contacts: [{ kind: 'PHONE', value: '2000000', primary: true }, { kind: 'EMAIL', value: 'test@example.com' }] };

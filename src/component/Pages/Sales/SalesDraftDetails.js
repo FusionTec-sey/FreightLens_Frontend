@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Badge, secondaryButtonClass, primaryButtonClass } from '../../UI/UXComponent/RegisterShell';
 import SalesProductImage from './SalesProductImage';
 import SalesDraftHistory from './SalesDraftHistory';
+import SalesDraftSummary from './SalesDraftSummary';
 
 // Read-only document inspection. Only explicit action buttons invoke workflows.
 export default function SalesDraftDetails({ draft, api, onClose, onEdit, onAllocate, onOtherStore, onReservations }) {
@@ -41,6 +42,7 @@ export default function SalesDraftDetails({ draft, api, onClose, onEdit, onAlloc
           Base quantity {line.base_quantity} {line.base_unit} · Policy v{line.expected_policy_version}
         </details>
       </li>)}</ul>
+      <SalesDraftSummary />
     </div>}
     <footer className="shrink-0 flex flex-wrap gap-2 border-t border-slate-200 p-3 dark:border-slate-700">
       {onEdit && <button type="button" className={primaryButtonClass} onClick={onEdit}>Edit draft</button>}

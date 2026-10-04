@@ -1,5 +1,23 @@
 # FreightLens Frontend Architecture
 
+## Module navigation arrangement (2026-10-04)
+
+Menu groups existing routes into Sales, Inventory, Procurement, Logistics,
+Reports and Administration. Customers is under Sales; Counts under Inventory;
+reservation reviews use a collapsible subgroup. Policy approvals are explicit.
+Packing lists retains Orders access despite Logistics placement. Customer/count
+deep links reopen their correct accordion. No API or permission contract changed.
+Canonical decision: BD-20261004-06. Whole-menu browser acceptance remains pending.
+
+## Full-build verification checkpoint (2026-10-04)
+
+All 273 tests in 52 suites pass. Production build passes with existing warnings
+after declaring BigInt for CRA lint (exact arithmetic unchanged). Updated stale
+auth/router/axios mocks and Sales review-route tests. Read-only Sales/Counts tablet
+navigation checked; populated workflow and touch-target refinement gates remain.
+Canonical evidence: backend docs/planning/evidence/20261004-full-build-verification.txt.
+Earlier deferred-test notes remain historical; owner resumed this checkpoint.
+
 ## T33A count integration repairs (2026-10-04; unverified)
 
 Count-specific collaborator screens/routes are integrated under Stock Counts.

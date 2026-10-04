@@ -21,7 +21,10 @@ test('split-view list preserves every register field and invokes only explicit s
 
 test('full register retains table headers and disables actions during detail reads', () => {
   render(<SalesDraftRows rows={rows} loading onOpen={jest.fn()} />);
-  expect(screen.getAllByRole('columnheader')).toHaveLength(6);
+  expect(screen.getAllByRole('columnheader')).toHaveLength(9);
+  expect(screen.getAllByText('Not calculated')).toHaveLength(2);
+  expect(screen.getAllByText('Not recorded')).toHaveLength(2);
+  expect(screen.getAllByText('Not authorised')).toHaveLength(2);
   expect(screen.getByText('Customer name unavailable')).toBeInTheDocument();
   screen.getAllByRole('button').forEach(button => expect(button).toBeDisabled());
 });

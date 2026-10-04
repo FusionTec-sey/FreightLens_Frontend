@@ -6,6 +6,7 @@ import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import SalesDraftEditor from './SalesDraftEditor';
 import SalesDraftDetails from './SalesDraftDetails';
 import SalesDraftRows from './SalesDraftRows';
+import './salesWorkspace.css';
 import DraftSourcePicker from './DraftSourcePicker';
 import ManagerCases from '../Inventory/components/ManagerCases';
 import DraftReservations from './DraftReservations';
@@ -137,9 +138,15 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
   if (reviews && canOpenReviews) return <ManagerCases api={reviewApi} userId={userId} canReview={canReview}
     reservationRelease canActivate={canExecuteRelease} standalone onClose={() => setReviews(false)} />;
   if (localDrafts && canManage) return <LocalSalesDrafts orgId={orgId} userId={userId} onClose={() => setLocalDrafts(false)} onRecover={recovery => { setLocalDrafts(false); setEditing({ recovery }); }} />;
-  if (editing && canManage) return <SalesDraftEditor api={api} inventoryApi={isSuperAdmin || hasModule?.('INVENTORY') ? inventoryApi : undefined} orgId={orgId} userId={userId} recovery={editing.recovery} initial={editing === 'NEW' || editing.recovery ? null : editing}
-    onClose={() => setEditing(null)} onSaved={receipt => { setSaved(receipt); setEditing(null); setRefresh(n => n + 1); }} />;
-  return <section className={pageClass}>
+  if (editing && canManage) return <div className={`sales-workspace sales-editor-host ${theme}`}>
+    <aside className="sales-editor-register" aria-label="Saved drafts beside editor">
+      <div className="p-3 border-b"><h2 className="font-semibold">Sales drafts</h2><p className="text-xs mt-2">Finish or close this draft before opening another.</p></div>
+      <div className="overflow-auto min-h-0 flex-1"><SalesDraftRows rows={result?.items || []} compact selectedKey={editing.document_key} loading onOpen={open} theme={theme} /></div>
+    </aside>
+    <div className="sales-editor-main"><SalesDraftEditor api={api} inventoryApi={isSuperAdmin || hasModule?.('INVENTORY') ? inventoryApi : undefined} orgId={orgId} userId={userId} recovery={editing.recovery} initial={editing === 'NEW' || editing.recovery ? null : editing}
+      onClose={() => setEditing(null)} onSaved={receipt => { setSaved(receipt); setEditing(null); setRefresh(n => n + 1); }} /></div>
+  </div>;
+  return <section className={`sales-workspace ${pageClass}`}>
     <RegisterHeader icon={FileText} title="Sales drafts" description="Draft demand only. Allocation, payment and collection remain separate." actions={<>
       <button type="button" className={secondaryButtonClass} onClick={() => setRefresh(n => n + 1)}>Refresh</button>
       {canManage && <button type="button" disabled={loadingDetail} className={primaryButtonClass} onClick={() => setEditing('NEW')}>New draft</button>}
@@ -153,7 +160,7 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
     </div>
     {saved && <section className="shrink-0 flex flex-wrap gap-3 items-center"><p role="status">Draft version {saved.version} saved. No stock or money posted.</p><button type="button" className="border rounded p-2" onClick={() => open(saved)}>Open saved draft</button><button type="button" className="border rounded p-2" onClick={() => setSaved(null)}>Dismiss result</button></section>}
     <div className="flex min-h-0 min-w-0 flex-1 gap-3">
-    <div className={`${selected ? 'hidden lg:flex lg:w-[38%] lg:flex-none' : 'flex flex-1'} min-h-0 min-w-0 flex-col gap-3`}>
+    <div className={`${selected ? 'hidden lg:flex sales-register-sidebar lg:flex-none' : 'flex flex-1'} min-h-0 min-w-0 flex-col gap-3`}>
     <div className={cardClass}>
       {loadingDetail && <p role="status" className="p-3">Opening draft…</p>}
       {detailError && <p role="alert" className="p-3">{detailError}</p>}

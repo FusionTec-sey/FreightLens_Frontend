@@ -9,7 +9,8 @@ const row = { case_key: "case", version: 1, status: "REQUESTED", product_name: "
   reason: "Review tile rules", requested_at: "2026-10-02T08:00:00Z" };
 let api;
 
-test.each(['REQUESTED', 'APPROVED'])('reallocation %s shows exact destination and never exposes execution', async status => {
+test.each(['REQUESTED', 'APPROVED'])('reallocation %s shows exact destination and blocks execution without runtime', async status => {
+  api.reallocationExecutionContext = jest.fn().mockRejectedValue({ response: { status: 503 } });
   api.managerCases.mockResolvedValue({ data: { items: [{ ...row, status, quantity: '0.000001', base_unit: 'PCS',
     document_key: 'source', line_key: 'source-line', target: { document_key: 'destination', line_key: 'target-line', version: 4 },
     target_review_at: '2026-10-07T08:00:00Z', target_hold_snapshot: { count: 2, remaining: '6.000001' } }], total: 1, pages: 1 } });
@@ -19,7 +20,10 @@ test.each(['REQUESTED', 'APPROVED'])('reallocation %s shows exact destination an
   expect(screen.getByText(/To draft: destination/)).toHaveTextContent('Version 4');
   expect(screen.getByText(/Destination before this request/)).toHaveTextContent('6.000001 PCS remaining across 2 historical holds');
   expect(screen.queryByText(/Initial activation review/)).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: /Activate|Execute|Schedule/ })).not.toBeInTheDocument();
+  if (status === 'APPROVED') {
+    await screen.findByText('Stock execution is disabled: the required runtime is not configured.');
+    expect(screen.getByRole('button', { name: 'Execute approved reallocation' })).toBeDisabled();
+  } else expect(screen.queryByRole('button', { name: /Activate|Execute|Schedule/ })).not.toBeInTheDocument();
   if (status === 'REQUESTED') {
     fireEvent.change(screen.getByLabelText('Decision reason'), { target: { value: 'Exact demand checked' } });
     fireEvent.click(screen.getByText('Approve exact reallocation'));

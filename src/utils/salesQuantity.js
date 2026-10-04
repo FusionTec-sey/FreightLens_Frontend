@@ -1,3 +1,4 @@
+/* global BigInt */
 // UI nudges only. Server unit-policy validation remains authoritative.
 const scale = BigInt(1000000);
 const maximum = BigInt('999999999999999999');

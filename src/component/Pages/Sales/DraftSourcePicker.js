@@ -22,16 +22,16 @@ export default function DraftSourcePicker({ title, load, onSelect, onClose, prod
       {!embedded && <button type="button" className="border rounded p-2" onClick={onClose}>Back to draft</button>}
       <button type="button" className="border rounded p-2" onClick={() => setRefresh(n => n + 1)}>Retry</button></header>
     {products && <form className="shrink-0 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); setSearch(query.trim()); setPage(1); setRefresh(n => n + 1); }}>
-      <label>Product name or SKU<input className={`border rounded p-2 ml-2 ${theme}`} value={query} maxLength={160} onChange={e => setQuery(e.target.value)} /></label>
+      <label className="min-w-0 flex-1 text-xs">Product name or SKU<input placeholder="Search products…" className={`mt-1 block w-full min-w-0 border rounded-lg p-2 ${theme}`} value={query} maxLength={160} onChange={e => setQuery(e.target.value)} /></label>
       <button type="submit" className="border rounded p-2">Search</button>
       <button type="button" className="border rounded p-2" onClick={() => { setQuery(''); setSearch(''); setPage(1); }}>Clear search</button>
     </form>}
     <div className="flex-1 min-h-0 overflow-auto border rounded">
       {error ? <p role="alert" className="p-3">{error}</p> : !result ? <p role="status" className="p-3">Loading choices…</p> : !result.items.length ? <p className="p-3">No eligible records found.</p> :
-        <ul className={embedded && products ? 'grid grid-cols-1 gap-2 p-2 xl:grid-cols-2' : ''}>{result.items.map(row => <li key={row.id} className={`p-3 flex flex-wrap items-center justify-between gap-3 ${embedded ? 'rounded-xl border' : 'border-b'}`}>
-          {products && <SalesProductImage source={row} />}
-          <div className="min-w-0 flex-1 break-words">{row.name} <span className="text-xs">{row.sku || row.code}</span>{products && !row.policy_version && <p className="text-xs">Reviewed inventory policy required before selection.</p>}</div>
-          <button type="button" className="min-h-[44px] border rounded px-3 py-2 hover:bg-indigo-500/20 disabled:opacity-40" disabled={disabled || (products && !row.policy_version)} onClick={() => { if (!disabled) onSelect(row); }}>Select {row.name}</button>
+        <ul className={embedded && products ? 'sales-product-grid' : ''}>{result.items.map(row => <li key={row.id} className={embedded && products ? 'sales-product-card' : 'p-3 flex flex-wrap items-center justify-between gap-3 border-b'}>
+          {products && <SalesProductImage source={row} size={embedded ? 'card' : 'normal'} />}
+          <div className="min-w-0 flex-1 break-words"><p className="text-sm font-semibold">{row.name}</p><p className="text-xs text-slate-500 dark:text-slate-400">{row.sku || row.code}</p>{products && <p className="mt-1 text-xs">{row.policy_version ? `Sold in ${row.base_unit || 'reviewed units'} · price pending` : 'Reviewed inventory policy required before selection.'}</p>}</div>
+          <button type="button" aria-label={`Select ${row.name}`} className="min-h-[44px] border border-indigo-200 rounded-lg px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-500/20 disabled:opacity-40 dark:text-indigo-300 dark:border-indigo-900" disabled={disabled || (products && !row.policy_version)} onClick={() => { if (!disabled) onSelect(row); }}>{embedded && products ? '+ Add to cart' : `Select ${row.name}`}</button>
         </li>)}</ul>}
     </div>
     <PaginationToolbar page={page} pageSize={limit} totalPages={result?.pages || 1} totalCount={result?.total || 0} onPageChange={setPage}
