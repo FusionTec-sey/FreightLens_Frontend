@@ -43,6 +43,10 @@ import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
 import CustomersPage from "./Pages/MasterData/CustomersPage";
 import SalesDraftsPage from "./Pages/Sales/SalesDraftsPage";
 import { SALES_DRAFTS_ROUTE, SALES_LOCAL_DRAFTS_ROUTE, SALES_OVERDUE_ROUTE, SALES_RELEASE_REVIEWS_ROUTE, SALES_DEADLINE_REVIEWS_ROUTE, SALES_REALLOCATION_REVIEWS_ROUTE } from "../utils/salesRoutes";
+import { COUNT_PLANS_ROUTE, COUNT_SESSIONS_ROUTE, COUNT_MY_ROUNDS_ROUTE, COUNT_DISCREPANCIES_ROUTE } from "../utils/countRoutes";
+import CountPlansPage from "./Pages/Counts/CountPlansPage";
+import CountSessionsPage from "./Pages/Counts/CountSessionsPage";
+import CountDiscrepanciesPage from "./Pages/Counts/CountDiscrepanciesPage";
 import { CUSTOMERS_ROUTE } from "../utils/customerRoutes";
 import DocumentTypesMasterPage from "./Pages/MasterData/DocumentTypesMasterPage.js";
 import ReportTemplatesPage from "./Pages/ReportTemplates/ReportTemplatesPage.js";
@@ -195,6 +199,10 @@ export default function MainPage() {
             <Route path={SALES_RELEASE_REVIEWS_ROUTE} element={<PrivateRoute><SalesDraftsPage view="RELEASE_REVIEWS" /></PrivateRoute>} />
             <Route path={SALES_DEADLINE_REVIEWS_ROUTE} element={<PrivateRoute><SalesDraftsPage view="DEADLINE_REVIEWS" /></PrivateRoute>} />
             <Route path={SALES_REALLOCATION_REVIEWS_ROUTE} element={<PrivateRoute><SalesDraftsPage view="REALLOCATION_REVIEWS" /></PrivateRoute>} />
+            <Route path={COUNT_PLANS_ROUTE} element={<PrivateRoute><CountPlansPage /></PrivateRoute>} />
+            <Route path={COUNT_SESSIONS_ROUTE} element={<PrivateRoute><CountSessionsPage /></PrivateRoute>} />
+            <Route path={COUNT_MY_ROUNDS_ROUTE} element={<PrivateRoute><CountSessionsPage mine /></PrivateRoute>} />
+            <Route path={COUNT_DISCREPANCIES_ROUTE} element={<PrivateRoute><CountDiscrepanciesPage /></PrivateRoute>} />
             <Route path="/master-data/document-types" element={<PrivateRoute><DocumentTypesMasterPage /></PrivateRoute>} />
 
             {/* Customer-Configurable Report & Print Templates */}

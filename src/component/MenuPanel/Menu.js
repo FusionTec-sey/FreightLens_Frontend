@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { CUSTOMERS_ROUTE } from "../../utils/customerRoutes";
+import { COUNT_PLANS_ROUTE, COUNT_SESSIONS_ROUTE, COUNT_MY_ROUNDS_ROUTE, COUNT_DISCREPANCIES_ROUTE } from "../../utils/countRoutes";
 import { SALES_DRAFTS_ROUTE, SALES_LOCAL_DRAFTS_ROUTE, SALES_OVERDUE_ROUTE, SALES_RELEASE_REVIEWS_ROUTE, SALES_DEADLINE_REVIEWS_ROUTE, SALES_REALLOCATION_REVIEWS_ROUTE } from "../../utils/salesRoutes";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -12,6 +13,7 @@ import {
   Moon,
   ShoppingBag,
   ShoppingCart,
+  ClipboardList,
   Shield,
   Boxes,
   Database,
@@ -127,6 +129,7 @@ function Sidebar({ onLinkClick }) {
     (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
 
   const isPosActive = location.pathname.startsWith("/sales/");
+  const isCountsActive = location.pathname.startsWith("/inventory/counts");
 
   const isMasterDataActive =
     isActive(CUSTOMERS_ROUTE) ||
@@ -402,6 +405,11 @@ function Sidebar({ onLinkClick }) {
   const canViewSalesDrafts = isSuperAdmin || (hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft"));
   // Reservation review entries need the Inventory module as well; each screen
   // re-checks on the backend, so these only decide sidebar visibility.
+  const canCountPlans = isSuperAdmin || (hasModule("INVENTORY") && hasPermission("View_CountPlan"));
+  const canEnterCounts = isSuperAdmin || (hasModule("INVENTORY") && hasPermission("Enter_CountResult"));
+  const canAssignCounts = isSuperAdmin || (hasModule("INVENTORY") && hasPermission("Assign_CountSession"));
+  const canViewCountDiscrepancies = isSuperAdmin || (hasModule("INVENTORY") && hasPermission("View_CountDiscrepancy"));
+  const canOpenCounts = canCountPlans || canEnterCounts || canAssignCounts || canViewCountDiscrepancies;
   const canOpenReservationReleases = isSuperAdmin || (hasModule("INVENTORY") &&
     (hasPermission("Request_ReservationRelease") || hasPermission("Review_ReservationRelease")));
   const canOpenReservationDeadlines = isSuperAdmin || (hasModule("INVENTORY") &&
@@ -533,6 +541,23 @@ function Sidebar({ onLinkClick }) {
             })}
 
           {/* Purchase Orders Module */}
+          {/* Stock counts: planning, blind counting and discrepancy review */}
+          {canOpenCounts &&
+            renderAccordion({
+              sectionKey: "counts",
+              icon: <ClipboardList />,
+              label: "Stock Counts",
+              isSectionActive: isCountsActive,
+              children: (
+                <>
+                  {canCountPlans && renderSubLink(COUNT_PLANS_ROUTE, "Count plans", isActive(COUNT_PLANS_ROUTE))}
+                  {(canAssignCounts || canCountPlans) && renderSubLink(COUNT_SESSIONS_ROUTE, "Count rounds", isActive(COUNT_SESSIONS_ROUTE))}
+                  {canEnterCounts && renderSubLink(COUNT_MY_ROUNDS_ROUTE, "My count rounds", isActive(COUNT_MY_ROUNDS_ROUTE))}
+                  {canViewCountDiscrepancies && renderSubLink(COUNT_DISCREPANCIES_ROUTE, "Discrepancies", isActive(COUNT_DISCREPANCIES_ROUTE))}
+                </>
+              ),
+            })}
+
           {/* Point of Sale: counter demand, holds and their reviews */}
           {canViewSalesDrafts &&
             renderAccordion({
