@@ -12,11 +12,11 @@ import StaffStoreAssignments from "./components/StaffStoreAssignments";
 import ManagerCases from "./components/ManagerCases";
 
 export default function InventoryLocationsPage() {
-  const { token, selectedOrgId, orgId, permissions, isSuperAdmin, user } = useAuth();
+  const { token, selectedOrgId, orgId, permissions, isSuperAdmin, userId } = useAuth();
   const activeOrg = selectedOrgId || orgId;
   if (!activeOrg) return <p role="alert" className="p-4">Select an organisation before managing locations.</p>;
   return <LocationWorkspace key={activeOrg} orgId={activeOrg} token={token}
-    userId={user?.id} canReview={isSuperAdmin || permissions.includes("Review_InventoryPolicy")}
+    userId={userId} canReview={isSuperAdmin || permissions.includes("Review_InventoryPolicy")}
     canPropose={isSuperAdmin || permissions.includes("Request_InventoryReview")}
     canActivate={isSuperAdmin || permissions.includes("Activate_InventoryPolicy")}
     canManageSettings={isSuperAdmin || permissions.includes("Manage_BranchSettings")}

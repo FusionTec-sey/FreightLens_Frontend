@@ -4,27 +4,40 @@ import { useTheme } from '../../../context/ThemeContext';
 import { salesDraftsApi } from '../../../services/salesDraftsApi';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import SalesDraftEditor from './SalesDraftEditor';
+import SalesDraftDetails from './SalesDraftDetails';
+import SalesDraftRows from './SalesDraftRows';
+import DraftSourcePicker from './DraftSourcePicker';
 import ManagerCases from '../Inventory/components/ManagerCases';
 import DraftReservations from './DraftReservations';
 import LocalSalesDrafts from './LocalSalesDrafts';
 import OtherStoreRequest from './OtherStoreRequest';
+import DraftAllocation from './DraftAllocation';
 import { inventoryLocationsApi } from '../../../services/inventoryLocationsApi';
+import { useNavigate } from 'react-router-dom';
+import { SALES_DRAFTS_ROUTE } from '../../../utils/salesRoutes';
+import { FileText } from 'lucide-react';
+import { RegisterHeader, pageClass, cardClass, primaryButtonClass, secondaryButtonClass, Badge } from '../../UI/UXComponent/RegisterShell';
 
-export default function SalesDraftsPage() {
-  const { token, selectedOrgId, orgId, user, permissions = [], isSuperAdmin, hasModule } = useAuth();
+export default function SalesDraftsPage({ view = 'DRAFTS' }) {
+  const { token, selectedOrgId, orgId, userId, permissions = [], isSuperAdmin, hasModule } = useAuth();
   const activeOrg = selectedOrgId || orgId;
   const allowed = isSuperAdmin || (hasModule?.('SALES') &&
     ['View_SalesDraft', 'View_Product', 'View_Customer', 'View_Personal_Data'].every(p => permissions.includes(p)));
   if (!activeOrg) return <p role="alert">Select an organisation first.</p>;
   if (!allowed) return <p role="alert">Sales draft, product and customer access required.</p>;
-  return <DraftRegister key={`${activeOrg}:${user?.id}:${token}`} token={token} orgId={activeOrg}
-    canManage={isSuperAdmin || permissions.includes('Manage_SalesDraft')} userId={user?.id}
-    canOpenReviews={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_ReservationRelease', 'Review_ReservationRelease'].some(p => permissions.includes(p)))}
+  if (!userId) return <p role="alert">Authenticated user identity unavailable. Refresh access or sign in again before opening sales drafts.</p>;
+  return <DraftRegister key={`${activeOrg}:${userId}:${token}:${view}`} view={view} token={token} orgId={activeOrg}
+    canManage={isSuperAdmin || permissions.includes('Manage_SalesDraft')} userId={userId}
+    canAllocate={isSuperAdmin || (hasModule?.('INVENTORY') && permissions.includes('Allocate_SalesDraftStock'))}
+    canOpenReviews={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_ReservationRelease', 'Review_ReservationRelease', 'Execute_ReservationRelease'].some(p => permissions.includes(p)))}
+    canExecuteRelease={isSuperAdmin || permissions.includes('Execute_ReservationRelease')}
     canReview={isSuperAdmin || permissions.includes('Review_ReservationRelease')}
     canRequestRelease={isSuperAdmin || permissions.includes('Request_ReservationRelease')}
-    canOpenReallocations={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_ReservationReallocation', 'Review_ReservationReallocation'].some(p => permissions.includes(p)))}
+    canOpenReallocations={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_ReservationReallocation', 'Review_ReservationReallocation', 'Execute_ReservationReallocation'].some(p => permissions.includes(p)))}
+    canExecuteReallocation={isSuperAdmin || permissions.includes('Execute_ReservationReallocation')}
     canReviewReallocation={isSuperAdmin || permissions.includes('Review_ReservationReallocation')}
-    canOpenOtherStore={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_OtherStoreFulfilment', 'Review_OtherStoreFulfilment'].some(p => permissions.includes(p)))}
+    canOpenOtherStore={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_OtherStoreFulfilment', 'Review_OtherStoreFulfilment', 'Execute_OtherStoreFulfilment'].some(p => permissions.includes(p)))}
+    canExecuteOtherStore={isSuperAdmin || permissions.includes('Execute_OtherStoreFulfilment')}
     canReviewOtherStore={isSuperAdmin || permissions.includes('Review_OtherStoreFulfilment')}
     canRequestOtherStore={isSuperAdmin || permissions.includes('Request_OtherStoreFulfilment')}
     canRequestReallocation={isSuperAdmin || permissions.includes('Request_ReservationReallocation')}
@@ -34,19 +47,24 @@ export default function SalesDraftsPage() {
     canScheduleDeadline={isSuperAdmin || permissions.includes('Schedule_ReservationReview')} />;
 }
 
-function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canRequestOtherStore, userId }) {
+function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, userId }) {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
+  const { hasModule, isSuperAdmin } = useAuth();
   const api = useMemo(() => salesDraftsApi(token, orgId), [token, orgId]);
   const inventoryApi = useMemo(() => inventoryLocationsApi(token, orgId), [token, orgId]);
   const [otherStoreRequest, setOtherStoreRequest] = useState(null);
-  const [deadlineReviews, setDeadlineReviews] = useState(false);
-  const [reallocationReviews, setReallocationReviews] = useState(false);
-  const [otherStoreReviews, setOtherStoreReviews] = useState(false);
+  const [allocation, setAllocation] = useState(null);
+  const [deadlineReviews, setDeadlineReviews] = useState(view === 'DEADLINE_REVIEWS');
+  const [reallocationReviews, setReallocationReviews] = useState(view === 'REALLOCATION_REVIEWS');
+  const [otherStoreReviews, setOtherStoreReviews] = useState(view === 'OTHER_STORE_REVIEWS');
   const otherStoreApi = useMemo(() => ({
     managerCases: async (...args) => { const response = await api.otherStoreCases(...args); return { ...response, data: {
       ...response.data, items: response.data.items.map(row => ({ ...row, product_name: `Product ${row.product_id} · Store ${row.fulfilment_branch_id}` })),
     } }; },
     reviewPolicyCase: (...args) => api.reviewOtherStore(...args),
+    otherStoreExecutionContext: (...args) => api.otherStoreExecutionContext(...args),
+    executeOtherStore: (...args) => api.executeOtherStore(...args),
   }), [api]);
   const reviewApi = useMemo(() => ({
     managerCases: async (...args) => { const response = await (reallocationReviews ? api.reallocationCases : deadlineReviews ? api.deadlineCases : api.releaseCases)(...args); return { ...response, data: {
@@ -54,8 +72,13 @@ function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, can
     } }; },
     reviewPolicyCase: (...args) => (reallocationReviews ? api.reviewReallocation : deadlineReviews ? api.reviewDeadline : api.reviewRelease)(...args),
     scheduleDeadline: (...args) => api.scheduleDeadline(...args),
+    executeRelease: (...args) => api.executeRelease(...args),
+    reallocationExecutionContext: (...args) => api.reallocationExecutionContext(...args),
+    executeReallocation: (...args) => api.executeReallocation(...args),
   }), [api, deadlineReviews, reallocationReviews]);
   const [page, setPage] = useState(1);
+  const [branchFilter, setBranchFilter] = useState(null);
+  const [choosingBranch, setChoosingBranch] = useState(false);
   const [limit, setLimit] = useState(25);
   const [refresh, setRefresh] = useState(0);
   const [result, setResult] = useState(null);
@@ -65,20 +88,23 @@ function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, can
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saved, setSaved] = useState(null);
-  const [reviews, setReviews] = useState(false);
+  const [reviews, setReviews] = useState(view === 'RELEASE_REVIEWS');
   const [holds, setHolds] = useState(null);
-  const [localDrafts, setLocalDrafts] = useState(false);
-  const [dueInbox, setDueInbox] = useState(false);
+  const [localDrafts, setLocalDrafts] = useState(view === 'LOCAL_DRAFTS');
+  const [dueInbox, setDueInbox] = useState(view === 'OVERDUE');
+  useEffect(() => {
+    if (view !== 'DRAFTS' && !reviews && !deadlineReviews && !reallocationReviews && !otherStoreReviews && !localDrafts && !dueInbox && !editing && !selected && !loadingDetail) navigate(SALES_DRAFTS_ROUTE, { replace: true });
+  }, [view, reviews, deadlineReviews, reallocationReviews, otherStoreReviews, localDrafts, dueInbox, editing, selected, loadingDetail, navigate]);
   const request = useRef(null);
   useEffect(() => {
     const controller = new AbortController();
     let live = true;
     request.current?.abort(); request.current = null;
     setSelected(null); setDetailError(''); setLoadingDetail(false); setResult(null); setError('');
-    api.list(page, limit, controller.signal).then(({ data }) => { if (live) setResult(data); })
+    api.list(page, limit, controller.signal, { branch_id: branchFilter?.id }).then(({ data }) => { if (live) setResult(data); })
       .catch(() => { if (live) setError('Drafts could not be loaded. Check access and refresh to retry.'); });
     return () => { live = false; controller.abort(); request.current?.abort(); };
-  }, [api, page, limit, refresh]);
+  }, [api, page, limit, refresh, branchFilter]);
   async function open(row) {
     request.current?.abort();
     const controller = new AbortController(); request.current = controller;
@@ -95,55 +121,53 @@ function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, can
   }
   const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
   const canOpenDue = canOpenDeadlines && (canReviewDeadline || canScheduleDeadline);
+  const viewAllowed = { DRAFTS: true, LOCAL_DRAFTS: canManage, OVERDUE: canOpenDue, RELEASE_REVIEWS: canOpenReviews,
+    DEADLINE_REVIEWS: canOpenDeadlines, REALLOCATION_REVIEWS: canOpenReallocations, OTHER_STORE_REVIEWS: canOpenOtherStore }[view];
+  if (!viewAllowed) return <p role="alert" className="p-4">Access to this sales workspace is required.</p>;
+  if (choosingBranch) return <DraftSourcePicker title="Filter by selling store" load={api.branches}
+    onClose={() => setChoosingBranch(false)} onSelect={choice => { setBranchFilter(choice); setPage(1); setChoosingBranch(false); }} />;
+  if (allocation && canAllocate) return <DraftAllocation api={api} inventoryApi={inventoryApi} draft={allocation} onClose={() => { setAllocation(null); open(allocation); }} />;
   if (otherStoreRequest && canOpenOtherStore && canRequestOtherStore) return <OtherStoreRequest api={api} inventoryApi={inventoryApi} draft={otherStoreRequest} onClose={() => setOtherStoreRequest(null)} />;
-  if (otherStoreReviews && canOpenOtherStore) return <ManagerCases api={otherStoreApi} userId={userId} canReview={canReviewOtherStore} otherStore standalone onClose={() => setOtherStoreReviews(false)} />;
-  if (reallocationReviews && canOpenReallocations) return <ManagerCases api={reviewApi} userId={userId} canReview={canReviewReallocation} reservationReallocation standalone onClose={() => setReallocationReviews(false)} />;
+  if (otherStoreReviews && canOpenOtherStore) return <ManagerCases api={otherStoreApi} userId={userId} canReview={canReviewOtherStore} canActivate={canExecuteOtherStore} otherStore standalone onClose={() => setOtherStoreReviews(false)} />;
+  if (reallocationReviews && canOpenReallocations) return <ManagerCases api={reviewApi} userId={userId} canReview={canReviewReallocation} canActivate={canExecuteReallocation} reservationReallocation standalone onClose={() => setReallocationReviews(false)} />;
   if (dueInbox && canOpenDue) return <DraftReservations api={api} dueInbox canRequest={canRequestRelease} canRequestDeadline={canRequestDeadline} canRequestReallocation={canRequestReallocation}
     onClose={() => setDueInbox(false)} onOpenDraft={async row => { if (!await open(row)) throw new Error('Draft not accessible'); setDueInbox(false); }} />;
   if (holds && (canOpenReviews || canOpenDeadlines || canOpenReallocations)) return <DraftReservations api={api} draft={holds} canRequest={canRequestRelease} canRequestDeadline={canRequestDeadline} canRequestReallocation={canRequestReallocation} onClose={() => { setHolds(null); open(holds); }} />;
   if (deadlineReviews && canOpenDeadlines) return <ManagerCases api={reviewApi} userId={userId} canReview={canReviewDeadline} canActivate={canScheduleDeadline} reservationDeadline standalone onClose={() => setDeadlineReviews(false)} />;
   if (reviews && canOpenReviews) return <ManagerCases api={reviewApi} userId={userId} canReview={canReview}
-    reservationRelease standalone onClose={() => setReviews(false)} />;
+    reservationRelease canActivate={canExecuteRelease} standalone onClose={() => setReviews(false)} />;
   if (localDrafts && canManage) return <LocalSalesDrafts orgId={orgId} userId={userId} onClose={() => setLocalDrafts(false)} onRecover={recovery => { setLocalDrafts(false); setEditing({ recovery }); }} />;
-  if (editing && canManage) return <SalesDraftEditor api={api} orgId={orgId} userId={userId} recovery={editing.recovery} initial={editing === 'NEW' || editing.recovery ? null : editing}
+  if (editing && canManage) return <SalesDraftEditor api={api} inventoryApi={isSuperAdmin || hasModule?.('INVENTORY') ? inventoryApi : undefined} orgId={orgId} userId={userId} recovery={editing.recovery} initial={editing === 'NEW' || editing.recovery ? null : editing}
     onClose={() => setEditing(null)} onSaved={receipt => { setSaved(receipt); setEditing(null); setRefresh(n => n + 1); }} />;
-  return <section className={`h-full min-h-0 flex flex-col p-4 gap-3 ${theme}`}>
-    <header className="shrink-0 flex flex-wrap justify-between gap-3">
-      <div><h1 className="text-xl font-bold">Sales drafts</h1><p className="text-sm">Draft demand only — no confirmed sale, payment, reservation or collection entitlement.</p></div>
-      <button type="button" className="border rounded px-4 py-2 hover:bg-indigo-500/20" onClick={() => setRefresh(n => n + 1)}>Refresh</button>
-      {canManage && <button type="button" disabled={loadingDetail} className="rounded bg-indigo-600 text-white px-4 py-2 disabled:opacity-40" onClick={() => setEditing('NEW')}>New draft</button>}
-      {canManage && <button type="button" className="border rounded px-3 py-2" onClick={() => setLocalDrafts(true)}>Local drafts</button>}
-      {canOpenReviews && <button type="button" className="border rounded px-3 py-2" onClick={() => setReviews(true)}>Reservation reviews</button>}
-      {canOpenReallocations && <button type="button" className="border rounded px-3 py-2" onClick={() => setReallocationReviews(true)}>Reallocation reviews</button>}
-      {canOpenOtherStore && <button type="button" className="border rounded px-3 py-2" onClick={() => setOtherStoreReviews(true)}>Other-store reviews</button>}
-      {canOpenDeadlines && <button type="button" className="border rounded px-3 py-2" onClick={() => setDeadlineReviews(true)}>Follow-up reviews</button>}
-      {canOpenDue && <button type="button" className="border rounded px-3 py-2" onClick={() => setDueInbox(true)}>Overdue follow-up</button>}
-    </header>
+  return <section className={pageClass}>
+    <RegisterHeader icon={FileText} title="Sales drafts" description="Draft demand only. Allocation, payment and collection remain separate." actions={<>
+      <button type="button" className={secondaryButtonClass} onClick={() => setRefresh(n => n + 1)}>Refresh</button>
+      {canManage && <button type="button" disabled={loadingDetail} className={primaryButtonClass} onClick={() => setEditing('NEW')}>New draft</button>}
+    </>} />
+    <div className="shrink-0 flex flex-wrap items-center gap-2" aria-label="Sales register filters">
+      <Badge tone="amber">Drafts</Badge>
+      <button type="button" className={secondaryButtonClass} onClick={() => setChoosingBranch(true)}>
+        {branchFilter ? `Store: ${branchFilter.name}` : 'All selling stores'}
+      </button>
+      {branchFilter && <button type="button" className={secondaryButtonClass} onClick={() => { setBranchFilter(null); setPage(1); }}>Clear store filter</button>}
+    </div>
     {saved && <section className="shrink-0 flex flex-wrap gap-3 items-center"><p role="status">Draft version {saved.version} saved. No stock or money posted.</p><button type="button" className="border rounded p-2" onClick={() => open(saved)}>Open saved draft</button><button type="button" className="border rounded p-2" onClick={() => setSaved(null)}>Dismiss result</button></section>}
-    <div className="flex-1 min-h-0 overflow-auto border rounded-xl">
+    <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+    <div className={`${selected ? 'hidden lg:flex lg:w-[38%] lg:flex-none' : 'flex flex-1'} min-h-0 min-w-0 flex-col gap-3`}>
+    <div className={cardClass}>
       {loadingDetail && <p role="status" className="p-3">Opening draft…</p>}
       {detailError && <p role="alert" className="p-3">{detailError}</p>}
-      {selected && <section aria-label="Sales draft details" className="p-4 border-b space-y-2">
-        <h2 className="font-semibold">Draft version {selected.version}</h2>
-        <p className="text-xs break-all">Reference: {selected.document_key}</p>
-        <p className="text-xs break-all">Customer reference: {selected.customer_key} · Branch {selected.branch_id}</p>
-        <ul>{selected.lines.map(line => <li className="border-b py-2" key={line.line_key}>
-          {line.product_name || `Product ${line.product_id}`} {line.sku}: {line.quantity} {line.unit} · Base quantity {line.base_quantity} {line.base_unit} · Policy v{line.expected_policy_version}
-          <span className="block text-xs">Reserved: {line.reserved_quantity || '0'} {line.base_unit}. Reservation is separate from payment and physical collection.</span>
-        </li>)}</ul>
-        <button type="button" className="border rounded px-3 py-2" onClick={() => setSelected(null)}>Close details</button>
-        {canOpenOtherStore && canRequestOtherStore && <button type="button" className="border rounded px-3 py-2 ml-2" onClick={() => setOtherStoreRequest(selected)}>Request other-store stock</button>}
-        {(canOpenReviews || canOpenDeadlines || canOpenReallocations) && <button type="button" className="border rounded px-3 py-2 ml-2" onClick={() => setHolds(selected)}>Reserved stock</button>}
-        {canManage && <button type="button" className="border rounded px-3 py-2 ml-2" onClick={() => setEditing(selected)}>Edit draft</button>}
-      </section>}
       {error ? <p role="alert" className="p-4">{error}</p> : !result ? <p role="status" className="p-4">Loading drafts…</p> : !result.items.length ? <p className="p-4">No saved sales drafts in this company.</p> :
-        <table className="w-full text-sm"><thead className={`sticky top-0 ${theme}`}><tr>{['Draft reference', 'Version', 'Branch', 'Status', 'Action'].map(label => <th key={label} className="p-3 text-left">{label}</th>)}</tr></thead>
-          <tbody>{result.items.map(row => <tr className="border-t" key={row.document_key}>
-            <td className="p-3 font-mono break-all">{row.document_key}</td><td className="p-3">{row.version}</td><td className="p-3">{row.branch_id}</td><td className="p-3">Draft</td>
-            <td className="p-3"><button type="button" disabled={loadingDetail} className="border rounded px-3 py-2 hover:bg-indigo-500/20 disabled:opacity-40" onClick={() => open(row)}>View</button></td>
-          </tr>)}</tbody></table>}
+        <SalesDraftRows rows={result.items} selectedKey={selected?.document_key} loading={loadingDetail} onOpen={open} theme={theme} />}
     </div>
     <div className="shrink-0"><PaginationToolbar page={page} pageSize={limit} totalPages={result?.pages || 1} totalCount={result?.total || 0}
       onPageChange={setPage} onPageSizeChange={value => { setLimit(value); setPage(1); }} isDark={isDark} /></div>
+    </div>
+    {selected && <SalesDraftDetails key={selected.document_key} draft={selected} api={api} onClose={() => setSelected(null)}
+      onEdit={canManage ? () => setEditing(selected) : undefined}
+      onAllocate={canAllocate ? () => setAllocation(selected) : undefined}
+      onOtherStore={canOpenOtherStore && canRequestOtherStore ? () => setOtherStoreRequest(selected) : undefined}
+      onReservations={canOpenReviews || canOpenDeadlines || canOpenReallocations ? () => setHolds(selected) : undefined} />}
+    </div>
   </section>;
 }

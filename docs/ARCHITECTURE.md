@@ -1,5 +1,214 @@
 # FreightLens Frontend Architecture
 
+## T33A count integration repairs (2026-10-04; unverified)
+
+Count-specific collaborator screens/routes are integrated under Stock Counts.
+Assigned counter identity uses current AuthContext.userId. Pending count saves
+lock inputs and navigation, retain exact retry intent, and confirmed saves with a
+failed reload offer read-only refresh rather than another save. Unsaved Back asks
+before discard. Inventory-authorised selectors include warehouses without Sales
+or personal-customer permissions. Regression tests written, not run; browser and
+full workflow acceptance remain pending. No inventory adjustment posting added.
+
+## Draft revision-history view (2026-10-04; unverified)
+
+SalesDraftDetails opens SalesDraftHistory only on explicit selection. The existing
+scoped client reads paginated revision metadata; refresh removes stale rows and
+unmount aborts requests. Reuses PaginationToolbar and the detail shell; no new
+audit store or automatic actions. Historical customer labels come from the server,
+and staff are explicit ID references, not guessed names. Tests written, not run.
+
+## Compact sales register (2026-10-04; unverified)
+
+SalesDraftRows presents the same server page as a full table or compact stacked
+list when details are selected. Both retain all fields and explicit read actions;
+no additional fetching/filtering or business writes. Current selection is exposed
+to assistive technology; actions have labelled 44px targets. Existing parent owns
+pagination, scope and cancellation. Tests written, not run; browser gate pending.
+
+## Draft field validation (2026-10-04; unverified)
+
+Save and quantity nudges share exact text validation without Number coercion.
+Invalid saves retain input, expose field-linked errors and focus the first invalid
+quantity in the visible tablet cart. Missing customer/store/products are shown
+at their controls; no invalid request is sent. Backend policy increments remain
+authoritative. Regression cases added, not run; browser acceptance pending.
+
+## Confirmed draft cleanup recovery (2026-10-04; unverified)
+
+SalesDraftEditor separates validated server receipts from failed local recovery
+cleanup. Confirmed receipt locks edits and replaces save with cleanup-only retry;
+it never repeats the API write in that mounted editor. Existing revision-checked
+recovery deletion prevents removing another tab's edits. Original pending intent
+remains durable if cleanup fails, allowing the existing exact replay after reload.
+Mismatched receipts remain uncertain. No recovery schema/permission change.
+Regression tests written, not run; browser/reload acceptance remains pending.
+
+## Exact touch quantity controls (2026-10-04; unverified)
+
+Draft cart adds labelled 44px +/- controls changing one selected unit, preserving
+typed fractional quantities via six-place scaled BigInt arithmetic. No floats,
+rounding, zero/negative result, overflow or implicit line removal. Invalid partial
+input disables nudges without overwriting text. Functional line updates preserve
+rapid clicks. Server policy increments/availability still govern eventual save.
+Tests written, not run; tablet/browser accessibility acceptance remains pending.
+
+## Authenticated recovery/reviewer identity (2026-10-04; unverified)
+
+Login's legacy user value is a username string. AuthContext now separately exposes
+userId from /auth/me/access only for the resolved current token/company context.
+Sales recovery and customer/inventory reviewer props use that ID, never user.id.
+Sales entry fails closed if no authenticated numeric identity is available, avoiding
+undefined recovery scope. Existing username consumers and server permissions remain.
+Tests updated/added but not run. Access refresh and multi-user browser checks pending.
+
+## Sales catalogue images (2026-10-04; unverified)
+
+Product picker, cart and saved-detail rows share SalesProductImage, consuming
+only the API's signed image field through mediaUrl. Lazy loading and a package
+placeholder handle missing/broken images without altering product eligibility.
+Images remain in-memory display labels and are not added to recovery snapshots.
+No external/raw-key fallback. Tests/build/browser/provider checks remain deferred.
+
+## Unit-barcode draft entry (2026-10-04; unverified)
+
+Editor now accepts keyboard-wedge/manual barcode entry via the existing scoped
+Inventory resolver, then reads the active policy and retains the registered unit.
+Leading zeros are preserved; no legacy-code/search fallback or stock effect.
+Only Inventory-entitled sales viewers see the control. Pending/conflicted/full
+carts disable it; obsolete reads abort and cannot add to a locked cart. Each scan
+adds a distinct draft line, not a silent quantity merge. Server save still validates
+policy/quantity increments; scanner/camera hardware acceptance is not claimed.
+Tests written, not run. Images and full tablet/browser acceptance remain pending.
+
+## Shared product/cart draft workspace (2026-10-04; unverified)
+
+SalesDraftEditor embeds the existing server-paginated product picker beside its
+existing cart on landscape/desktop layouts. Narrow layouts switch Products/Cart
+without unmounting or copying draft state. Existing customer/store selection,
+local recovery snapshots, save intents and uncertain-save locking are retained.
+Embedded picker disables selection for locked/full carts and retains search/page
+after adding a line. Quantity/unit entry remains exact and server-revalidated;
+no price/payment/invoice action is fabricated. Saved customer names display only
+in memory and are still excluded from recovery. Images/scanning and visual
+acceptance remain unfinished. Component test added, no tests/build/browser run.
+
+## Saved customer names in sales (2026-10-04; unverified)
+
+Register and detail consume additive customer_name from the saved profile version,
+not current customer search. Detail retains stable reference and version; missing
+labels say unavailable. No new browser customer cache or client profile queries.
+Tests/build/browser remain deferred; full search and media are still unfinished.
+
+## Sales register store filter (2026-10-04; unverified)
+
+The register reuses DraftSourcePicker for a paginated selling-store filter and
+shows backend-projected store names. Filters pass through the existing client
+to the server, reset pagination and cancel obsolete list reads. Clear returns
+to all stores in the active company, never other companies. Customer labels and
+full search are still unfinished. Tests/build/browser remain deferred.
+
+## Approved sales split-view foundation (2026-10-04; unverified)
+
+SalesDraftsPage retains its server-paginated register beside SalesDraftDetails
+on desktop; smaller screens focus the selected detail with an explicit close.
+The extracted detail panel is read-only and reuses existing permission-gated
+edit/allocation/reservation callbacks. Header/footer stay outside item scrolling.
+Exact unit quantities and policy details are retained; no invented invoice number,
+customer label, payment or collection status. A route guard now retains a selected
+draft opened from the overdue inbox instead of immediately navigating it away.
+Component tests added but not run. Build/browser checks remain deferred. Richer
+register filters, labels/media and tablet cart remain unfinished T14B-D work.
+
+## Restored sales presentation and route navigation (2026-10-04; unverified)
+
+Selectively restored RegisterShell from pos-ui-theme commit03678ed without replacing
+current sales logic. Sales register/editor reuse its header, surfaces and controls.
+Grouped Sales sidebar now routes drafts, local recovery, overdue follow-up and
+release/deadline/reallocation/other-store reviews separately. Super Admin menu
+visibility matches the sales screen. Views retain action-specific permission gates.
+Newer store-wide allocation, other-store requests, runtime execution, exact retries
+and recovery remain in place; no legacy reservation writer was imported.
+Tests/build/browser deferred. Existing tests expecting header navigation require
+updates before verification; UI adaptation is not a wholesale branch merge.
+
+## Local demo entry (2026-10-04)
+
+Owner requested credential-free local preview. Development loopback login shows
+Enter local demo only when the server confirms its isolated preview configuration.
+This obtains ordinary tokens for the existing demo reviewer; no auth/RBAC bypass,
+password embedded in frontend, production button or role grant. Normal sign-in
+remains available. Automated tests/browser acceptance deferred.
+
+## Customer duplicate assessments (2026-10-04; unverified)
+
+Customers now offers Request duplicate review and Duplicate reviews under separate
+permissions. Selection reuses the customer register; the form pins both versions
+with an explicit SAME_CUSTOMER/DISTINCT_CUSTOMERS assessment and reason. Reviews
+reuse ManagerCases, loading exact historical profiles and withholding decisions
+until both reads succeed. Unknown request/decision intents stay fixed for retries;
+results remain visible. Approval does not merge records or balances. No tests,
+build or browser checks run. Canonical status remains backend T10 In progress.
+
+## Customer profile edits and history (2026-10-04; unverified)
+
+Customers -> View offers Edit profile and Profile history. The existing contact
+form handles both creation and editing, requiring an edit reason and expected
+version. Unknown requests retain exact retries; stale/access rejection blocks
+editing until reopened. Results stay visible. A separately paginated history view
+shows immutable profile versions, actors and reasons without balances or merging.
+Backend remains the personal-data and company boundary. No new browser storage.
+No tests/build/browser run; duplicate review remains in canonical backend T10.
+
+## Reviewed cost posting (2026-10-04; unverified, runtime disabled)
+
+Evidence review cases offer a separate Post_InventoryCost-gated confirmation for
+approved version-2 evidence. ChargePosting uses current backend stream versions,
+stable operation identity and strict response matching. Unknown outcomes keep the
+same intent; explicit rejection blocks replacement until reopening. Success stays
+visible and is labelled UNRECONCILED, not final profit/accounts or supplier payment.
+No tests/build/browser run. Runtime config remains blank; no real posting performed.
+Canonical record: backend planning/evidence/t06-local-cost-runtime.txt.
+
+## Reallocation execution (2026-10-04; unverified)
+
+Sales draft reallocation reviews uses separate execution access and the shared
+runtime-aware confirmation component. Stock remains in its original location;
+the result describes source remaining and new target hold, not payment/handover.
+Missing historical target snapshot blocks the UI action. Tests/build/browser checks
+remain deferred. Canonical record: backend planning/evidence/t07-reallocation-runtime.txt.
+
+## Other-store execution (2026-10-04; unverified)
+
+Sales drafts -> Other-store reviews now admits Execute_OtherStoreFulfilment users
+independently of review permission. Shared PolicyActivation loads protected runtime
+context, requires explicit confirmation, preserves retry identity and displays a
+retained reservation receipt through ManagerCases. No stock target or approved
+quantity is editable. Missing runtime/configuration blocks execution; server guards
+remain authoritative. No tests/build/browser checks run at owner request. Canonical
+record: backend planning/evidence/t07-other-store-runtime.txt.
+
+## Approved release execution (2026-10-04; verification pending)
+
+Sales drafts release reviews now uses separate Execute_ReservationRelease access
+and shared confirmation UI to execute exact approved holds. Execution-only users
+start in All cases. The result remains visible until dismissed, independently of
+list refresh. Unknown responses retain the operation identity; no payment/handover.
+Owner requested no further tests. Earlier 35 focused frontend tests passed before
+the final receipt/default-view refinements; those refinements and build remain
+unverified. Canonical evidence: backend planning/evidence/t07-release-runtime.txt.
+
+## Same-store allocation screen (local follow-up to checkpoint)
+
+Saved draft details offers Allocate same-store stock under INVENTORY and
+Allocate_SalesDraftStock. DraftAllocation reads self runtime context, selects a
+counter through the existing paginated picker and posts exact source/settings
+versions and decimal strings. Unset preference permits store-wide allocation.
+Unknown outcomes freeze edits for identical retry; stale state blocks replacement.
+Receipts show per-location holds, not payment or handover. Disabled runtime cannot
+submit. Backend31/frontend15/build main.dfa28a45.js pass with existing warnings.
+Browser acceptance pending; canonical evidence: backend t07-store-allocation-ui.txt.
+
 ## GitHub checkpoint 2026-10-04
 
 Decision BD-20261003-06. This checkpoint includes all currently developed UI:

@@ -498,6 +498,10 @@ export const AuthProvider = ({ children }) => {
     permissions: effectivePermissions,
     rawPermissions: permissions,
     user,
+    // Username remains the legacy display value. Recovery/review identity comes
+    // only from the current authenticated access response, never browser storage.
+    userId: token && resolvedAccessKey === `${token}:${selectedOrgId || ""}` &&
+      Number.isSafeInteger(access?.user_id) && access.user_id > 0 ? access.user_id : null,
     roles,
     isSuperAdmin,
     orgId,

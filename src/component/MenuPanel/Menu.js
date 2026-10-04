@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CUSTOMERS_ROUTE } from "../../utils/customerRoutes";
-import { SALES_DRAFTS_ROUTE } from "../../utils/salesRoutes";
+import { COUNT_PLANS_ROUTE, COUNT_SESSIONS_ROUTE, COUNT_MY_ROUNDS_ROUTE, COUNT_DISCREPANCIES_ROUTE } from "../../utils/countRoutes";
+import { SALES_DRAFTS_ROUTE, salesViewRoute } from "../../utils/salesRoutes";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -52,7 +53,8 @@ function Sidebar({ onLinkClick }) {
         setOpenAccordion(null);
       } else {
         // If locking/expanding, restore active section accordion
-        if (isDashboardSectionActive) setOpenAccordion("dashboard");
+        if (location.pathname.startsWith('/sales/')) setOpenAccordion('sales');
+        else if (isDashboardSectionActive) setOpenAccordion("dashboard");
         else if (isSourcingActive) setOpenAccordion("sourcing");
         else if (isOrdersActive) setOpenAccordion("orders");
         else if (isContainerActive) setOpenAccordion("containers");
@@ -123,7 +125,7 @@ function Sidebar({ onLinkClick }) {
     isActive("/Complete");
 
   const isInventoryActive =
-    (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
+    (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !location.pathname.startsWith('/inventory/counts/') && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
 
   const isMasterDataActive =
     isActive(CUSTOMERS_ROUTE) ||
@@ -158,6 +160,7 @@ function Sidebar({ onLinkClick }) {
       }
     })();
     if (!initialLocked) return null;
+    if (location.pathname.startsWith('/sales/')) return 'sales';
     if (isDashboardSectionActive) return "dashboard";
     if (isSourcingActive) return "sourcing";
     if (isOrdersActive) return "orders";
@@ -175,7 +178,9 @@ function Sidebar({ onLinkClick }) {
   // Automatically activate and expand the section corresponding to active route when locked
   useEffect(() => {
     if (isLocked) {
-      if (isDashboardSectionActive) {
+      if (location.pathname.startsWith('/sales/')) {
+        setOpenAccordion('sales');
+      } else if (isDashboardSectionActive) {
         setOpenAccordion("dashboard");
       } else if (isSourcingActive) {
         setOpenAccordion("sourcing");
@@ -395,8 +400,13 @@ function Sidebar({ onLinkClick }) {
   const canViewInventory = hasModule("INVENTORY");
   const canViewMasterData =
     hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canViewCustomers = hasPermission("View_Customer") && hasPermission("View_Personal_Data");
-  const canViewSalesDrafts = hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft");
+  const canViewCustomers = isSuperAdmin || (hasPermission("View_Customer") && hasPermission("View_Personal_Data"));
+  const canViewSalesDrafts = isSuperAdmin || (hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft"));
+  const canCountPlans = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('View_CountPlan'));
+  const canEnterCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Enter_CountResult'));
+  const canAssignCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Assign_CountSession'));
+  const canReviewCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('View_CountDiscrepancy'));
+  const salesReviewAccess = suffix => isSuperAdmin || (hasModule('INVENTORY') && ['Request_', 'Review_', 'Execute_'].some(prefix => permissions.includes(prefix + suffix)));
   const canViewTenantConsole =
     hasPermission("View_TenantConsole") ||
     hasPermission("Manage_TenantConsole") ||
@@ -522,7 +532,21 @@ function Sidebar({ onLinkClick }) {
             })}
 
           {/* Purchase Orders Module */}
-          {canViewSalesDrafts && renderNavLink(SALES_DRAFTS_ROUTE, <ShoppingBag />, "Sales drafts", isActive(SALES_DRAFTS_ROUTE))}
+          {(canCountPlans || canEnterCounts || canAssignCounts || canReviewCounts) && renderAccordion({ sectionKey: 'counts', icon: <Boxes />, label: 'Stock Counts', isSectionActive: location.pathname.startsWith('/inventory/counts/'), children: <>
+            {canCountPlans && renderSubLink(COUNT_PLANS_ROUTE, 'Count plans', isActive(COUNT_PLANS_ROUTE))}
+            {(canAssignCounts || canEnterCounts) && renderSubLink(COUNT_SESSIONS_ROUTE, 'Count rounds', isActive(COUNT_SESSIONS_ROUTE))}
+            {canEnterCounts && renderSubLink(COUNT_MY_ROUNDS_ROUTE, 'My count rounds', isActive(COUNT_MY_ROUNDS_ROUTE))}
+            {canReviewCounts && renderSubLink(COUNT_DISCREPANCIES_ROUTE, 'Discrepancies', isActive(COUNT_DISCREPANCIES_ROUTE))}
+          </> })}
+          {canViewSalesDrafts && renderAccordion({ sectionKey: 'sales', icon: <ShoppingBag />, label: 'Sales', isSectionActive: location.pathname.startsWith('/sales/'), children: <>
+            {renderSubLink(SALES_DRAFTS_ROUTE, 'Sales drafts', isActive(SALES_DRAFTS_ROUTE))}
+            {(isSuperAdmin || permissions.includes('Manage_SalesDraft')) && renderSubLink(salesViewRoute('LOCAL_DRAFTS'), 'Local drafts', isActive(salesViewRoute('LOCAL_DRAFTS')))}
+            {salesReviewAccess('ReservationRelease') && renderSubLink(salesViewRoute('RELEASE_REVIEWS'), 'Reservation reviews', isActive(salesViewRoute('RELEASE_REVIEWS')))}
+            {salesReviewAccess('ReservationReallocation') && renderSubLink(salesViewRoute('REALLOCATION_REVIEWS'), 'Reallocation reviews', isActive(salesViewRoute('REALLOCATION_REVIEWS')))}
+            {salesReviewAccess('OtherStoreFulfilment') && renderSubLink(salesViewRoute('OTHER_STORE_REVIEWS'), 'Other-store reviews', isActive(salesViewRoute('OTHER_STORE_REVIEWS')))}
+            {(salesReviewAccess('ReservationDeadline') || (hasModule('INVENTORY') && permissions.includes('Schedule_ReservationReview'))) && renderSubLink(salesViewRoute('DEADLINE_REVIEWS'), 'Follow-up reviews', isActive(salesViewRoute('DEADLINE_REVIEWS')))}
+            {(isSuperAdmin || (hasModule('INVENTORY') && ['Review_ReservationDeadline', 'Schedule_ReservationReview'].some(p => permissions.includes(p)))) && renderSubLink(salesViewRoute('OVERDUE'), 'Overdue follow-up', isActive(salesViewRoute('OVERDUE')))}
+          </> })}
           {canViewOrdersMenu &&
             renderAccordion({
               sectionKey: "orders",

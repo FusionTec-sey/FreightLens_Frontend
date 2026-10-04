@@ -11,7 +11,7 @@ jest.mock('../../../services/customersApi', () => ({ customersApi: jest.fn() }))
 jest.mock('axios', () => ({ create: jest.fn(() => ({})) }));
 const list = jest.fn(); const read = jest.fn();
 const row = { document_key: 'demo-draft', version: 1, branch_id: 2, status: 'DRAFT' };
-const auth = { token: 'synthetic', orgId: 1, hasModule: () => true,
+const auth = { token: 'synthetic', orgId: 1, userId: 10, hasModule: () => true,
   permissions: ['View_SalesDraft', 'View_Product', 'View_Customer', 'View_Personal_Data'] };
 test('other-store reviews use their dedicated permission and show exact scope without execution', async () => {
   const otherStoreCases = jest.fn().mockResolvedValue({ data: { items: [{ case_key: 'case', version: 1,
@@ -56,6 +56,18 @@ test('opens authoritative details and distinguishes demand from confirmed sale',
   expect(screen.getByLabelText('Sales draft details')).toHaveTextContent('Reserved: 20 PCS');
   expect(read).toHaveBeenCalledWith('demo-draft', expect.anything());
   expect(screen.getByText(/no confirmed sale/)).toBeInTheDocument();
+});
+
+test('allocation entry is permission gated and checks runtime before enabling writes', async () => {
+  const allocationContext = jest.fn().mockRejectedValue({ response: { status: 503 } });
+  salesDraftsApi.mockReturnValue({ list, read, allocationContext });
+  const view = render(<SalesDraftsPage />); fireEvent.click(await screen.findByText('View'));
+  await screen.findByLabelText('Sales draft details');
+  expect(screen.queryByText('Allocate same-store stock')).not.toBeInTheDocument();
+  useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Allocate_SalesDraftStock'] });
+  view.rerender(<SalesDraftsPage />); fireEvent.click(screen.getByText('Allocate same-store stock'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Allocation is disabled');
+  expect(screen.getByText('Allocate stock')).toBeDisabled();
 });
 test('denied permissions perform no request', () => {
   useAuth.mockReturnValue({ ...auth, permissions: [] });

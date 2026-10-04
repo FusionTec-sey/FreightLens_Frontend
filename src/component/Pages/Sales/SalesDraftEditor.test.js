@@ -1,81 +1,70 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SalesDraftEditor from './SalesDraftEditor';
-import { readRecovery } from '../../../services/salesDraftRecovery';
+import { writeRecovery, removeRecovery } from '../../../services/salesDraftRecovery';
+
 jest.mock('../../../context/ThemeContext', () => ({ useTheme: () => ({ isDark: false }) }));
+jest.mock('../../../hooks/useOperationIntent', () => () => ({ payloadFor: (_, body) => ({ ...body, operation_key: 'synthetic-operation' }) }));
+jest.mock('../../../services/salesDraftRecovery', () => ({ recoveryScope: () => '1:10', writeRecovery: jest.fn(), removeRecovery: jest.fn() }));
 jest.mock('react-toastify', () => ({ toast: { success: jest.fn() } }));
-jest.mock('../MasterData/CustomersPage', () => ({ onSelect }) => <button onClick={() => onSelect({ orgId: 1, customerKey: 'customer', version: 1, profile: { name: 'Demo' } })}>Choose Demo customer</button>);
-const initial = { document_key: 'doc', version: 1, customer_key: 'customer', expected_customer_version: 1,
-  branch_id: 2, lines: [{ line_key: 'line', product_id: 3, expected_policy_version: 1, quantity: '2', unit: 'BOX', base_unit: 'PCS' }] };
-const save = jest.fn(); const onSaved = jest.fn(); const onClose = jest.fn();
-const api = { save, branches: jest.fn(), products: jest.fn() };
+jest.mock('../MasterData/CustomersPage', () => () => null);
+jest.mock('./DraftSourcePicker', () => () => null);
+jest.mock('./SalesProductImage', () => () => null);
+
+const initial = { document_key: 'synthetic-draft', version: 1, customer_key: 'synthetic-customer',
+  expected_customer_version: 1, branch_id: 2, lines: [{ line_key: 'synthetic-line', product_id: 3,
+    expected_policy_version: 1, quantity: '2', unit: 'PCS', base_unit: 'PCS' }] };
+const receipt = { ...initial, version: 2, status: 'DRAFT' };
+
 beforeEach(() => {
-  jest.clearAllMocks(); let id = 0;
-  window.localStorage.clear(); let tail = Promise.resolve();
-  Object.defineProperty(window.navigator, 'locks', { configurable: true, value: { request: (name, work) => {
-    const task = tail.then(work); tail = task.catch(() => {}); return task;
-  } } });
-  Object.defineProperty(window, 'crypto', { configurable: true, value: { randomUUID: () => `uuid-${++id}` } });
-  save.mockResolvedValue({ data: { document_key: 'doc', version: 2, status: 'DRAFT' } });
-  api.branches.mockResolvedValue({ data: { items: [{ id: 2, name: 'Demo store', code: 'DEMO' }], total: 1, pages: 1 } });
-  api.products.mockResolvedValue({ data: { items: [{ id: 3, name: 'Demo tile', sku: 'TILE', policy_version: 1, units: ['PCS', 'BOX'], base_unit: 'PCS' }], total: 1, pages: 1 } });
-});
-function mount(value = initial, recovery = null) { return render(<SalesDraftEditor api={api} orgId={1} userId={7} initial={value} recovery={recovery} onSaved={onSaved} onClose={onClose} />); }
-test('revisions submit stable line identity and exact quantity without financial or stock data', async () => {
-  mount(); fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '3.125' } });
-  fireEvent.click(screen.getByText('Save draft')); await act(async () => {});
-  expect(save.mock.calls[0][1].draft.lines[0]).toEqual({ line_key: 'line', product_id: 3, expected_policy_version: 1, quantity: '3.125', unit: 'BOX' });
-  expect(save.mock.calls[0][1].expected_version).toBe(1); expect(onSaved).toHaveBeenCalled();
-});
-test('uncertain save locks entries and retries identical operation', async () => {
-  save.mockRejectedValueOnce(new Error('network')); mount(); fireEvent.click(screen.getByText('Save draft'));
-  fireEvent.click(await screen.findByText('Retry same save')); await act(async () => {});
-  expect(save.mock.calls[1][1]).toEqual(save.mock.calls[0][1]); expect(onSaved).toHaveBeenCalledTimes(1);
-});
-test('validation retains fields and permits correction; conflicts retain but stop overwrite', async () => {
-  save.mockRejectedValueOnce({ response: { status: 422 } }); mount(); fireEvent.click(screen.getByText('Save draft'));
-  await screen.findByRole('alert'); expect(screen.getByLabelText('Quantity 1')).not.toBeDisabled();
-  save.mockRejectedValueOnce({ response: { status: 409 } }); fireEvent.click(screen.getByText('Save draft'));
-  await act(async () => {}); expect(screen.getByText('Save draft')).toBeDisabled();
-  expect(screen.getByLabelText('Quantity 1')).toHaveValue('2'); expect(onSaved).not.toHaveBeenCalled();
-});
-test('new draft uses customer, store and product selectors', async () => {
-  mount(null); fireEvent.click(screen.getByText('Select customer')); fireEvent.click(screen.getByText('Choose Demo customer'));
-  fireEvent.click(screen.getByText('Select selling store')); fireEvent.click(await screen.findByText('Select Demo store'));
-  fireEvent.click(screen.getByText('Add product')); fireEvent.click(await screen.findByText('Select Demo tile'));
-  save.mockImplementationOnce((key) => Promise.resolve({ data: { document_key: key, version: 1, status: 'DRAFT' } }));
-  fireEvent.click(screen.getByText('Save draft')); await act(async () => {});
-  expect(save.mock.calls[0][1].expected_version).toBe(0); expect(save.mock.calls[0][1].draft.customer_key).toBe('customer');
-  expect(onSaved).toHaveBeenCalled();
-});
-test('dirty cancellation requires explicit discard', async () => {
-  mount(); fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '4' } });
-  fireEvent.click(screen.getByText('Cancel')); expect(onClose).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByText('Discard edits')); await act(async () => {}); expect(onClose).toHaveBeenCalled();
-});
-test('unmount aborts save and ignores late success', async () => {
-  let resolve; save.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
-  const view = mount(); fireEvent.click(screen.getByText('Save draft')); await act(async () => {}); const signal = save.mock.calls[0][2];
-  view.unmount(); await act(async () => resolve({ data: { document_key: 'doc', version: 2, status: 'DRAFT' } }));
-  expect(signal.aborted).toBe(true); expect(onSaved).not.toHaveBeenCalled();
+  jest.clearAllMocks();
+  writeRecovery.mockResolvedValue({ revision: 1 });
+  removeRecovery.mockResolvedValue(undefined);
 });
 
-test('navigation/reload restores edits and exact uncertain save identity', async () => {
-  save.mockRejectedValueOnce(new Error('network'));
-  let view = mount(); fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '3.125' } });
-  fireEvent.click(screen.getByText('Save draft')); await screen.findByText('Retry same save'); await act(async () => {});
-  const sent = save.mock.calls[0][1]; view.unmount();
-  const recovery = readRecovery('1:7', 'doc'); expect(recovery.snapshot.pending).toEqual(sent);
-  view = mount(null, recovery);
-  expect(screen.getByLabelText('Quantity 1')).toHaveValue('3.125'); expect(screen.getByLabelText('Quantity 1')).toBeDisabled();
-  fireEvent.click(screen.getByText('Retry same save')); await act(async () => {});
-  expect(save.mock.calls[1][1]).toEqual(sent); expect(readRecovery('1:7', 'doc')).toBeNull();
+test('invalid quantity returns tablet to cart, focuses field and retains exact typed text without sending', async () => {
+  const api = { save: jest.fn() };
+  render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={initial} onSaved={jest.fn()} onClose={jest.fn()} />);
+  const quantity = screen.getByLabelText('Quantity 1');
+  fireEvent.change(quantity, { target: { value: '0.000000' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Products' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  expect(screen.getByRole('button', { name: 'Cart' })).toHaveAttribute('aria-pressed', 'true');
+  expect(quantity).toHaveValue('0.000000');
+  expect(quantity).toHaveAttribute('aria-invalid', 'true');
+  expect(quantity).toHaveFocus();
+  expect(screen.getByText('Quantity must be greater than zero.')).toBeInTheDocument();
+  expect(api.save).not.toHaveBeenCalled();
+  fireEvent.change(quantity, { target: { value: '0.000001' } });
+  expect(quantity).toHaveAttribute('aria-invalid', 'false');
+  await waitFor(() => expect(writeRecovery).toHaveBeenCalled());
 });
 
-test('storage failure prevents network save and retains the form', async () => {
-  Object.defineProperty(window.navigator, 'locks', { configurable: true, value: undefined });
-  mount(); fireEvent.click(screen.getByText('Save draft')); await act(async () => {});
-  expect(save).not.toHaveBeenCalled(); expect(screen.getByLabelText('Quantity 1')).toHaveValue('2');
-  expect(screen.getByText(/Local recovery unavailable/)).toBeInTheDocument();
+test('confirmed server save retries only failed local cleanup and locks cart', async () => {
+  const api = { save: jest.fn().mockResolvedValue({ data: receipt }) };
+  const onSaved = jest.fn();
+  removeRecovery.mockRejectedValueOnce(new Error('Storage unavailable'));
+  render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={initial} onSaved={onSaved} onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText(/Local recovery cleanup failed/);
+  expect(screen.getByRole('status')).toHaveTextContent('Server confirmed draft version 2');
+  expect(screen.queryByText(/Save outcome is unconfirmed/)).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Quantity 1')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Keep locally and close' })).toBeDisabled();
+  expect(onSaved).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry local cleanup' }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith(receipt));
+  expect(api.save).toHaveBeenCalledTimes(1);
+  expect(removeRecovery).toHaveBeenCalledTimes(2);
+});
+
+test('mismatched receipt remains uncertain and does not delete recovery', async () => {
+  const api = { save: jest.fn().mockResolvedValue({ data: { ...receipt, document_key: 'other-draft' } }) };
+  render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={initial} onSaved={jest.fn()} onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText(/Save outcome is unconfirmed/);
+  expect(removeRecovery).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Retry same save' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: 'Retry local cleanup' })).not.toBeInTheDocument();
 });

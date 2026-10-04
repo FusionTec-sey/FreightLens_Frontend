@@ -16,6 +16,8 @@ export function inventoryLocationsApi(token, orgId) {
     requestChargeEvidence: (pool, key, body, signal) => client.post(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases`, body, { headers, signal }),
     chargeEvidenceCases: (pool, key, page, limit, signal, view = 'ALL') => client.get(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases`, { headers, params: { page, limit, view }, signal }),
     reviewChargeEvidence: (pool, key, caseKey, body, signal) => client.post(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases/${caseKey}/review`, body, { headers, signal }),
+    chargePostingContext: (pool, key, caseKey, signal) => client.get(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases/${caseKey}/posting-context`, { headers, signal }),
+    postReviewedCharge: (pool, key, caseKey, body, signal) => client.post(`/inventory/cost-evidence/pools/${pool}/proposals/${key}/cases/${caseKey}/post`, body, { headers, signal }),
     saveReclassificationProposal: (body, signal) => client.post("/inventory/reclassification-proposals", body, { headers, signal }),
     requestReclassificationReview: (key, body, signal) => client.post(`/inventory/reclassification-proposals/${key}/request-review`, body, { headers, signal }),
     reclassificationCases: (key, page, limit, signal, view = "ALL") => client.get(`/inventory/reclassification-proposals/${key}/cases`, { headers, params: { page, limit, view }, signal }),
