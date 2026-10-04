@@ -1,5 +1,6 @@
 export const SALES_DRAFTS_ROUTE = '/sales/drafts';
 export const SALES_PRICING_ROUTE = '/sales/pricing';
+export const SALES_PAYMENT_CONFIGURATION_ROUTE = '/sales/payment-configuration';
 export const SALES_VIEWS = {
   [SALES_DRAFTS_ROUTE]: 'DRAFTS',
   '/sales/local-drafts': 'LOCAL_DRAFTS',

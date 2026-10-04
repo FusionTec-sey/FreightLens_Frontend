@@ -77,7 +77,7 @@ function PaymentWorkspace({ token, orgId, canManage }) {
   const change = (field, value) => { setForm(current => ({ ...current, [field]: value })); setPending(null); setSaveError(''); };
   const valid = form && form.reason.trim() && form.label.trim() && (tab === 'methods'
     ? /^[A-Z0-9][A-Z0-9_-]{0,31}$/.test(form.code)
-    : form.branch_id && form.method_key && /^SYNTH_[A-Z0-9][A-Z0-9_.:-]*$/.test(form.account_ref));
+    : form.branch_id && form.method_key && /^[A-Z0-9][A-Z0-9_.:-]{0,63}$/.test(form.account_ref));
   const save = async () => {
     if (saving) return;
     if (!valid) { setSaveError('Complete the required fields and reason.'); return; }
@@ -109,7 +109,7 @@ function PaymentWorkspace({ token, orgId, canManage }) {
   };
   const switchTab = next => { setTab(next); setPage(1); setForm(null); setPending(null); setSaved(null); };
   return <section className={pageClass}>
-    <RegisterHeader title="Payment configuration" description="Synthetic methods and exact selling-branch receiving accounts. Configuration does not accept or post money."
+    <RegisterHeader title="Payment configuration" description="Versioned methods and exact selling-branch receiving accounts. Configuration does not accept or post money."
       actions={<><button type="button" className={secondaryButtonClass} onClick={() => setRefresh(n => n + 1)}>Refresh</button>
         {canManage && <button type="button" className={primaryButtonClass} onClick={() => open(null)}>New {tab === 'methods' ? 'method' : 'mapping'}</button>}</>} />
     <div className="shrink-0 flex gap-2">
@@ -150,7 +150,7 @@ function PaymentWorkspace({ token, orgId, canManage }) {
             <label>Account selling branch<select className={selectClass} value={form.branch_id} disabled={!!form.version} onChange={e => change('branch_id', e.target.value)}><option value="">Select branch</option>{form.branch_id && !(branches?.items || []).some(b => String(b.id) === String(form.branch_id)) && <option value={form.branch_id}>Branch {form.branch_id}</option>}{(branches?.items || []).map(b => <option key={b.id} value={b.id}>{b.code} · {b.name}</option>)}</select></label>
             <label>Payment method<select className={selectClass} value={form.method_key} disabled={!!form.version} onChange={e => change('method_key', e.target.value)}><option value="">Select method</option>{form.method_key && !(methods?.items || []).some(m => m.method_key === form.method_key) && <option value={form.method_key}>{form.method_key}</option>}{(methods?.items || []).map(m => <option key={m.method_key} value={m.method_key}>{m.code} · {m.label}</option>)}</select>
               <span className="flex gap-2"><button type="button" disabled={methodPage <= 1} onClick={() => setMethodPage(n => n - 1)}>Previous methods</button><button type="button" disabled={!methods || methodPage >= methods.pages} onClick={() => setMethodPage(n => n + 1)}>More methods</button></span></label>
-            <label>Opaque accounting reference<input className={inputClass} value={form.account_ref} onChange={e => change('account_ref', e.target.value)} maxLength={64} placeholder="SYNTHETIC-LEDGER-REF" /></label>
+            <label>Opaque accounting reference<input className={inputClass} value={form.account_ref} onChange={e => change('account_ref', e.target.value.toUpperCase())} maxLength={64} placeholder="BANK-CLEARING.SCR" /></label>
           </>}
           <label>Display label<input className={inputClass} value={form.label} onChange={e => change('label', e.target.value)} maxLength={120} /></label>
           <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_enabled} onChange={e => change('is_enabled', e.target.checked)} />Enabled</label>

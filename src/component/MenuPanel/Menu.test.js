@@ -91,6 +91,15 @@ test('financial product access exposes pricing without granting customer or draf
   expect(screen.queryByRole('link', { name: 'Sales drafts' })).not.toBeInTheDocument();
 });
 
+test('financial sales access exposes payment configuration without product access', () => {
+  access.permissions = ['View_Financials'];
+  show('/sales/payment-configuration');
+  expect(screen.getByRole('button', { name: 'Sales' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('link', { name: 'Payment configuration' })).toHaveAttribute('aria-current', 'page');
+  expect(screen.queryByRole('link', { name: 'Pricing & tax' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Sales drafts' })).not.toBeInTheDocument();
+});
+
 test('price-floor permission exposes the manager review route under Sales', () => {
   access.permissions = ['View_Product', 'View_Financials', 'View_SalesDraft', 'Review_PriceFloorException'];
   show('/sales/reviews/price-floors');
