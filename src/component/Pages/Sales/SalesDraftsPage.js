@@ -51,10 +51,12 @@ export default function SalesDraftsPage({ view = 'DRAFTS' }) {
     canRequestDeadline={isSuperAdmin || permissions.includes('Request_ReservationDeadline')}
     canScheduleDeadline={isSuperAdmin || permissions.includes('Schedule_ReservationReview')}
     canRequestFloor={isSuperAdmin || permissions.includes('Request_PriceFloorException')}
-    canReviewFloor={isSuperAdmin || permissions.includes('Review_PriceFloorException')} />;
+    canReviewFloor={isSuperAdmin || permissions.includes('Review_PriceFloorException')}
+    canPostSale={isSuperAdmin || permissions.includes('Post_Sale')}
+    canRecordCard={isSuperAdmin || permissions.includes('Record_ExternalCardConfirmation')} />;
 }
 
-function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, userId }) {
+function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, userId }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { hasModule, isSuperAdmin } = useAuth();
@@ -201,6 +203,8 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
       onOtherStore={canOpenOtherStore && canRequestOtherStore ? () => setOtherStoreRequest(selected) : undefined}
       canRequestFloor={canRequestFloor}
       canPreparePricing={canManage}
+      canPostSale={canPostSale}
+      canRecordCard={canRecordCard}
       onReservations={canOpenReviews || canOpenDeadlines || canOpenReallocations ? () => setHolds(selected) : undefined} />}
     </div>
   </section>;

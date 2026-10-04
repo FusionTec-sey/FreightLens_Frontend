@@ -3,6 +3,7 @@ import { Badge, secondaryButtonClass, primaryButtonClass } from '../../UI/UXComp
 import SalesProductImage from './SalesProductImage';
 import SalesDraftHistory from './SalesDraftHistory';
 import SalesDraftSummary from './SalesDraftSummary';
+import SalesCheckoutPanel from './SalesCheckoutPanel';
 
 // Read-only document inspection. Only explicit action buttons invoke workflows.
 const operationKey = () => window.crypto?.randomUUID?.()
@@ -10,7 +11,7 @@ const operationKey = () => window.crypto?.randomUUID?.()
     const r = Math.floor(Math.random() * 16); return (c === 'x' ? r : (r & 3) | 8).toString(16);
   });
 
-export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy, onAllocate, onOtherStore, onReservations, canRequestFloor = false, canPreparePricing = false }) {
+export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy, onAllocate, onOtherStore, onReservations, canRequestFloor = false, canPreparePricing = false, canPostSale = false, canRecordCard = false }) {
   const [panel, setPanel] = useState('items');
   const [pricing, setPricing] = useState(null);
   const [pricingError, setPricingError] = useState('');
@@ -21,6 +22,7 @@ export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy,
   const [preparedPricing, setPreparedPricing] = useState(null);
   const [preparedPricingError, setPreparedPricingError] = useState('');
   const [prepareRequest, setPrepareRequest] = useState(null);
+  const [checkout, setCheckout] = useState(false);
   useEffect(() => {
     if (!api?.pricingPreview) return undefined;
     const controller = new AbortController(); let live = true;
@@ -76,6 +78,9 @@ export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy,
         error: failure.response?.data?.detail || 'Exact pricing could not be prepared. Keep this form open and retry.' }));
     }
   }
+  if (checkout && preparedPricing) return <SalesCheckoutPanel api={api} draft={draft}
+    pricing={preparedPricing} canRecordCard={canRecordCard}
+    onClose={() => setCheckout(false)} />;
   return <section aria-label="Sales draft details" className="flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-700">
       <div><h2 className="text-lg font-semibold">Draft version {draft.version}</h2><Badge tone="amber">Draft — not an invoice</Badge></div>
@@ -136,6 +141,7 @@ export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy,
       {onOtherStore && <button type="button" className={secondaryButtonClass} onClick={onOtherStore}>Request other-store stock</button>}
       {canRequestFloor && pricing?.requires_floor_approval && !floorRequest && !floorResult && <button type="button" className={secondaryButtonClass} onClick={() => setFloorRequest({ operation_key: operationKey(), reason: '', saving: false, error: '' })}>Request price-floor review</button>}
       {canPreparePricing && pricing && !preparedPricing && !prepareRequest && <button type="button" className={secondaryButtonClass} onClick={() => setPrepareRequest({ operation_key: operationKey(), floor_case_key: floorResult?.case_key || '', saving: false, error: '' })}>Prepare exact pricing</button>}
+      {canPostSale && preparedPricing && <button type="button" className={primaryButtonClass} onClick={() => setCheckout(true)}>Continue to payment</button>}
     </footer>}
   </section>;
 }
