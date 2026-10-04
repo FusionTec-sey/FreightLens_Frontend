@@ -53,10 +53,11 @@ export default function SalesDraftsPage({ view = 'DRAFTS' }) {
     canRequestFloor={isSuperAdmin || permissions.includes('Request_PriceFloorException')}
     canReviewFloor={isSuperAdmin || permissions.includes('Review_PriceFloorException')}
     canPostSale={isSuperAdmin || permissions.includes('Post_Sale')}
-    canRecordCard={isSuperAdmin || permissions.includes('Record_ExternalCardConfirmation')} />;
+    canRecordCard={isSuperAdmin || permissions.includes('Record_ExternalCardConfirmation')}
+    canCollect={isSuperAdmin || permissions.includes('Collect_Sale')} />;
 }
 
-function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, userId }) {
+function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, canCollect, userId }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { hasModule, isSuperAdmin } = useAuth();
@@ -205,6 +206,7 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
       canPreparePricing={canManage}
       canPostSale={canPostSale}
       canRecordCard={canRecordCard}
+      canCollect={canCollect}
       onReservations={canOpenReviews || canOpenDeadlines || canOpenReallocations ? () => setHolds(selected) : undefined} />}
     </div>
   </section>;
