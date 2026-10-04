@@ -1,5 +1,82 @@
 # FreightLens Frontend Architecture
 
+## GitHub checkpoint 2026-10-04
+
+Decision BD-20261003-06. This checkpoint includes all currently developed UI:
+preferred picking areas, staff working-store assignments, compatible reservation
+reviews, other-store request entry and review queue. Full frontend suite: 230
+tests / 44 suites pass; production build main.85e1b2b3.js passes with existing
+ESLint/Browserslist warnings. Native browser acceptance is not included.
+The newest same-store allocation endpoint is backend-only at this checkpoint;
+tablet allocation controls and public approved execution remain unfinished.
+No runtime activation or deployment. Paired revision/evidence lives in backend
+docs/planning/CHECKPOINT-20261004.txt; PRs target codex/pos-development.
+
+## Explicit other-store request entry (2026-10-04)
+
+Saved draft detail now offers Request other-store stock to authorised requestors.
+OtherStoreRequest reuses DraftSourcePicker and the scoped inventory client for
+branch/location/product-filtered bucket selection. Self working-store read does
+not need user-directory access. Exact source/assignment/stock versions and string
+quantity are submitted; uncertain requests freeze edits for identical retry.
+Stale state requires reopening; dirty close warns. No allocation or transfer.
+Backend22/frontend27/build pass; browser acceptance pending. Canonical evidence:
+backend docs/planning/evidence/t07-other-store-request-entry.txt.
+
+## Other-store review queue (2026-10-04)
+
+Sales drafts -> Other-store reviews is guarded by INVENTORY and explicit request
+or review permission. Company-pinned API and shared ManagerCases show exact draft,
+selling/fulfilment branch, stock version, input/base quantities and follow-up.
+Independent review uses the existing operation-intent helper. No activation
+control; approval alone cannot reserve or transfer stock. Request-entry is added
+above; trusted runtime execution remains pending. Focused26 tests and production
+build main.2942ce66.js passed with existing warnings. Browser acceptance pending.
+Canonical evidence: backend planning/evidence/t07-other-store-review-api.txt.
+
+## Compatible multi-location reservation supplements
+
+Reallocation request and manager review now explain that existing destination
+holds may span compatible same-store locations while the reassigned quantity
+stays in its original stock location. Combined quantity caps and exact review
+remain backend-enforced; approval alone never posts. Older snapshots require
+fresh review. Canonical evidence: t07-multi-location-supplements.txt in backend.
+
+## Staff working stores (2026-10-04)
+
+Selected branches in Locations now offer Staff working stores to View_User users.
+Writes additionally require Edit_User and Manage_BranchSettings; backend enforces
+all permissions plus INVENTORY/View_Product. Paginated company-pinned projection
+shows current assignment and revision without requesting password/role data.
+Editor explicitly targets the selected store, uses the existing paginated counter
+picker, allows no usual counter and separates assignment enablement from checkout
+activation. Shared operation-intent helper preserves identical uncertain retries;
+conflicts block overwrite, cancellation asks before discarding and read failures
+clear rows. Parent remounts on company/token/branch changes; obsolete requests abort.
+Backend66/frontend36 focused checks and production build main.095008bd.js pass
+with existing warnings. Browser acceptance pending; canonical evidence:
+backend docs/planning/evidence/t07-staff-store-assignments.txt.
+
+## Preferred picking area (BD-20261003-06)
+
+Counters now show View picking preference even when unset. Null-root inspection
+shows no preference, not a blocked sale. Settings explain store-wide eligible
+selling, compatible local splits and separate staff/store permissions. Other
+branches/warehouses remain explicit choices requiring applicable approval. The
+existing JSON field/API route remain stable; response root may now be null.
+No checkout writer or staff-assignment UI is implied. Browser acceptance pending.
+
+## Earlier counter stock-area inspection (historical T07 preparation)
+
+Branch counters with a saved default area now offer View stock area. The existing
+company-pinned inventory client reads the exact saved counter revision and paged
+active root/descendants. CounterStockArea retains contained scrolling, fixed
+navigation/pagination and light/dark styling. Failed refreshes or changed context
+clear results; obsolete requests abort. Disabled counters remain explicitly marked.
+This is scope inspection, not availability, staff assignment or stock allocation.
+Automated backend48/frontend21 checks and build passed; new browser acceptance is
+pending. Canonical evidence: backend planning/evidence/t07-counter-area-scope.txt.
+
 ## Parallel-development handoff (2026-10-03)
 
 Backend docs/planning/TASK-QUEUE.txt, BUSINESS-DECISIONS.txt and

@@ -3,6 +3,25 @@ import { inventoryLocationsApi, locationError } from "./inventoryLocationsApi";
 jest.mock("axios", () => ({ create: jest.fn(() => ({ get: jest.fn(), post: jest.fn(), put: jest.fn() })) }));
 const client = axios.create.mock.results[0].value;
 
+test('staff assignment API pins company and exact branch/user with no automatic retries', () => {
+  const api = inventoryLocationsApi('synthetic', 7), signal = new AbortController().signal;
+  const headers = { Authorization: 'Bearer synthetic', 'X-Active-Org': '7' };
+  api.staffAssignments(11, 2, 25, signal);
+  expect(client.get).toHaveBeenLastCalledWith('/inventory/branches/11/staff-assignments', { headers, params: { page: 2, limit: 25 }, signal });
+  const body = { operation_key: 'synthetic', expected_version: 1, config: { branch_id: 11, counter_id: null, is_enabled: true } };
+  api.saveStaffAssignment(11, 9, body, signal);
+  expect(client.put).toHaveBeenLastCalledWith('/inventory/branches/11/staff-assignments/9', body, { headers, signal });
+});
+
+test('stock-area inspection pins company, counter version and bounded pagination', () => {
+  const api = inventoryLocationsApi('synthetic', 7), signal = new AbortController().signal;
+  api.counterStockArea(11, 'counter-key', 3, 2, 25, signal);
+  expect(client.get).toHaveBeenLastCalledWith('/inventory/branches/11/counters/counter-key/stock-area', {
+    headers: { Authorization: 'Bearer synthetic', 'X-Active-Org': '7' },
+    params: { expected_version: 3, page: 2, limit: 25 }, signal,
+  });
+});
+
 test('charge evidence and downloads retain company auth and never use raw storage paths', () => {
   const api = inventoryLocationsApi('evidence-token', 8), signal = new AbortController().signal;
   const headers = { Authorization: 'Bearer evidence-token', 'X-Active-Org': '8' };

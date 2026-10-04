@@ -7,6 +7,8 @@ import SalesDraftEditor from './SalesDraftEditor';
 import ManagerCases from '../Inventory/components/ManagerCases';
 import DraftReservations from './DraftReservations';
 import LocalSalesDrafts from './LocalSalesDrafts';
+import OtherStoreRequest from './OtherStoreRequest';
+import { inventoryLocationsApi } from '../../../services/inventoryLocationsApi';
 
 export default function SalesDraftsPage() {
   const { token, selectedOrgId, orgId, user, permissions = [], isSuperAdmin, hasModule } = useAuth();
@@ -22,6 +24,9 @@ export default function SalesDraftsPage() {
     canRequestRelease={isSuperAdmin || permissions.includes('Request_ReservationRelease')}
     canOpenReallocations={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_ReservationReallocation', 'Review_ReservationReallocation'].some(p => permissions.includes(p)))}
     canReviewReallocation={isSuperAdmin || permissions.includes('Review_ReservationReallocation')}
+    canOpenOtherStore={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_OtherStoreFulfilment', 'Review_OtherStoreFulfilment'].some(p => permissions.includes(p)))}
+    canReviewOtherStore={isSuperAdmin || permissions.includes('Review_OtherStoreFulfilment')}
+    canRequestOtherStore={isSuperAdmin || permissions.includes('Request_OtherStoreFulfilment')}
     canRequestReallocation={isSuperAdmin || permissions.includes('Request_ReservationReallocation')}
     canOpenDeadlines={isSuperAdmin || (hasModule?.('INVENTORY') && ['Request_ReservationDeadline', 'Review_ReservationDeadline', 'Schedule_ReservationReview'].some(p => permissions.includes(p)))}
     canReviewDeadline={isSuperAdmin || permissions.includes('Review_ReservationDeadline')}
@@ -29,11 +34,20 @@ export default function SalesDraftsPage() {
     canScheduleDeadline={isSuperAdmin || permissions.includes('Schedule_ReservationReview')} />;
 }
 
-function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canRequestReallocation, userId }) {
+function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canRequestOtherStore, userId }) {
   const { isDark } = useTheme();
   const api = useMemo(() => salesDraftsApi(token, orgId), [token, orgId]);
+  const inventoryApi = useMemo(() => inventoryLocationsApi(token, orgId), [token, orgId]);
+  const [otherStoreRequest, setOtherStoreRequest] = useState(null);
   const [deadlineReviews, setDeadlineReviews] = useState(false);
   const [reallocationReviews, setReallocationReviews] = useState(false);
+  const [otherStoreReviews, setOtherStoreReviews] = useState(false);
+  const otherStoreApi = useMemo(() => ({
+    managerCases: async (...args) => { const response = await api.otherStoreCases(...args); return { ...response, data: {
+      ...response.data, items: response.data.items.map(row => ({ ...row, product_name: `Product ${row.product_id} · Store ${row.fulfilment_branch_id}` })),
+    } }; },
+    reviewPolicyCase: (...args) => api.reviewOtherStore(...args),
+  }), [api]);
   const reviewApi = useMemo(() => ({
     managerCases: async (...args) => { const response = await (reallocationReviews ? api.reallocationCases : deadlineReviews ? api.deadlineCases : api.releaseCases)(...args); return { ...response, data: {
       ...response.data, items: response.data.items.map(row => ({ ...row, product_name: `Reservation ${row.reservation_key}` })),
@@ -81,6 +95,8 @@ function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, can
   }
   const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
   const canOpenDue = canOpenDeadlines && (canReviewDeadline || canScheduleDeadline);
+  if (otherStoreRequest && canOpenOtherStore && canRequestOtherStore) return <OtherStoreRequest api={api} inventoryApi={inventoryApi} draft={otherStoreRequest} onClose={() => setOtherStoreRequest(null)} />;
+  if (otherStoreReviews && canOpenOtherStore) return <ManagerCases api={otherStoreApi} userId={userId} canReview={canReviewOtherStore} otherStore standalone onClose={() => setOtherStoreReviews(false)} />;
   if (reallocationReviews && canOpenReallocations) return <ManagerCases api={reviewApi} userId={userId} canReview={canReviewReallocation} reservationReallocation standalone onClose={() => setReallocationReviews(false)} />;
   if (dueInbox && canOpenDue) return <DraftReservations api={api} dueInbox canRequest={canRequestRelease} canRequestDeadline={canRequestDeadline} canRequestReallocation={canRequestReallocation}
     onClose={() => setDueInbox(false)} onOpenDraft={async row => { if (!await open(row)) throw new Error('Draft not accessible'); setDueInbox(false); }} />;
@@ -99,6 +115,7 @@ function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, can
       {canManage && <button type="button" className="border rounded px-3 py-2" onClick={() => setLocalDrafts(true)}>Local drafts</button>}
       {canOpenReviews && <button type="button" className="border rounded px-3 py-2" onClick={() => setReviews(true)}>Reservation reviews</button>}
       {canOpenReallocations && <button type="button" className="border rounded px-3 py-2" onClick={() => setReallocationReviews(true)}>Reallocation reviews</button>}
+      {canOpenOtherStore && <button type="button" className="border rounded px-3 py-2" onClick={() => setOtherStoreReviews(true)}>Other-store reviews</button>}
       {canOpenDeadlines && <button type="button" className="border rounded px-3 py-2" onClick={() => setDeadlineReviews(true)}>Follow-up reviews</button>}
       {canOpenDue && <button type="button" className="border rounded px-3 py-2" onClick={() => setDueInbox(true)}>Overdue follow-up</button>}
     </header>
@@ -115,6 +132,7 @@ function DraftRegister({ token, orgId, canManage, canOpenReviews, canReview, can
           <span className="block text-xs">Reserved: {line.reserved_quantity || '0'} {line.base_unit}. Reservation is separate from payment and physical collection.</span>
         </li>)}</ul>
         <button type="button" className="border rounded px-3 py-2" onClick={() => setSelected(null)}>Close details</button>
+        {canOpenOtherStore && canRequestOtherStore && <button type="button" className="border rounded px-3 py-2 ml-2" onClick={() => setOtherStoreRequest(selected)}>Request other-store stock</button>}
         {(canOpenReviews || canOpenDeadlines || canOpenReallocations) && <button type="button" className="border rounded px-3 py-2 ml-2" onClick={() => setHolds(selected)}>Reserved stock</button>}
         {canManage && <button type="button" className="border rounded px-3 py-2 ml-2" onClick={() => setEditing(selected)}>Edit draft</button>}
       </section>}

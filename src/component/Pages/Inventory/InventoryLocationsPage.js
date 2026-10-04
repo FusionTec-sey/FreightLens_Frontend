@@ -8,6 +8,7 @@ import CostPoolSetup from "./components/CostPoolSetup";
 import LocationStock from "./components/LocationStock";
 import BranchSettings from "./components/BranchSettings";
 import BranchCounters from "./components/BranchCounters";
+import StaffStoreAssignments from "./components/StaffStoreAssignments";
 import ManagerCases from "./components/ManagerCases";
 
 export default function InventoryLocationsPage() {
@@ -19,17 +20,20 @@ export default function InventoryLocationsPage() {
     canPropose={isSuperAdmin || permissions.includes("Request_InventoryReview")}
     canActivate={isSuperAdmin || permissions.includes("Activate_InventoryPolicy")}
     canManageSettings={isSuperAdmin || permissions.includes("Manage_BranchSettings")}
+    canViewStaff={isSuperAdmin || permissions.includes("View_User")}
+    canManageStaff={isSuperAdmin || (permissions.includes("View_User") && permissions.includes("Edit_User") && permissions.includes("Manage_BranchSettings"))}
     canManagePools={isSuperAdmin || permissions.includes("Manage_InventoryCostPool")}
     canManage={isSuperAdmin || permissions.includes("Manage_InventoryLocation")} />;
 }
 
-function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageSettings, canReview, canActivate, canPropose, userId }) {
+function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageSettings, canViewStaff, canManageStaff, canReview, canActivate, canPropose, userId }) {
   const { isDark } = useTheme();
   const api = useMemo(() => inventoryLocationsApi(token, orgId), [token, orgId]);
   const [branch, setBranch] = useState(null);
   const [showPools, setShowPools] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCounters, setShowCounters] = useState(false);
+  const [showStaff, setShowStaff] = useState(false);
   const [showCases, setShowCases] = useState(false);
   const [stockLocation, setStockLocation] = useState(null);
   const [page, setPage] = useState(1);
@@ -122,6 +126,8 @@ function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageS
 
   if (showCases) return <ManagerCases api={api} userId={userId} canActivate={canActivate} onClose={() => setShowCases(false)} />;
 
+  if (showStaff && canViewStaff) return <StaffStoreAssignments key={`${orgId}:${token}:${branch.id}`} api={api} branch={branch} canManage={canManageStaff}
+    onClose={() => { setShowStaff(false); requestAnimationFrame(() => heading.current?.focus()); }} />;
   if (showCounters) return <BranchCounters key={branch.id} api={api} branch={branch} canManage={canManageSettings}
     onClose={() => { setShowCounters(false); requestAnimationFrame(() => heading.current?.focus()); }} />;
 
@@ -144,6 +150,7 @@ function LocationWorkspace({ orgId, token, canManage, canManagePools, canManageS
         {canReview && <button type="button" className={buttonClass} onClick={() => setShowCases(true)}>Manager cases</button>}
         {branch && <button type="button" className={buttonClass} onClick={() => setShowSettings(true)}>Trading settings</button>}
         {branch && <button type="button" className={buttonClass} onClick={() => setShowCounters(true)}>Counters</button>}
+        {branch && canViewStaff && <button type="button" className={buttonClass} onClick={() => setShowStaff(true)}>Staff working stores</button>}
         <button type="button" className={buttonClass} onClick={() => setShowPools(true)}>{branch ? "Branch cost pool" : "Cost pools"}</button>
         {branch && <button type="button" className={buttonClass} onClick={() => { setBranch(null); setPage(1); }}>Back to branches</button>}
         <button type="button" className={buttonClass} onClick={() => setRevision((value) => value + 1)}>Refresh</button>

@@ -7,6 +7,8 @@ export function inventoryLocationsApi(token, orgId) {
   const headers = { Authorization: `Bearer ${token}`, "X-Active-Org": String(orgId) };
   const path = (branchId) => `/inventory/branches${branchId ? `/${branchId}/locations` : ""}`;
   return {
+    staffAssignments: (branchId, page, limit, signal) => client.get(`/inventory/branches/${branchId}/staff-assignments`, { headers, params: { page, limit }, signal }),
+    saveStaffAssignment: (branchId, userId, body, signal) => client.put(`/inventory/branches/${branchId}/staff-assignments/${userId}`, body, { headers, signal }),
     evidenceSuppliers: (page, limit, signal) => client.get('/inventory/cost-evidence/suppliers', { headers, params: { page, limit }, signal }),
     evidenceDocuments: (page, limit, signal) => client.get('/inventory/cost-evidence/documents', { headers, params: { page, limit }, signal }),
     evidenceDocument: (id, signal) => client.get(`/inventory/cost-evidence/documents/${id}/download`, { headers, signal, responseType: 'blob' }),
@@ -28,6 +30,7 @@ export function inventoryLocationsApi(token, orgId) {
     retireBarcode: (key, body, signal) => client.post(`/inventory/barcode-retirement-cases/${key}/retire`, body, { headers, signal }),
     reviewPolicyCase: (caseKey, data, signal) => client.post(`/inventory/manager-cases/${caseKey}/review`, data, { headers, signal }),
     counters: (branchId, page, limit, signal) => client.get(`/inventory/branches/${branchId}/counters`, { headers, params: { page, limit }, signal }),
+    counterStockArea: (branchId, counterKey, version, page, limit, signal) => client.get(`/inventory/branches/${branchId}/counters/${counterKey}/stock-area`, { headers, params: { expected_version: version, page, limit }, signal }),
     saveCounter: (branchId, counterKey, data, signal) => client.put(`/inventory/branches/${branchId}/counters/${counterKey}`, data, { headers, signal }),
     branchSettings: (branchId, signal) => client.get(`/inventory/branches/${branchId}/settings`, { headers, signal }),
     saveBranchSettings: (branchId, data, signal) => client.put(`/inventory/branches/${branchId}/settings`, data, { headers, signal }),
@@ -42,7 +45,7 @@ export function inventoryLocationsApi(token, orgId) {
     policyDraft: (productId, signal) => client.get(`/inventory/products/${productId}/inventory-policy-draft`, { headers, signal }),
     savePolicyDraft: (productId, data, signal) => client.put(`/inventory/products/${productId}/inventory-policy-draft`, data, { headers, signal }),
     list: (branchId, page, limit, signal) => client.get(path(branchId), { headers, params: { page, limit }, signal }),
-    stock: (branchId, locationId, page, limit, signal) => client.get(`${path(branchId)}/${locationId}/stock`, { headers, params: { page, limit }, signal }),
+    stock: (branchId, locationId, page, limit, signal, productId) => client.get(`${path(branchId)}/${locationId}/stock`, { headers, params: { page, limit, ...(productId ? { product_id: productId } : {}) }, signal }),
     create: (branchId, data, signal) => client.post(path(branchId), data, { headers, signal }),
     listPools: (page, limit, signal) => client.get("/inventory/cost-pools", { headers, params: { page, limit }, signal }),
     poolValuations: (poolId, page, limit, signal) => client.get(`/inventory/cost-pools/${poolId}/valuations`, { headers, params: { page, limit }, signal }),

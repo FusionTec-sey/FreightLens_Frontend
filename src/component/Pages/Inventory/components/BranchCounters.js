@@ -5,6 +5,7 @@ import PaginationToolbar from "../../../UI/UXComponent/PaginationToolbar";
 import { locationError } from "../../../../services/inventoryLocationsApi";
 import useOperationIntent from "../../../../hooks/useOperationIntent";
 import DraftSourcePicker from '../../Sales/DraftSourcePicker';
+import CounterStockArea from './CounterStockArea';
 
 export default function BranchCounters({ api, branch, canManage, onClose }) {
   const { isDark } = useTheme();
@@ -13,6 +14,7 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
   const [loading, setLoading] = useState(true), [saving, setSaving] = useState(false);
   const [error, setError] = useState(""), [form, setForm] = useState(null), [discard, setDiscard] = useState(false);
   const [choosingArea, setChoosingArea] = useState(false), [areaName, setAreaName] = useState('');
+  const [inspectingArea, setInspectingArea] = useState(null);
   const loadAreas = useMemo(() => (page, limit, signal) => api.list(branch.id, page, limit, signal), [api, branch.id]);
   const controller = useRef(null), posting = useRef(false), original = useRef("");
   const { payloadFor, clear } = useOperationIntent();
@@ -52,7 +54,8 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
     } finally { posting.current = false; if (!request.signal.aborted) setSaving(false); }
   };
   const setConfig = (key, value) => setForm({ ...form, config: { ...form.config, [key]: value } });
-  if (choosingArea && form) return <DraftSourcePicker title="Choose this counter's stock area" load={loadAreas}
+  if (inspectingArea) return <CounterStockArea api={api} branch={branch} counter={inspectingArea} onClose={() => { setInspectingArea(null); setReload(value => value + 1); }} />;
+  if (choosingArea && form) return <DraftSourcePicker title="Choose preferred picking area" load={loadAreas}
     onClose={() => setChoosingArea(false)} onSelect={location => {
       setChoosingArea(false);
       if (!location.is_active || location.branch_id !== branch.id) { setError('Choose an active location in this branch.'); return; }
@@ -74,11 +77,11 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
         <label className="block">Counter purpose<select required value={form.config.purpose} onChange={(event) => setConfig("purpose", event.target.value)} className={`block p-2 border rounded-lg ${panel}`}>
           <option value="">Choose explicitly</option><option value="CHECKOUT">Checkout</option><option value="COLLECTION">Collection</option><option value="BOTH">Checkout and collection</option></select></label>
         <label className="flex gap-2"><input type="checkbox" checked={form.config.is_enabled} onChange={(event) => setConfig("is_enabled", event.target.checked)} />Available for future authorised workflows</label>
-        <section className="space-y-2"><h2 className="font-semibold">Default stock area</h2>
-          <p>{form.config.default_stock_location_id ? areaName || `Location #${form.config.default_stock_location_id}` : 'Not configured — automatic allocation is blocked.'}</p>
-          <button type="button" className={button} onClick={() => setChoosingArea(true)}>Choose stock area</button>
-          {form.config.default_stock_location_id && <button type="button" className={button} onClick={() => { setConfig('default_stock_location_id', null); setAreaName(''); }}>Clear stock area</button>}
-          <p className="text-sm">Use the salesperson's current work counter to default stock to this area. Never silently draw from another area when stock is short. Other locations are an explicit choice and require applicable approval. Saving this default does not reserve stock.</p>
+        <section className="space-y-2"><h2 className="font-semibold">Preferred picking area</h2>
+          <p>{form.config.default_stock_location_id ? areaName || `Location #${form.config.default_stock_location_id}` : 'No preference — eligible stock across this store may be allocated.'}</p>
+          <button type="button" className={button} onClick={() => setChoosingArea(true)}>Choose preferred picking area</button>
+          {form.config.default_stock_location_id && <button type="button" className={button} onClick={() => { setConfig('default_stock_location_id', null); setAreaName(''); }}>Clear preference</button>}
+          <p className="text-sm">The usual counter is a workstation or specialism, not a product restriction. Prefer this area, then compatible stock elsewhere in the authorised store. Other stores or separately configured warehouses require explicit selection and applicable approval. Saving this preference does not assign staff, grant stock permissions or reserve stock.</p>
         </section>
         <p className="text-sm">This setting does not activate checkout, approve collection, assign a store server or enable payments. Branch rules, staff permissions and later release gates must also pass.</p>
       </fieldset>
@@ -87,7 +90,7 @@ export default function BranchCounters({ api, branch, canManage, onClose }) {
     </form> : <><div className="flex-1 min-h-0 overflow-auto border rounded-lg">
       {loading ? <p role="status" className="p-4">Loading counters…</p> : error ? <p className="p-4">Counter list unavailable. Refresh to retry.</p> : !result.items.length ? <p className="p-4">No counters configured.</p> :
         <table className="w-full text-left text-sm"><thead className={`sticky top-0 ${panel}`}><tr>{["Code", "Name", "Purpose", "Configuration", "Revision", "Actions"].map((label) => <th className="p-3" key={label}>{label}</th>)}</tr></thead>
-          <tbody>{result.items.map((row) => <tr key={row.counter_key} className="border-t"><td className="p-3">{row.code}</td><td className="p-3">{row.config.name}</td><td className="p-3">{row.config.purpose}</td><td className="p-3">{row.config.is_enabled ? "Available; release gates apply" : "Disabled"}</td><td className="p-3">{row.version}</td><td className="p-3">{editable && <button type="button" className={button} onClick={() => open(row)}>Edit<span className="sr-only"> {row.code}</span></button>}</td></tr>)}</tbody></table>}
+          <tbody>{result.items.map((row) => <tr key={row.counter_key} className="border-t"><td className="p-3">{row.code}</td><td className="p-3">{row.config.name}</td><td className="p-3">{row.config.purpose}</td><td className="p-3">{row.config.is_enabled ? "Available; release gates apply" : "Disabled"}</td><td className="p-3">{row.version}</td><td className="p-3"><button type="button" className={button} onClick={() => setInspectingArea(row)}>View picking preference<span className="sr-only"> {row.code}</span></button> {editable && <button type="button" className={button} onClick={() => open(row)}>Edit<span className="sr-only"> {row.code}</span></button>}</td></tr>)}</tbody></table>}
     </div><div className="shrink-0"><PaginationToolbar page={page} pageSize={limit} totalPages={loading || error ? 1 : result.pages} totalCount={loading || error ? 0 : result.total}
       onPageChange={setPage} onPageSizeChange={(value) => { setLimit(value); setPage(1); }} isDark={isDark} /></div></>}
   </section>;

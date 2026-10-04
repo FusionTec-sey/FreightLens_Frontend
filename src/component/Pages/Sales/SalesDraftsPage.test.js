@@ -13,6 +13,35 @@ const list = jest.fn(); const read = jest.fn();
 const row = { document_key: 'demo-draft', version: 1, branch_id: 2, status: 'DRAFT' };
 const auth = { token: 'synthetic', orgId: 1, hasModule: () => true,
   permissions: ['View_SalesDraft', 'View_Product', 'View_Customer', 'View_Personal_Data'] };
+test('other-store reviews use their dedicated permission and show exact scope without execution', async () => {
+  const otherStoreCases = jest.fn().mockResolvedValue({ data: { items: [{ case_key: 'case', version: 1,
+    status: 'REQUESTED', source_version: 1, requestor_id: 20, product_id: 3, selling_branch_id: 2,
+    fulfilment_branch_id: 4, location_id: 6, balance_id: 9, stock_version: 1,
+    input_quantity: '2', input_unit: 'BOX', quantity: '24', base_unit: 'PCS',
+    source: { document_key: 'demo-draft', line_key: 'line', version: 1 },
+    existing_holds: { count: 0, remaining: '0' }, review_at: '2027-01-01T08:00:00Z', reason: 'Explicit selection',
+  }], total: 1, pages: 1 } });
+  salesDraftsApi.mockReturnValue({ list, read, otherStoreCases });
+  const view = render(<SalesDraftsPage />);
+  expect(screen.queryByText('Other-store reviews')).not.toBeInTheDocument();
+  useAuth.mockReturnValue({ ...auth, user: { id: 10 }, permissions: [...auth.permissions, 'Review_OtherStoreFulfilment'] });
+  view.rerender(<SalesDraftsPage />); fireEvent.click(screen.getByText('Other-store reviews'));
+  fireEvent.click(await screen.findByRole('button', { name: /Review case/ }));
+  expect(screen.getByText(/Selling store #2/)).toHaveTextContent('Fulfilment store #4');
+  expect(screen.getByText(/Requested: 2 BOX/)).toHaveTextContent('24 PCS');
+  expect(screen.getByText(/Execution remains disabled/)).toBeInTheDocument();
+  expect(screen.getByText('Approve exact other-store request')).toBeDisabled();
+  expect(otherStoreCases).toHaveBeenCalledWith(1, 25, expect.anything(), 'NEEDS_MY_REVIEW');
+});
+
+test('other-store requester sees own requests without a decision control', async () => {
+  const otherStoreCases = jest.fn().mockResolvedValue({ data: { items: [], total: 0, pages: 1 } });
+  salesDraftsApi.mockReturnValue({ list, read, otherStoreCases });
+  useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Request_OtherStoreFulfilment'] });
+  render(<SalesDraftsPage />); fireEvent.click(screen.getByText('Other-store reviews'));
+  expect(await screen.findByText('You have no other-store fulfilment review requests in this company.')).toBeInTheDocument();
+  expect(otherStoreCases).toHaveBeenCalledWith(1, 25, expect.anything(), 'MY_REQUESTS');
+});
 beforeEach(() => {
   jest.clearAllMocks(); useAuth.mockReturnValue(auth);
   salesDraftsApi.mockReturnValue({ list, read });
