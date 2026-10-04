@@ -1,5 +1,15 @@
 # FreightLens Frontend Architecture
 
+## Payment and receiving-account configuration (2026-10-05)
+
+Sales > Payment configuration exposes the existing versioned T12A API as two
+server-paginated registers: payment methods and exact selling-branch receiving
+accounts. Editors preserve expected versions and stable operation identities across
+uncertain retries. An explicit lookup reports READY or the precise blocked reason;
+the screen does not accept, confirm or post money. View_Financials controls read
+access and Manage_Financials controls changes. Account references are bounded opaque
+accounting identifiers; no credentials or real bank details are stored by this UI.
+
 ## Reviewed stock adjustments (2026-10-04)
 
 Location Stock opens a contained Adjustment cases workflow only for users with a

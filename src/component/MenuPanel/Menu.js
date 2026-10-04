@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CUSTOMERS_ROUTE } from "../../utils/customerRoutes";
 import { COUNT_PLANS_ROUTE, COUNT_SESSIONS_ROUTE, COUNT_MY_ROUNDS_ROUTE, COUNT_DISCREPANCIES_ROUTE } from "../../utils/countRoutes";
-import { SALES_DRAFTS_ROUTE, SALES_PRICING_ROUTE, salesViewRoute } from "../../utils/salesRoutes";
+import { SALES_DRAFTS_ROUTE, SALES_PAYMENT_CONFIGURATION_ROUTE, SALES_PRICING_ROUTE, salesViewRoute } from "../../utils/salesRoutes";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -409,6 +409,7 @@ function Sidebar({ onLinkClick }) {
   const canViewCustomers = isSuperAdmin || (hasPermission("View_Customer") && hasPermission("View_Personal_Data"));
   const canViewSalesDrafts = isSuperAdmin || (hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft"));
   const canViewSalesPricing = isSuperAdmin || (hasModule("SALES") && hasPermission("View_Product") && hasPermission("View_Financials"));
+  const canViewPaymentConfiguration = isSuperAdmin || (hasModule("SALES") && hasPermission("View_Financials"));
   const canCountPlans = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('View_CountPlan'));
   const canEnterCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Enter_CountResult'));
   const canAssignCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Assign_CountSession'));
@@ -505,10 +506,11 @@ function Sidebar({ onLinkClick }) {
 
           {renderNavLink("/dashboard", <LayoutDashboard />, "Overview", isActive("/dashboard"))}
 
-          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewSalesReviews || canViewPriceFloorReviews) && renderSectionHeader("Sales")}
-          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewSalesReviews || canViewPriceFloorReviews) && renderAccordion({ sectionKey: 'sales', icon: <ShoppingBag />, label: 'Sales', isSectionActive: isSalesActive, children: <>
+          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewPaymentConfiguration || canViewSalesReviews || canViewPriceFloorReviews) && renderSectionHeader("Sales")}
+          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewPaymentConfiguration || canViewSalesReviews || canViewPriceFloorReviews) && renderAccordion({ sectionKey: 'sales', icon: <ShoppingBag />, label: 'Sales', isSectionActive: isSalesActive, children: <>
             {canViewSalesDrafts && renderSubLink(SALES_DRAFTS_ROUTE, 'Sales drafts', isActive(SALES_DRAFTS_ROUTE))}
             {canViewSalesPricing && renderSubLink(SALES_PRICING_ROUTE, 'Pricing & tax', isActive(SALES_PRICING_ROUTE))}
+            {canViewPaymentConfiguration && renderSubLink(SALES_PAYMENT_CONFIGURATION_ROUTE, 'Payment configuration', isActive(SALES_PAYMENT_CONFIGURATION_ROUTE))}
             {canViewCustomers && renderSubLink(CUSTOMERS_ROUTE, 'Customers', isActive(CUSTOMERS_ROUTE))}
             {canViewSalesDrafts && <>
             {(isSuperAdmin || permissions.includes('Manage_SalesDraft')) && renderSubLink(salesViewRoute('LOCAL_DRAFTS'), 'Local draft recovery', isActive(salesViewRoute('LOCAL_DRAFTS')))}
