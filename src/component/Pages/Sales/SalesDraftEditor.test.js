@@ -109,3 +109,22 @@ test('route guard blocks running saves and preserves uncertain operation without
   expect(api.save).toHaveBeenCalledTimes(1);
   expect(removeRecovery).not.toHaveBeenCalled();
 });
+
+test('copied draft keeps local provenance but sends only new demand intent', async () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 3 };
+  const copied = { ...initial, document_key: '22222222-2222-4222-8222-222222222222', version: 0,
+    source_reference, lines: [{ ...initial.lines[0], line_key: '33333333-3333-4333-8333-333333333333',
+      reserved_quantity: '2', approval_case: 'historical-case' }] };
+  const api = { save: jest.fn().mockRejectedValue(new Error('connection lost')) };
+  render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={copied} onSaved={jest.fn()} onClose={jest.fn()} />);
+  expect(screen.getByText(/source reference stays in local recovery only/)).toBeInTheDocument();
+  await waitFor(() => expect(writeRecovery).toHaveBeenCalled());
+  expect(writeRecovery.mock.calls.at(-1)[3].source_reference).toEqual(source_reference);
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText(/Save outcome is unconfirmed/);
+  expect(api.save.mock.calls[0][0]).toBe(copied.document_key);
+  expect(api.save.mock.calls[0][1].expected_version).toBe(0);
+  expect(api.save.mock.calls[0][1].draft.lines[0].line_key).toBe(copied.lines[0].line_key);
+  expect(JSON.stringify(api.save.mock.calls[0][1])).not.toMatch(/source_reference|reserved_quantity|approval_case/);
+  expect(writeRecovery.mock.calls.at(-1)[3].pending.operation_key).toBe('synthetic-operation');
+});

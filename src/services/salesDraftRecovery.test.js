@@ -50,3 +50,15 @@ test('deleted and recreated draft cannot be overwritten by an older tab revision
   expect(replacement.revision).toBeGreaterThan(original.revision);
   await expect(writeRecovery('1:2', 'doc', original.revision, snapshot)).rejects.toThrow('another tab');
 });
+
+test('copy source is retained only as a validated local envelope field', async () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 2 };
+  await writeRecovery('1:2', 'new-doc', 0, { ...snapshot, source_reference,
+    payments: ['never-store'], collection: 'never-store', reservations: ['never-store'] });
+  const stored = readRecovery('1:2', 'new-doc').snapshot;
+  expect(stored.source_reference).toEqual(source_reference);
+  expect(stored.draft).not.toHaveProperty('source_reference');
+  expect(JSON.stringify(stored)).not.toContain('never-store');
+  await expect(writeRecovery('1:2', 'bad-doc', 0, { ...snapshot,
+    source_reference: { document_key: 'not-a-document', version: 1 } })).rejects.toThrow('Invalid copy source');
+});
