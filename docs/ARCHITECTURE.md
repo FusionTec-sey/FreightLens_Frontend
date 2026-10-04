@@ -1,5 +1,137 @@
 # FreightLens Frontend Architecture
 
+## Reviewed stock adjustments (2026-10-04)
+
+Location Stock opens a contained Adjustment cases workflow only for users with a
+request, review or execute permission. Requests retain exact decimal strings and
+the selected balance version; retries reuse the same operation identity. Review
+submits the selected case version and excludes the requester. Execution requires
+explicit confirmation and reports only a matching consumed response.
+
+The screen keeps reserved quantity read-only, blocks aggregate serial correction,
+states that selling price is unchanged and flags possible valuation reconciliation.
+An unknown execution result stays retryable with the same identity. Twenty-six
+focused frontend tests pass and the production build succeeds with existing
+repository warnings; browser acceptance remains separate.
+
+## Authoritative product quantities (2026-10-04)
+
+Product Master, quick view, selected CSV export, catalogue selection and the older
+order picker consume explicit on-hand, reserved, available, damaged and quarantined
+values returned from Inventory balances. Mixed base units display unavailable and
+never collapse to zero or an out-of-stock badge. Quick creation sends no opening
+stock. Stock information also describes preferred same-store picking and the explicit
+authorised other-store choice without inventing a central warehouse assignment.
+
+Dashboard stock value displays the backend's latest immutable SCR cost-pool heads as
+provisional and surfaces missing valuation coverage. It no longer presents catalogue
+unit cost multiplied by a legacy product total. Four focused component tests and the
+production build pass; browser acceptance remains pending.
+
+## Pricing and tax configuration (2026-10-04)
+
+Sales > Pricing & tax exposes the backend's four existing T11 records rather than
+creating a client catalogue: Tax rules, Store prices, Product tax and Customer
+prices. Registers are server-paginated; editors keep expected revision and a stable
+operation key through uncertain retries. Existing branch, reviewed-product and
+verified-customer pickers supply references. Store/customer prices include selling
+unit; tax remains a separate assignment. Customer agreements are omitted without
+customer and personal-data access, while writes require financial-management access.
+
+The draft detail screen separately loads the authoritative read-only pricing preview
+and displays exact selected-source, version, floor, tax and SCR totals. Below-floor
+prices can be submitted for an exact manager review; authorised reviewers use the
+Sales > Manager reviews > Price-floor reviews screen. Review access is not hidden by
+customer-draft navigation requirements when the backend grants the narrower review.
+
+An authorised draft editor can prepare the exact approved price/tax input for later
+posting. The UI retains a stable operation identity through failure, loads an existing
+prepared input for the current draft revision and clearly states that preparation is
+not an invoice, payment, stock movement, collection authority or approval use.
+Forty-three affected frontend tests pass and the production build succeeds with the
+repository's existing unrelated warnings. Browser/tablet/dark-mode acceptance and
+real tax/accounting configuration remain pending.
+
+## Cost-pool reconciliation readiness (2026-10-04)
+
+Valuation history now opens a separate read-only reconciliation-readiness view. It
+shows current physical on-hand, the latest valuation quantity/value/version, exact
+difference and explicit missing valuation, quantity mismatch or unit mismatch state.
+Responses stay tied to the captured company API and pool, with cancellation, stale
+result clearing, retry, empty state and server pagination. The screen states that
+quantity agreement is not final accounting approval; it provides no close, posting
+or override action. Twenty-two affected frontend tests pass and the production build
+succeeds with the repository's existing unrelated warnings.
+
+## Receipt valuation history (2026-10-04)
+
+Cost-pool history now describes opening, receipt and additional-cost entries and
+uses “Source quantity” rather than implying every row is an opening. Immutable
+RECEIPT rows remain eligible for the existing reviewed landed-cost allocation;
+CHARGE rows remain disabled. No receipt posting button, FX inference, selling-price
+change or reconciliation claim is exposed. Six focused tests pass and the
+production build compiles with existing repository warnings.
+
+## Catalogue stock editing boundary (2026-10-04)
+
+ProductMasterPage omits current_stock from metadata/create payload and presents its
+legacy reference read-only. Backend rejects metadata replacement independently.
+Location balances remain authoritative; legacy adjustment/create API retirement
+and receiving integration are unfinished T08 work, not silently enabled here.
+
+Follow-up: Product Master no longer offers any quick-adjust action and the legacy
+direct-adjust modal/client was removed. The backend compatibility route fails closed.
+Controlled location movements remain unfinished Inventory work; no product total is
+presented as an editable substitute.
+
+Follow-up: ProductCatalogSelector quick-create also omits stock. Backend now
+rejects nonzero opening stock in catalogue creation; Inventory opening integration
+and the adjustment writer remain separate unfinished work.
+
+## Sales draft display metadata (2026-10-04)
+
+Detail shows the current branch label with stable reference, plus revision save
+time and staff reference. Saving staff is not an assigned salesperson. Editor uses
+the label returned by current read; local recovery remains a reference-only
+whitelist. Deleted/unavailable branch labels retain Branch ID fallback.
+
+## Narrow draft editor containment (2026-10-04)
+
+Read-only 390px browser inspection found fixed metadata collapsed cart rows.
+Below768px, sales-editor-body scrolls inside the fixed action header and retains
+a480px product/cart pane. Desktop/tablet use display:contents to preserve layout.
+Rechecked body containment at390/768px and keyboard reachability of cart controls;
+Save remains visible. No record changed. Evidence is canonical backend planning.
+
+## Sales route navigation protection (2026-10-04)
+
+App uses the installed data router with the existing MainPage nested routes and
+providers. DraftNavigationProvider owns one route blocker; SalesDraftEditor
+registers through a router-independent context. Dirty/pending drafts require Stay
+or Keep locally and leave. Recovery must finish before proceeding; storage failure,
+in-flight saves and confirmed-save cleanup keep the editor open. Exact uncertain
+operation bodies are retained without reposting. Editor replacement revokes a
+pending leave decision. Existing unload warning remains; organisation switching,
+logout, native reload and multi-tab recovery are not covered by this route test.
+291 frontend tests / 55 suites and build pass (existing warnings); real-router
+test covers menu navigation and Back. Browser visual acceptance remains pending.
+
+## Read-only revision line inspection (2026-10-04)
+
+SalesDraftHistory opens SalesDraftRevision on explicit version selection. Scoped
+API returns saved quantities/units/policy versions without current holds. Current
+catalogue labels are disclosed; no edit/restore/allocate action appears in history.
+Reads abort on leaving, validate response identity and clear stale data on failure.
+10 focused tests/build pass; browser acceptance pending.
+
+## Sales register search (2026-10-04)
+
+SalesDraftsPage submits reference/customer search to the existing list API with
+store filter and resets paging. Query changes abort stale requests; failed search
+clears old rows and offers clear-search browsing. A confirmed save with pending
+indexing stays confirmed and opens by key. No client-side full-dataset filtering.
+Register/editor 15 tests pass; build passes. Backend owns search scope/freshness.
+
 ## Module navigation arrangement (2026-10-04)
 
 Menu groups existing routes into Sales, Inventory, Procurement, Logistics,
@@ -158,17 +290,19 @@ This obtains ordinary tokens for the existing demo reviewer; no auth/RBAC bypass
 password embedded in frontend, production button or role grant. Normal sign-in
 remains available. Automated tests/browser acceptance deferred.
 
-## Customer duplicate assessments (2026-10-04; unverified)
+## Customer duplicate assessments (2026-10-04; automated verification complete)
 
 Customers now offers Request duplicate review and Duplicate reviews under separate
 permissions. Selection reuses the customer register; the form pins both versions
 with an explicit SAME_CUSTOMER/DISTINCT_CUSTOMERS assessment and reason. Reviews
 reuse ManagerCases, loading exact historical profiles and withholding decisions
 until both reads succeed. Unknown request/decision intents stay fixed for retries;
-results remain visible. Approval does not merge records or balances. No tests,
-build or browser checks run. Canonical status remains backend T10 In progress.
+results remain visible. Approval does not merge records or balances. Exact-profile
+readiness, mismatch denial and uncertain same-intent retry are now covered within
+23 focused customer tests. Production build succeeds with existing warnings;
+browser acceptance remains pending and canonical T10 remains in progress.
 
-## Customer profile edits and history (2026-10-04; unverified)
+## Customer profile edits and history (2026-10-04; automated verification complete)
 
 Customers -> View offers Edit profile and Profile history. The existing contact
 form handles both creation and editing, requiring an edit reason and expected
@@ -176,7 +310,9 @@ version. Unknown requests retain exact retries; stale/access rejection blocks
 editing until reopened. Results stay visible. A separately paginated history view
 shows immutable profile versions, actors and reasons without balances or merging.
 Backend remains the personal-data and company boundary. No new browser storage.
-No tests/build/browser run; duplicate review remains in canonical backend T10.
+Focused tests cover retained failed refresh, exact revisions, create/edit recovery,
+company changes and permission-driven actions. Backend concurrency and immutability
+tests remain canonical evidence. Browser acceptance remains pending.
 
 ## Reviewed cost posting (2026-10-04; unverified, runtime disabled)
 
@@ -605,6 +741,33 @@ BrowserRouter
 Root users may select an organisation. Requests using the global Axios interceptors include `X-Active-Org`. API clients that create separate Axios instances must also propagate that header; inconsistent clients are a known deviation being addressed by stabilization.
 
 ## API Access
+
+BD-20261004-09 refines the existing Sales presentation using current contracts.
+Register and split-view rows lead with saved customer/store and Draft vN, retaining
+the exact UUID as a secondary reference. Draft details group saved customer, store,
+audit actor and save time, then show independent Demand, per-line Reservation,
+Payment and Collection facts. Product lines retain image, SKU, exact selling and
+base quantities, reviewed unit/policy and reservation facts. Pricing remains pending
+and all totals remain not calculated until T11; no currency, invoice, payment or
+collection state is inferred in the client. Existing search, paging, permissions,
+history, allocation and local recovery contracts are reused unchanged.
+
+Goods Receiving receipt details now provide an explicit, initially closed physical
+manifest inspector. It reads the server-paginated, company-pinned receipt-manifest
+API, validates receipt/key context, aborts obsolete requests and shows exact historical
+policy, quantity and batch/serial classifications. Saved manifests are labelled as
+not posted; saved condition-review requirements are not current approvals. Authorised
+users can request review and an independent manager can approve/reject the exact saved
+classification. Failed action input and stable retry identity are retained, dirty/busy
+review forms block panel exit, and case paging stays company pinned. Verify_Receipt
+users can also prepare a classification from a submitted receipt line: its linked
+product loads the reviewed policy; shared server-paginated pickers choose branch and
+location; the server supplies the exact converted received total without inferring
+damaged/incorrect disposition; exact condition, batch or serial input reuses the same
+controls as stock reclassification. A second server preview is required for the
+current classification before stable-key save, but save revalidates everything. Approval, preview and save still
+post no stock or value. Supplier/cost data and physical/financial actions are absent.
+Browser acceptance remains pending.
 
 ProductQuickView now opens `InventoryPolicyDraft` for unit/tracking preparation.
 The org-pinned client reads/saves versioned drafts against existing product IDs.
