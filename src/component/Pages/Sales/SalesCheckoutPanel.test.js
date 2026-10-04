@@ -63,6 +63,29 @@ test('recovers a posted invoice instead of creating another payment attempt', as
   expect(client.createPostingAttempt).not.toHaveBeenCalled();
 });
 
+test('opens invoice printing from a recovered invoice only when permitted', async () => {
+  const posted = { ...options, existing_attempt_key: 'attempt-key',
+    existing_operation_key: 'operation-key', existing_status: 'POSTED',
+    existing_invoice_key: 'invoice-key' };
+  const client = api({
+    postingOptions: jest.fn().mockResolvedValue({ data: posted }),
+    readInvoice: jest.fn().mockResolvedValue({ data: { invoice_key: 'invoice-key',
+      invoice_number: 'INV-RECOVERED', payment_status: 'PAID',
+      fulfilment_status: 'AWAITING_COLLECTION', gross_total_scr: '2200.00' } }),
+    invoicePrintOptions: jest.fn().mockResolvedValue({ data: { invoice_key: 'invoice-key',
+      invoice_number: 'INV-RECOVERED', template_id: 5, template_version_id: 9,
+      template_name: 'Sales tax invoice', original_artifact: null } }),
+    invoicePrintJobs: jest.fn().mockResolvedValue({ data: {
+      items: [], page: 1, pages: 1, limit: 10, total: 0 } }),
+  });
+  render(<SalesCheckoutPanel api={client} draft={draft} pricing={pricing}
+    canRecordCard={false} canPrint onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Invoice & printing' }));
+  expect(await screen.findByRole('heading', { name: 'Invoice & printing · INV-RECOVERED' }))
+    .toBeInTheDocument();
+  expect(client.invoicePrintOptions).toHaveBeenCalledWith('invoice-key', expect.anything());
+});
+
 test('missing payment or reservation configuration blocks confirmation', async () => {
   const client = api({ postingOptions: jest.fn().mockResolvedValue({ data: {
     ...options, payment_methods: [], reservations: [] } }) });

@@ -54,10 +54,12 @@ export default function SalesDraftsPage({ view = 'DRAFTS' }) {
     canReviewFloor={isSuperAdmin || permissions.includes('Review_PriceFloorException')}
     canPostSale={isSuperAdmin || permissions.includes('Post_Sale')}
     canRecordCard={isSuperAdmin || permissions.includes('Record_ExternalCardConfirmation')}
-    canCollect={isSuperAdmin || permissions.includes('Collect_Sale')} />;
+    canCollect={isSuperAdmin || permissions.includes('Collect_Sale')}
+    canPrint={isSuperAdmin || permissions.includes('Print_SaleInvoice')}
+    canResolvePrint={isSuperAdmin || permissions.includes('Resolve_SalePrint')} />;
 }
 
-function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, canCollect, userId }) {
+function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, canCollect, canPrint, canResolvePrint, userId }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { hasModule, isSuperAdmin } = useAuth();
@@ -207,6 +209,8 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
       canPostSale={canPostSale}
       canRecordCard={canRecordCard}
       canCollect={canCollect}
+      canPrint={canPrint}
+      canResolvePrint={canResolvePrint}
       onReservations={canOpenReviews || canOpenDeadlines || canOpenReallocations ? () => setHolds(selected) : undefined} />}
     </div>
   </section>;
