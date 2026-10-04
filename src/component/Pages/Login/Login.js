@@ -13,6 +13,28 @@ const LoginPage = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development' || !['localhost', '127.0.0.1'].includes(window.location.hostname)) return;
+    const controller = new AbortController();
+    axios.get(`${process.env.REACT_APP_NETWORK}/auth/local-demo`, { signal: controller.signal })
+      .then(({ data }) => { if (!controller.signal.aborted) setDemoEnabled(data.enabled === true); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+  const enterDemo = async () => {
+    if (isLoading) return;
+    setIsLoading(true); setError('');
+    try {
+      const { data } = await axios.post(`${process.env.REACT_APP_NETWORK}/auth/local-demo`);
+      login(data.access_token, data.refresh_token, data.permissions || [], data.username, {
+        org_id: data.org_id, org_name: data.org_name, is_root: data.is_root,
+        modules: data.modules, plan: data.plan,
+      });
+      navigate('/master-data/customers', { replace: true });
+    } catch { setError('Local demo sign-in is unavailable. Normal sign-in remains available.'); }
+    finally { setIsLoading(false); }
+  };
 
   const usernameRef = useRef(null);
   const desktopCanvasRef = useRef(null);
@@ -232,6 +254,10 @@ const LoginPage = () => {
           )}
 
           <form className="space-y-6" onSubmit={handleLogin}>
+            {demoEnabled && <section className="rounded-lg border border-indigo-300 bg-indigo-50 p-3 text-slate-900 space-y-2">
+              <p className="text-sm">Local demo only — existing demo-company permissions apply.</p>
+              <button type="button" disabled={isLoading} onClick={enterDemo} className="w-full rounded-lg bg-indigo-600 px-4 py-3 text-white cursor-pointer hover:bg-indigo-700 disabled:opacity-40">{isLoading ? 'Signing in…' : 'Enter local demo — no password'}</button>
+            </section>}
             {/* Username */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-200 mb-1">Username</label>

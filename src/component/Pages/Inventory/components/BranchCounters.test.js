@@ -9,13 +9,26 @@ const props = { branch: { id: 1, name: "Branch", is_active: true }, canManage: t
 const row = { id: 2, counter_key: "counter", code: "C1", version: 1, config: { name: "Counter one", purpose: "BOTH", is_enabled: false } };
 let api;
 
+test('viewers can inspect the saved area without editing configuration', async () => {
+  api.counters.mockResolvedValue({ data: { items: [{ ...row, config: { ...row.config, default_stock_location_id: 9 } }], total: 1, pages: 1 } });
+  api.counterStockArea = jest.fn().mockResolvedValue({ data: { root: { name: 'Demo area', code: 'AREA' },
+    counter_version: 1, counter_enabled: false, items: [], total: 0, pages: 1 } });
+  render(<BranchCounters api={api} {...props} canManage={false} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'View picking preference C1' }));
+  await screen.findByText(/Root: Demo area/);
+  expect(api.counterStockArea).toHaveBeenCalledWith(1, 'counter', 1, 1, 25, expect.any(AbortSignal));
+  fireEvent.click(screen.getByText('Back to counters'));
+  await screen.findByRole('button', { name: 'View picking preference C1' });
+  expect(api.saveCounter).not.toHaveBeenCalled();
+});
+
 test('selects a branch stock area without creating stock or typing IDs', async () => {
   api.list = jest.fn().mockResolvedValue({ data: { items: [{ id: 9, branch_id: 1, is_active: true, name: 'Demo work area' }], total: 1, pages: 1 } });
   api.saveCounter.mockResolvedValue({ data: row });
   render(<BranchCounters api={api} {...props} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Edit C1' }));
-  expect(screen.getByText(/automatic allocation is blocked/)).toBeInTheDocument();
-  fireEvent.click(screen.getByText('Choose stock area'));
+  expect(screen.getByText(/eligible stock across this store/)).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Choose preferred picking area'));
   fireEvent.click(await screen.findByText('Select Demo work area'));
   expect(screen.getByText('Demo work area')).toBeInTheDocument();
   fireEvent.click(screen.getByText('Save counter'));

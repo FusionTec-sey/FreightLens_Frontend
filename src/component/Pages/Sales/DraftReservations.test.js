@@ -18,6 +18,7 @@ test('reallocation selects fresh destination and preserves exact uncertain retry
     .mockResolvedValue({ data: { case_key: 'move-case', version: 1, status: 'REQUESTED' } });
   render(<DraftReservations api={api} draft={draft} canRequestReallocation onClose={jest.fn()} />);
   fireEvent.click(await screen.findByText('Request reallocation'));
+  expect(screen.getByText(/The reassigned quantity stays/)).toHaveTextContent('compatible stock across locations in the same store');
   fireEvent.change(screen.getByLabelText('Quantity to reallocate (PCS)'), { target: { value: '0.000001' } });
   fireEvent.change(screen.getByLabelText(/Next review/), { target: { value: '2026-12-01T10:00' } });
   fireEvent.change(screen.getByLabelText('Reallocation reason'), { target: { value: 'Customer agreement' } });

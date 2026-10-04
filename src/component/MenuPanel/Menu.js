@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CUSTOMERS_ROUTE } from "../../utils/customerRoutes";
-import { SALES_DRAFTS_ROUTE } from "../../utils/salesRoutes";
+import { COUNT_PLANS_ROUTE, COUNT_SESSIONS_ROUTE, COUNT_MY_ROUNDS_ROUTE, COUNT_DISCREPANCIES_ROUTE } from "../../utils/countRoutes";
+import { SALES_DRAFTS_ROUTE, SALES_PRICING_ROUTE, salesViewRoute } from "../../utils/salesRoutes";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -52,7 +53,9 @@ function Sidebar({ onLinkClick }) {
         setOpenAccordion(null);
       } else {
         // If locking/expanding, restore active section accordion
-        if (isDashboardSectionActive) setOpenAccordion("dashboard");
+        if (isCountsActive) setOpenAccordion('counts');
+        else if (isSalesActive) setOpenAccordion('sales');
+        else if (isDashboardSectionActive) setOpenAccordion("dashboard");
         else if (isSourcingActive) setOpenAccordion("sourcing");
         else if (isOrdersActive) setOpenAccordion("orders");
         else if (isContainerActive) setOpenAccordion("containers");
@@ -91,6 +94,10 @@ function Sidebar({ onLinkClick }) {
 
   const isActive = (path) => location.pathname === path;
 
+  const isSalesActive = location.pathname.startsWith("/sales/") || isActive(CUSTOMERS_ROUTE);
+  const isCountsActive = location.pathname.startsWith("/inventory/counts/");
+  const isSalesReviewActive = location.pathname.startsWith("/sales/reviews/");
+
   // Active section checkers
   const isDashboardSectionActive =
     isActive("/dashboard") ||
@@ -109,7 +116,6 @@ function Sidebar({ onLinkClick }) {
     isActive("/quotes") ||
     isActive("/templates") ||
     isActive("/orders/templates") ||
-    isActive("/packing-lists") ||
     isActive("/goods-receiving") ||
     isActive("/damage-defects") ||
     isActive("/daily-operations");
@@ -123,10 +129,9 @@ function Sidebar({ onLinkClick }) {
     isActive("/Complete");
 
   const isInventoryActive =
-    (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
+    (isActive("/inventory") || location.pathname.startsWith("/inventory/")) && !location.pathname.startsWith('/inventory/counts/') && !isActive(INVENTORY_APPROVALS_ROUTE) && !isActive(INVENTORY_BARCODE_REVIEWS_ROUTE);
 
   const isMasterDataActive =
-    isActive(CUSTOMERS_ROUTE) ||
     isActive("/master-data/suppliers") ||
     isActive("/master-data/currencies") ||
     isActive("/master-data/payment-terms") ||
@@ -158,6 +163,8 @@ function Sidebar({ onLinkClick }) {
       }
     })();
     if (!initialLocked) return null;
+    if (isCountsActive) return 'counts';
+    if (isSalesActive) return 'sales';
     if (isDashboardSectionActive) return "dashboard";
     if (isSourcingActive) return "sourcing";
     if (isOrdersActive) return "orders";
@@ -175,7 +182,11 @@ function Sidebar({ onLinkClick }) {
   // Automatically activate and expand the section corresponding to active route when locked
   useEffect(() => {
     if (isLocked) {
-      if (isDashboardSectionActive) {
+      if (isCountsActive) {
+        setOpenAccordion('counts');
+      } else if (isSalesActive) {
+        setOpenAccordion('sales');
+      } else if (isDashboardSectionActive) {
         setOpenAccordion("dashboard");
       } else if (isSourcingActive) {
         setOpenAccordion("sourcing");
@@ -193,7 +204,7 @@ function Sidebar({ onLinkClick }) {
         setOpenAccordion(null);
       }
     }
-  }, [location.pathname, isLocked, isDashboardSectionActive, isSourcingActive, isOrdersActive, isContainerActive, isInventoryActive, isMasterDataActive, isSettingsActive]);
+  }, [location.pathname, isSalesActive, isCountsActive, isLocked, isDashboardSectionActive, isSourcingActive, isOrdersActive, isContainerActive, isInventoryActive, isMasterDataActive, isSettingsActive]);
 
   // ── Render Helpers ──────────────────────────────────────────────────────────
   // Height is exactly h-6 in both collapsed (divider) and expanded (header title) states
@@ -395,8 +406,19 @@ function Sidebar({ onLinkClick }) {
   const canViewInventory = hasModule("INVENTORY");
   const canViewMasterData =
     hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canViewCustomers = hasPermission("View_Customer") && hasPermission("View_Personal_Data");
-  const canViewSalesDrafts = hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft");
+  const canViewCustomers = isSuperAdmin || (hasPermission("View_Customer") && hasPermission("View_Personal_Data"));
+  const canViewSalesDrafts = isSuperAdmin || (hasModule("SALES") && canViewCustomers && hasPermission("View_Product") && hasPermission("View_SalesDraft"));
+  const canViewSalesPricing = isSuperAdmin || (hasModule("SALES") && hasPermission("View_Product") && hasPermission("View_Financials"));
+  const canCountPlans = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('View_CountPlan'));
+  const canEnterCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Enter_CountResult'));
+  const canAssignCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('Assign_CountSession'));
+  const canReviewCounts = isSuperAdmin || (hasModule('INVENTORY') && hasPermission('View_CountDiscrepancy'));
+  const salesReviewAccess = suffix => isSuperAdmin || (hasModule('INVENTORY') && ['Request_', 'Review_', 'Execute_'].some(prefix => permissions.includes(prefix + suffix)));
+  const canViewCounts = canCountPlans || canEnterCounts || canAssignCounts || canReviewCounts;
+  const canViewSalesReviews = ['ReservationRelease', 'ReservationReallocation', 'OtherStoreFulfilment', 'ReservationDeadline'].some(salesReviewAccess) || (hasModule('INVENTORY') && permissions.includes('Schedule_ReservationReview'));
+  const canViewPriceFloorReviews = isSuperAdmin || (hasModule('SALES') && hasPermission('View_Product') &&
+    hasPermission('View_Financials') && hasPermission('View_SalesDraft') &&
+    ['Request_PriceFloorException', 'Review_PriceFloorException'].some(permission => permissions.includes(permission)));
   const canViewTenantConsole =
     hasPermission("View_TenantConsole") ||
     hasPermission("Manage_TenantConsole") ||
@@ -481,26 +503,48 @@ function Sidebar({ onLinkClick }) {
           {/* ── SECTION: CORE ───────────────────────────────────────────────── */}
           {renderSectionHeader("Core")}
 
-          {canManageTemplates ? (
-            renderAccordion({
-              sectionKey: "dashboard",
-              icon: <LayoutDashboard />,
-              label: "Dashboard",
-              isSectionActive: isDashboardSectionActive,
-              children: (
-                <>
-                  {renderSubLink("/dashboard", "Overview", isActive("/dashboard"))}
-                  {renderSubLink(
-                    "/dashboard/templates",
-                    "Template Studio",
-                    isActive("/dashboard/templates") || isActive("/dashboard-templates")
-                  )}
-                </>
-              ),
-            })
-          ) : (
-            renderNavLink("/dashboard", <LayoutDashboard />, "Dashboard", isActive("/dashboard"))
-          )}
+          {renderNavLink("/dashboard", <LayoutDashboard />, "Overview", isActive("/dashboard"))}
+
+          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewSalesReviews || canViewPriceFloorReviews) && renderSectionHeader("Sales")}
+          {(canViewSalesDrafts || canViewCustomers || canViewSalesPricing || canViewSalesReviews || canViewPriceFloorReviews) && renderAccordion({ sectionKey: 'sales', icon: <ShoppingBag />, label: 'Sales', isSectionActive: isSalesActive, children: <>
+            {canViewSalesDrafts && renderSubLink(SALES_DRAFTS_ROUTE, 'Sales drafts', isActive(SALES_DRAFTS_ROUTE))}
+            {canViewSalesPricing && renderSubLink(SALES_PRICING_ROUTE, 'Pricing & tax', isActive(SALES_PRICING_ROUTE))}
+            {canViewCustomers && renderSubLink(CUSTOMERS_ROUTE, 'Customers', isActive(CUSTOMERS_ROUTE))}
+            {canViewSalesDrafts && <>
+            {(isSuperAdmin || permissions.includes('Manage_SalesDraft')) && renderSubLink(salesViewRoute('LOCAL_DRAFTS'), 'Local draft recovery', isActive(salesViewRoute('LOCAL_DRAFTS')))}
+            {(isSuperAdmin || (hasModule('INVENTORY') && ['Review_ReservationDeadline', 'Schedule_ReservationReview'].some(p => permissions.includes(p)))) && renderSubLink(salesViewRoute('OVERDUE'), 'Overdue follow-up', isActive(salesViewRoute('OVERDUE')))}
+            </>}
+            {(canViewSalesReviews || canViewPriceFloorReviews) && <details open={isSalesReviewActive} className="ml-3 text-sm">
+              <summary className="cursor-pointer rounded-lg px-3 py-2 text-slate-600 dark:text-slate-400">Manager reviews</summary>
+            {salesReviewAccess('ReservationRelease') && renderSubLink(salesViewRoute('RELEASE_REVIEWS'), 'Release reviews', isActive(salesViewRoute('RELEASE_REVIEWS')))}
+            {salesReviewAccess('ReservationReallocation') && renderSubLink(salesViewRoute('REALLOCATION_REVIEWS'), 'Reallocation reviews', isActive(salesViewRoute('REALLOCATION_REVIEWS')))}
+            {salesReviewAccess('OtherStoreFulfilment') && renderSubLink(salesViewRoute('OTHER_STORE_REVIEWS'), 'Other-store reviews', isActive(salesViewRoute('OTHER_STORE_REVIEWS')))}
+            {(salesReviewAccess('ReservationDeadline') || (hasModule('INVENTORY') && permissions.includes('Schedule_ReservationReview'))) && renderSubLink(salesViewRoute('DEADLINE_REVIEWS'), 'Follow-up reviews', isActive(salesViewRoute('DEADLINE_REVIEWS')))}
+            {canViewPriceFloorReviews && renderSubLink(salesViewRoute('PRICE_FLOOR_REVIEWS'), 'Price-floor reviews', isActive(salesViewRoute('PRICE_FLOOR_REVIEWS')))}
+            </details>}
+          </> })}
+
+          {(canViewInventory || canViewCounts) && renderSectionHeader("Inventory")}
+          {(canCountPlans || canEnterCounts || canAssignCounts || canReviewCounts) && renderAccordion({ sectionKey: 'counts', icon: <Boxes />, label: 'Stock Counts', isSectionActive: location.pathname.startsWith('/inventory/counts/'), children: <>
+            {canCountPlans && renderSubLink(COUNT_PLANS_ROUTE, 'Count plans', isActive(COUNT_PLANS_ROUTE))}
+            {(canAssignCounts || canEnterCounts) && renderSubLink(COUNT_SESSIONS_ROUTE, 'Count rounds', isActive(COUNT_SESSIONS_ROUTE))}
+            {canEnterCounts && renderSubLink(COUNT_MY_ROUNDS_ROUTE, 'My count rounds', isActive(COUNT_MY_ROUNDS_ROUTE))}
+            {canReviewCounts && renderSubLink(COUNT_DISCREPANCIES_ROUTE, 'Discrepancies', isActive(COUNT_DISCREPANCIES_ROUTE))}
+          </> })}
+
+          {/* Inventory / Product Master */}
+          {canViewInventory && renderAccordion({ sectionKey: "inventory", icon: <Boxes />, label: "Inventory", isSectionActive: isInventoryActive,
+            children: <>
+              {renderSubLink("/inventory", "Product Master", isActive("/inventory") || isActive("/inventory/products"))}
+              {(isSuperAdmin || hasPermission("View_Product")) && <>
+                {renderSubLink(INVENTORY_LOCATIONS_ROUTE, "Branches & locations", isActive(INVENTORY_LOCATIONS_ROUTE))}
+                {renderSubLink(INVENTORY_POOLS_ROUTE, "Cost pools", isActive(INVENTORY_POOLS_ROUTE))}
+              </>}
+            </> })}
+          {canViewInventory && (isSuperAdmin || hasPermission("Review_InventoryPolicy")) &&
+            renderNavLink(INVENTORY_APPROVALS_ROUTE, <Shield />, "Policy approvals", isActive(INVENTORY_APPROVALS_ROUTE))}
+          {hasModule("INVENTORY") && (isSuperAdmin || hasPermission("Review_BarcodeRetirement")) &&
+            renderNavLink(INVENTORY_BARCODE_REVIEWS_ROUTE, <Shield />, "Barcode reviews", isActive(INVENTORY_BARCODE_REVIEWS_ROUTE))}
 
           {/* ── SECTION: PROCUREMENT & SOURCING ─────────────────────────────── */}
           {(canViewSourcingMenu || canViewOrdersMenu) && renderSectionHeader("Procurement")}
@@ -522,7 +566,6 @@ function Sidebar({ onLinkClick }) {
             })}
 
           {/* Purchase Orders Module */}
-          {canViewSalesDrafts && renderNavLink(SALES_DRAFTS_ROUTE, <ShoppingBag />, "Sales drafts", isActive(SALES_DRAFTS_ROUTE))}
           {canViewOrdersMenu &&
             renderAccordion({
               sectionKey: "orders",
@@ -546,16 +589,16 @@ function Sidebar({ onLinkClick }) {
                       isActive("/templates") || isActive("/orders/templates")
                     )
                   )}
-                  {canViewPackingList && renderSubLink("/packing-lists", "Packing Lists", isActive("/packing-lists"))}
                   {canViewReceiving && renderSubLink("/goods-receiving", "Goods Receiving", isActive("/goods-receiving"))}
-                  {canViewDefects && renderSubLink("/damage-defects", "Damage & Defects", isActive("/damage-defects"))}
+                  {canViewDefects && renderSubLink("/damage-defects", "Supplier defects", isActive("/damage-defects"))}
                   {canViewDailyWork && renderSubLink("/daily-operations", "Daily Work & EOD", isActive("/daily-operations"))}
                 </>
               ),
             })}
 
           {/* ── SECTION: LOGISTICS & INVENTORY ──────────────────────────────── */}
-          {canViewContainers && renderSectionHeader("Logistics")}
+          {(canViewContainers || (hasModule("ORDERS") && canViewPackingList)) && renderSectionHeader("Logistics")}
+          {hasModule("ORDERS") && canViewPackingList && renderNavLink("/packing-lists", <Boxes />, "Packing Lists", isActive("/packing-lists"))}
 
           {/* Containers Module */}
           {canViewContainers &&
@@ -582,31 +625,19 @@ function Sidebar({ onLinkClick }) {
               ),
             })}
 
-          {/* Inventory / Product Master */}
-          {canViewInventory && renderSectionHeader("Inventory")}
-          {canViewInventory && renderAccordion({ sectionKey: "inventory", icon: <Boxes />, label: "Inventory", isSectionActive: isInventoryActive,
-            children: <>
-              {renderSubLink("/inventory", "Product Master", isActive("/inventory") || isActive("/inventory/products"))}
-              {(isSuperAdmin || hasPermission("View_Product")) && <>
-                {renderSubLink(INVENTORY_LOCATIONS_ROUTE, "Branches & locations", isActive(INVENTORY_LOCATIONS_ROUTE))}
-                {renderSubLink(INVENTORY_POOLS_ROUTE, "Cost pools", isActive(INVENTORY_POOLS_ROUTE))}
-              </>}
-            </> })}
-          {canViewInventory && (isSuperAdmin || hasPermission("Review_InventoryPolicy")) &&
-            renderNavLink(INVENTORY_APPROVALS_ROUTE, <Shield />, "Approvals", isActive(INVENTORY_APPROVALS_ROUTE))}
-          {hasModule("INVENTORY") && (isSuperAdmin || hasPermission("Review_BarcodeRetirement")) &&
-            renderNavLink(INVENTORY_BARCODE_REVIEWS_ROUTE, <Shield />, "Barcode reviews", isActive(INVENTORY_BARCODE_REVIEWS_ROUTE))}
-
           {/* ── Print & Reports Module ────────────────────────────────────── */}
+          {canViewReports && renderSectionHeader("Reports")}
           {canViewReports &&
             renderNavLink("/reports", <Printer />, "Reports & printing", isReportsActive)}
 
           {/* ── SECTION: ADMINISTRATION & SETTINGS ─────────────────────────── */}
-          {(canViewMasterData || canViewCustomers || canViewTenantConsole || canViewSettings) &&
-            renderSectionHeader("System")}
+          {(canViewMasterData || canViewTenantConsole || canViewSettings || canManageTemplates) &&
+            renderSectionHeader("Administration")}
+
+          {canManageTemplates && renderNavLink("/dashboard/templates", <LayoutDashboard />, "Template Studio", isActive("/dashboard/templates") || isActive("/dashboard-templates"))}
 
           {/* Master Data Module */}
-          {(canViewMasterData || canViewCustomers) &&
+          {canViewMasterData &&
             renderAccordion({
               sectionKey: "masterdata",
               icon: <Database />,
@@ -614,7 +645,6 @@ function Sidebar({ onLinkClick }) {
               isSectionActive: isMasterDataActive,
               children: (
                 <>
-                  {canViewCustomers && renderSubLink(CUSTOMERS_ROUTE, "Customers", isActive(CUSTOMERS_ROUTE))}
                   {canViewMasterData && <>
                   {renderSubLink("/master-data/suppliers", "Suppliers & Vendors", isActive("/master-data/suppliers"))}
                   {renderSubLink("/master-data/currencies", "Currencies & FX Rates", isActive("/master-data/currencies"))}
@@ -640,7 +670,7 @@ function Sidebar({ onLinkClick }) {
                 <>
                   {renderSubLink("/settings-overview", "Settings Overview", isActive("/settings-overview"))}
                   {canViewTenantConsole &&
-                    renderSubLink("/organization-settings", "Tenant & Org Console", isActive("/organization-settings"))}
+                    renderSubLink("/organization-settings", "Organisation settings", isActive("/organization-settings"))}
                   {renderSubLink("/settings", "Users & Access", isActive("/settings"))}
                   {hasModule("ORDERS") && renderSubLink("/order-settings", "Orders & Procurement", isActive("/order-settings"))}
                   {hasModule("LOGISTICS") && renderSubLink("/logistics", "Logistics & Demurrage", isActive("/logistics"))}

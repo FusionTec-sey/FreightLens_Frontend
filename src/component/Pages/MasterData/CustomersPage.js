@@ -4,21 +4,26 @@ import { useTheme } from '../../../context/ThemeContext';
 import { customersApi } from '../../../services/customersApi';
 import PaginationToolbar from '../../UI/UXComponent/PaginationToolbar';
 import CustomerCreateForm from './CustomerCreateForm';
+import CustomerProfileHistory from './CustomerProfileHistory';
+import CustomerDuplicateRequest from './CustomerDuplicateRequest';
+import ManagerCases from '../Inventory/components/ManagerCases';
 
 // Optional selection mode reuses this register; consumers must revalidate the
 // returned company/key/version when saving their own authoritative document.
 export default function CustomersPage({ onSelect }) {
-  const { token, selectedOrgId, orgId, permissions = [], isSuperAdmin, user } = useAuth();
+  const { token, selectedOrgId, orgId, permissions = [], isSuperAdmin, userId } = useAuth();
   const activeOrg = selectedOrgId || orgId;
   const canView = isSuperAdmin || ['View_Customer', 'View_Personal_Data'].every(p => permissions.includes(p));
   if (!activeOrg) return <p role="alert">Select an organisation first.</p>;
   if (!canView) return <p role="alert">Customer and personal-data access required.</p>;
   // Remount before rendering data after identity/company changes; no PII browser storage.
-  return <CustomerRegister key={`${activeOrg}:${user?.id}:${token}`} token={token} orgId={activeOrg}
+  return <CustomerRegister key={`${activeOrg}:${userId}:${token}`} token={token} orgId={activeOrg}
+    userId={userId} canRequestDuplicate={!onSelect && (isSuperAdmin || permissions.includes('Request_CustomerDuplicate'))}
+    canReviewDuplicate={!onSelect && (isSuperAdmin || permissions.includes('Review_CustomerDuplicate'))}
     canCreate={isSuperAdmin || permissions.includes('Manage_Customer')} onSelect={onSelect} />;
 }
 
-function CustomerRegister({ token, orgId, canCreate, onSelect }) {
+function CustomerRegister({ token, orgId, canCreate, onSelect, userId, canRequestDuplicate, canReviewDuplicate }) {
   const { isDark } = useTheme();
   const api = useMemo(() => customersApi(token, orgId), [token, orgId]);
   const [page, setPage] = useState(1);
@@ -30,6 +35,10 @@ function CustomerRegister({ token, orgId, canCreate, onSelect }) {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [historyKey, setHistoryKey] = useState(null);
+  const [duplicateMode, setDuplicateMode] = useState(null);
+  const [duplicateReceipt, setDuplicateReceipt] = useState(null);
   const [saved, setSaved] = useState(null);
   const [selecting, setSelecting] = useState(false);
   const [selectionError, setSelectionError] = useState('');
@@ -66,14 +75,23 @@ function CustomerRegister({ token, orgId, canCreate, onSelect }) {
     return () => { live = false; controller.abort(); };
   }, [api, page, limit, refresh, search]);
   const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
-  if (creating && canCreate) return <CustomerCreateForm api={api} orgId={orgId} onClose={() => setCreating(false)}
-    onSaved={receipt => { setSaved(receipt); setCreating(false); setSearch(''); setSearchInput(''); setPage(1); setRefresh(n => n + 1); }} />;
+  if ((creating || editing) && canCreate) return <CustomerCreateForm key={editing?.customer_key || 'create'} api={api} orgId={orgId} initial={editing} onClose={() => { setCreating(false); setEditing(null); setRefresh(n => n + 1); }}
+    onSaved={receipt => { setSaved(receipt); setCreating(false); setEditing(null); setSearch(''); setSearchInput(''); setPage(1); setRefresh(n => n + 1); }} />;
+  if (historyKey) return <CustomerProfileHistory key={historyKey} api={api} customerKey={historyKey} onClose={() => setHistoryKey(null)} />;
+  if (duplicateMode === 'request' && canRequestDuplicate) return <CustomerDuplicateRequest api={api} orgId={orgId}
+    renderPicker={select => <CustomersPage onSelect={select} />} onClose={() => setDuplicateMode(null)}
+    onSaved={receipt => { setDuplicateReceipt(receipt); setDuplicateMode(null); }} />;
+  if (duplicateMode === 'reviews' && (canRequestDuplicate || canReviewDuplicate)) return <ManagerCases api={api} userId={userId}
+    customerDuplicate standalone canReview={canReviewDuplicate} onClose={() => setDuplicateMode(null)} />;
   return <section className={`flex flex-col h-full min-h-0 p-4 gap-3 ${theme}`}>
     <header className="shrink-0 flex flex-wrap justify-between gap-3">
-      <div><h1 className="text-xl font-bold">Customers</h1><p className="text-sm">Company customer identities. Balances, credit and profile editing are not enabled.</p></div>
+      <div><h1 className="text-xl font-bold">Customers</h1><p className="text-sm">Company customer profiles and contact history. Balances and credit are not enabled.</p></div>
       <button type="button" className="border rounded px-4 py-2 hover:bg-indigo-500/20" onClick={() => setRefresh(n => n + 1)}>Refresh</button>
       {canCreate && <button type="button" disabled={selecting} className="rounded bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 disabled:opacity-40" onClick={() => setCreating(true)}>New customer</button>}
+      {canRequestDuplicate && <button type="button" className="border rounded px-3 py-2 cursor-pointer hover:bg-indigo-500/20" onClick={() => setDuplicateMode('request')}>Request duplicate review</button>}
+      {(canRequestDuplicate || canReviewDuplicate) && <button type="button" className="border rounded px-3 py-2 cursor-pointer hover:bg-indigo-500/20" onClick={() => setDuplicateMode('reviews')}>Duplicate reviews</button>}
     </header>
+    {duplicateReceipt && <section className="shrink-0 border rounded p-3 space-y-2" role="status"><p>Duplicate assessment requested. No customer records or balances were merged.</p><p className="text-xs break-all">Case: {duplicateReceipt.case_key}</p><button type="button" className="border rounded px-3 py-2 cursor-pointer hover:bg-indigo-500/20" onClick={() => setDuplicateReceipt(null)}>Dismiss review request result</button></section>}
     {saved && <section aria-label="Customer save result" className="shrink-0 border rounded p-3 flex flex-wrap gap-3 items-center">
       <p role="status">Customer saved. {saved.search_indexed ? 'Search indexing confirmed.' : 'Search indexing unconfirmed; the saved customer can still be opened directly.'}</p>
       <button type="button" disabled={selecting} className="border rounded px-3 py-2 disabled:opacity-40" onClick={() => selectCustomer(saved, true)}>Open saved customer</button>
@@ -91,6 +109,8 @@ function CustomerRegister({ token, orgId, canCreate, onSelect }) {
       {selected && <section aria-label="Customer details" className="border-b p-4 space-y-2">
         <h2 className="font-semibold">{selected.name}</h2><p className="break-all text-xs">Customer reference: {selected.customer_key} · Version {selected.version}</p>
         <ul>{selected.contacts.map((c, i) => <li key={i}>{c.kind}: {c.value} {c.label} {c.primary ? '(Primary)' : ''}</li>)}</ul>
+        {canCreate && <button type="button" className="border rounded px-3 py-2 cursor-pointer hover:bg-indigo-500/20" onClick={() => setEditing(selected)}>Edit profile</button>}
+        <button type="button" className="border rounded px-3 py-2 cursor-pointer hover:bg-indigo-500/20" onClick={() => setHistoryKey(selected.customer_key)}>Profile history</button>
         <button type="button" className="border rounded px-3 py-2" onClick={() => setSelected(null)}>Close details</button>
       </section>}
       {error ? <p role="alert" className="p-4">{error}</p> : !result ? <p role="status" className="p-4">Loading customers…</p> : !result.items.length ? <p className="p-4">No customers in this company.</p> :

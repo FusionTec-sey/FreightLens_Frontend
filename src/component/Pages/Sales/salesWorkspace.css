@@ -1,0 +1,36 @@
+.sales-workspace { min-width: 0; }
+.sales-workspace button { min-height: 44px; }
+.sales-workspace .sales-caption { font-size: 12px; line-height: 1.4; }
+.sales-editor-host { display: flex; height: 100%; min-height: 0; min-width: 0; }
+.sales-editor-register { display: none; }
+.sales-editor-main { flex: 1; min-width: 0; min-height: 0; }
+.sales-editor-body { display: contents; }
+.sales-catalog-layout { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0; gap: 12px; }
+.sales-catalog-pane, .sales-cart-pane { min-width: 0; min-height: 0; }
+.sales-product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; padding: 10px; }
+.sales-product-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; }
+.dark .sales-product-card { border-color: #334155; }
+.sales-summary { padding: 12px; border-top: 1px solid #e2e8f0; }
+.dark .sales-summary { border-color: #334155; }
+.sales-cart-line { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+.dark .sales-cart-line { border-color: #334155; }
+.sales-cart-line-controls { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.sales-register-sidebar { width: 27%; min-width: 220px; max-width: 310px; }
+.sales-page-pagination { overflow-x: auto; }
+@media (max-width: 767px) {
+  /* Keep Save/Cancel outside scrolling. Let identity/recovery controls scroll
+     within the editor instead of squeezing the item list to zero height. */
+  .sales-editor-body { display: flex; flex: 1; min-height: 0; min-width: 0; flex-direction: column; gap: 12px; overflow: auto; }
+  .sales-editor-body > .sales-catalog-layout { flex: none; height: 480px; min-height: 480px; }
+  .sales-editor-body > div > div { min-width: 0; }
+  .sales-editor-body button { overflow-wrap: anywhere; }
+}
+@media (min-width: 768px) {
+  .sales-catalog-layout { grid-template-columns: minmax(0, 1fr) minmax(240px, .9fr); }
+  .sales-catalog-pane, .sales-cart-pane { display: flex !important; }
+  .sales-mobile-tabs { display: none; }
+}
+@media (min-width: 1280px) {
+  .sales-editor-register { display: flex; flex-direction: column; width: 220px; min-height: 0; border-right: 1px solid #e2e8f0; }
+  .dark .sales-editor-register { border-color: #334155; }
+}

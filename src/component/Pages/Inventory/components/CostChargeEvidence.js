@@ -3,9 +3,12 @@ import { locationError } from '../../../../services/inventoryLocationsApi';
 import useOperationIntent from '../../../../hooks/useOperationIntent';
 import ManagerCases from './ManagerCases';
 import EvidenceChoice from './EvidenceChoice';
+import { useAuth } from '../../../../context/AuthContext';
 
 const initial = { invoice_reference: '', invoice_date: '', source_currency: 'SCR', eligible_amount: '', exchange_rate_to_scr: '1', capitalisation_reason: '', reason: '' };
 export default function CostChargeEvidence({ api, pool, proposal, userId, canManage, onClose, panel, button, isDark }) {
+  const { permissions = [], isSuperAdmin } = useAuth();
+  const canPost = canManage && (isSuperAdmin || permissions.includes('Post_InventoryCost'));
   const [form, setForm] = useState(initial), [supplier, setSupplier] = useState(null), [invoice, setInvoice] = useState(null), [fx, setFx] = useState(null);
   const [picker, setPicker] = useState(null), [reviews, setReviews] = useState(false), [saved, setSaved] = useState(null);
   const [error, setError] = useState(''), [fields, setFields] = useState({}), [saving, setSaving] = useState(false), [discard, setDiscard] = useState(null);
@@ -20,6 +23,8 @@ export default function CostChargeEvidence({ api, pool, proposal, userId, canMan
   const reviewApi = useMemo(() => ({
     managerCases: (page, limit, signal, view) => api.chargeEvidenceCases(pool.id, proposal.proposal_key, page, limit, signal, view),
     reviewPolicyCase: (key, body, signal) => api.reviewChargeEvidence(pool.id, proposal.proposal_key, key, body, signal),
+    chargePostingContext: (key, signal) => api.chargePostingContext(pool.id, proposal.proposal_key, key, signal),
+    postReviewedCharge: (key, body, signal) => api.postReviewedCharge(pool.id, proposal.proposal_key, key, body, signal),
     evidenceDocument: api.evidenceDocument,
     reviewedEvidenceDocument: (caseKey, id, signal) => api.reviewedEvidenceDocument(pool.id, proposal.proposal_key, caseKey, id, signal),
   }), [api, pool.id, proposal.proposal_key]);
@@ -41,7 +46,7 @@ export default function CostChargeEvidence({ api, pool, proposal, userId, canMan
     } catch (err) { if (!controller.signal.aborted) { const failure = locationError(err); setError(failure.message); setFields(failure.fields); } }
     finally { busy.current = false; if (!controller.signal.aborted) setSaving(false); }
   };
-  if (reviews) return <ManagerCases api={reviewApi} userId={userId} costAllocation chargeEvidence canReview={canManage} onClose={() => setReviews(false)} />;
+  if (reviews) return <ManagerCases api={reviewApi} userId={userId} costAllocation chargeEvidence canPostCost={canPost} canReview={canManage} onClose={() => setReviews(false)} />;
   if (picker) return <EvidenceChoice title={picker === 'supplier' ? 'Select supplier' : picker === 'invoice' ? 'Select invoice document' : 'Select exchange-rate document'} load={picker === 'supplier' ? api.evidenceSuppliers : api.evidenceDocuments}
     panel={panel} button={button} isDark={isDark} onClose={() => setPicker(null)} onSelect={row => { (picker === 'supplier' ? setSupplier : picker === 'invoice' ? setInvoice : setFx)(row); setPicker(null); }} />;
   return <section aria-label="Charge evidence" className={`h-full min-h-0 flex flex-col gap-3 p-4 ${panel}`}>

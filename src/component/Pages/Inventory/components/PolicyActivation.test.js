@@ -71,3 +71,30 @@ test('follow-up scheduling requires confirmation and does not call policy activa
   expect(api.scheduleDeadline).toHaveBeenCalledWith('deadline', { operation_key: 'activation-key' }, expect.any(AbortSignal));
   expect(api.activatePolicy).not.toHaveBeenCalled();
 });
+
+test('approved release requires confirmation and retains its operation after an uncertain result', async () => {
+  api.executeRelease = jest.fn().mockResolvedValueOnce({ data: {} }).mockResolvedValue({ data: {
+    operation_key: 'activation-key', case_key: 'release', status: 'CONSUMED',
+  } });
+  const done = jest.fn();
+  render(<PolicyActivation reservationRelease api={api} caseKey="release" onBusyChange={jest.fn()} onActivated={done} />);
+  expect(screen.getByRole('button', { name: 'Execute approved release' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Execute approved release' }));
+  await screen.findByRole('alert');
+  expect(done).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Execute approved release' }));
+  await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+  expect(api.executeRelease.mock.calls[0][1]).toEqual({ operation_key: 'activation-key' });
+  expect(api.executeRelease.mock.calls[1][1]).toEqual(api.executeRelease.mock.calls[0][1]);
+  expect(api.activatePolicy).not.toHaveBeenCalled();
+});
+
+test('disabled stock runtime leaves release unconfirmed', async () => {
+  api.executeRelease = jest.fn().mockRejectedValue({ response: { status: 503, data: { detail: 'Local stock execution is disabled' } } });
+  const done = jest.fn();
+  render(<PolicyActivation reservationRelease api={api} caseKey="release" onBusyChange={jest.fn()} onActivated={done} />);
+  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Local stock execution is disabled');
+  expect(done).not.toHaveBeenCalled();
+});

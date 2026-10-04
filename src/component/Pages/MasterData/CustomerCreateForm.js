@@ -5,9 +5,12 @@ import useOperationIntent from '../../../hooks/useOperationIntent';
 
 const blankContact = () => ({ kind: 'PHONE', value: '', label: '', primary: false });
 
-export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
+export default function CustomerCreateForm({ api, orgId, onSaved, onClose, initial = null }) {
   const { isDark } = useTheme();
-  const [profile, setProfile] = useState({ name: '', kind: 'PERSON', contacts: [{ ...blankContact(), primary: true }] });
+  const baseline = useRef(initial ? { name: initial.name, kind: initial.kind, contacts: initial.contacts.map(c => ({ ...c })) } : { name: '', kind: 'PERSON', contacts: [{ ...blankContact(), primary: true }] });
+  const [profile, setProfile] = useState(baseline.current);
+  const [reason, setReason] = useState('');
+  const [blocked, setBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
   const [errors, setErrors] = useState({});
@@ -18,7 +21,7 @@ export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
   const controller = useRef(null);
   const { payloadFor } = useOperationIntent();
   useEffect(() => { alive.current = true; return () => { alive.current = false; controller.current?.abort(); }; }, []);
-  const dirty = Boolean(profile.name || profile.contacts.some(c => c.value || c.label) || pending);
+  const dirty = Boolean(JSON.stringify(profile) !== JSON.stringify(baseline.current) || reason || pending);
   useEffect(() => {
     if (!dirty) return undefined;
     const warn = event => { event.preventDefault(); event.returnValue = ''; };
@@ -27,24 +30,27 @@ export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
   }, [dirty]);
   const changeContact = (index, values) => setProfile(p => ({ ...p, contacts: p.contacts.map((c, i) => i === index ? { ...c, ...values } : c) }));
   async function save() {
-    if (inFlight.current) return;
+    if (inFlight.current || blocked) return;
     let body = pending;
     if (!body) {
       const problems = {};
       if (!profile.name.trim()) problems.name = 'Enter a customer name.';
+      if (initial && !reason.trim()) problems.reason = 'Explain the profile change.';
       profile.contacts.forEach((c, i) => { if (!c.value.trim()) problems[`contacts.${i}`] = 'Enter a contact value.'; });
       setErrors(problems);
       if (Object.keys(problems).length) return;
-      try { body = payloadFor(['customer.create', orgId], { expected_version: 0, profile }); }
+      try { body = initial
+        ? payloadFor(['customer.profile.update', orgId, initial.customer_key], { expected_version: initial.version, profile, reason: reason.trim() })
+        : payloadFor(['customer.create', orgId], { expected_version: 0, profile }); }
       catch { setMessage('Secure request identity is unavailable. No request was sent.'); return; }
     }
     inFlight.current = true; setBusy(true); setMessage(''); setPending(body);
     controller.current = new AbortController();
     try {
-      const { data } = await api.create(body, controller.current.signal);
+      const { data } = initial ? await api.update(initial.customer_key, body, controller.current.signal) : await api.create(body, controller.current.signal);
       if (!alive.current) return;
-      if (data?.customer_key !== body.operation_key || data?.version !== 1) throw new Error('Unconfirmed receipt');
-      toast.success(data.replayed ? 'Customer save confirmed.' : 'Customer created.');
+      if (data?.customer_key !== (initial?.customer_key || body.operation_key) || data?.version !== (initial ? initial.version + 1 : 1)) throw new Error('Unconfirmed receipt');
+      toast.success(data.replayed ? 'Customer save confirmed.' : initial ? 'Customer profile updated.' : 'Customer created.');
       if (data.search_indexed !== true) toast.info('Customer saved. Search indexing is unconfirmed and may need repair. Use the unfiltered customer register; do not create a duplicate.');
       onSaved(data);
     } catch (error) {
@@ -60,6 +66,9 @@ export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
         });
         setErrors(fields);
         setMessage(typeof detail === 'string' ? detail : 'Correct the highlighted customer details.');
+      } else if (initial && [403, 404, 409].includes(error.response?.status)) {
+        setBlocked(true); setPending(null);
+        setMessage('Profile update rejected because access or the customer version changed. Close and refresh before editing again.');
       } else {
         setMessage('Save not confirmed. Keep this form open and retry the same request. Do not create another customer for this attempt.');
       }
@@ -72,13 +81,14 @@ export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
   const theme = isDark ? 'bg-slate-900 text-slate-100 border-slate-700' : 'bg-white text-slate-900 border-slate-200';
   const input = `block w-full border rounded p-2 ${theme}`;
   const button = 'border rounded px-4 py-2 cursor-pointer hover:bg-indigo-500/20 disabled:opacity-40';
-  return <section className={`h-full min-h-0 flex flex-col gap-3 p-4 ${theme}`} aria-label="New customer form">
-    <header className="shrink-0"><h1 className="text-xl font-bold">New customer</h1><p className="text-sm">No credit, consent or financial terms are assigned. Review contact details before saving.</p><p className="text-sm">Keep this screen open until save is confirmed. Draft recovery after navigation is not yet available.</p></header>
+  return <section className={`h-full min-h-0 flex flex-col gap-3 p-4 ${theme}`} aria-label={initial ? 'Edit customer profile' : 'New customer form'}>
+    <header className="shrink-0"><h1 className="text-xl font-bold">{initial ? 'Edit customer profile' : 'New customer'}</h1><p className="text-sm">{initial ? `Editing version ${initial.version}. Older profiles and sales references remain unchanged.` : 'No credit, consent or financial terms are assigned. Review contact details before saving.'}</p><p className="text-sm">Keep this screen open until save is confirmed. Draft recovery after navigation is not yet available.</p></header>
     <div className="flex-1 min-h-0 overflow-auto space-y-4">
       {message && <p role="alert">{message}</p>}
       {pending && <p className="text-xs break-all">Request reference: {pending.operation_key}</p>}
       {errors.profile && <p role="alert">{errors.profile}</p>}
-      <fieldset disabled={busy || Boolean(pending)} className="space-y-4 disabled:opacity-70">
+      <fieldset disabled={busy || blocked || Boolean(pending)} className="space-y-4 disabled:opacity-70">
+        {initial && <label className="block">Reason for change<textarea className={input} maxLength={500} value={reason} onChange={e => setReason(e.target.value)} aria-invalid={Boolean(errors.reason)} />{errors.reason && <span role="alert">{errors.reason}</span>}</label>}
         <div className="grid md:grid-cols-2 gap-3">
           <label>Customer name<input autoFocus className={input} maxLength={160} value={profile.name} aria-invalid={Boolean(errors.name)} onChange={e => setProfile({ ...profile, name: e.target.value })} />{errors.name && <span role="alert">{errors.name}</span>}</label>
           <label>Customer type<select className={input} value={profile.kind} onChange={e => setProfile({ ...profile, kind: e.target.value })}><option value="PERSON">Person</option><option value="BUSINESS">Business</option></select></label>
@@ -105,7 +115,7 @@ export default function CustomerCreateForm({ api, orgId, onSaved, onClose }) {
     </div>
     <footer className="shrink-0 flex flex-wrap gap-3">
       {discard ? <><p role="alert">Discard these unsaved details?</p><button type="button" className={button} onClick={onClose}>Discard draft</button><button type="button" className={button} onClick={() => setDiscard(false)}>Keep editing</button></> : <>
-        <button type="button" className={`${button} bg-indigo-600 text-white`} disabled={busy} onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same request' : 'Save customer'}</button>
+        <button type="button" className={`${button} bg-indigo-600 text-white`} disabled={busy || blocked} onClick={save}>{busy ? 'Saving…' : pending ? 'Retry same request' : 'Save customer'}</button>
         <button type="button" className={button} disabled={busy || Boolean(pending)} onClick={() => dirty ? setDiscard(true) : onClose()}>Cancel</button>
       </>}
     </footer>
