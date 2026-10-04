@@ -57,3 +57,22 @@ test('does not offer another handover after authoritative completion', async () 
   expect(await screen.findByText('All eligible invoice quantities have been collected.')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Confirm physical handover' })).not.toBeInTheDocument();
 });
+
+test('locks an uncertain handover and retries the identical request', async () => {
+  const api = client();
+  api.createCollection.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({ data: {
+    replayed: true, collection: { collection_key: 'collection-key',
+      fulfilment_status: 'PARTIALLY_COLLECTED', allocations: [{ quantity: '1.000000' }] },
+  } });
+  render(<SalesCollectionPanel api={api} invoice={{ invoice_key: 'invoice-key', invoice_number: 'INV-1' }} customerName="Sample customer" onClose={jest.fn()} />);
+  await screen.findByText('Main floor · A-01');
+  fireEvent.change(screen.getByLabelText('Collector name'), { target: { value: 'Jane Collector' } });
+  fireEvent.change(screen.getByLabelText('Collector contact'), { target: { value: '2 510 000' } });
+  fireEvent.change(screen.getByLabelText('Handover quantity at Main floor'), { target: { value: '1.000000' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm physical handover' }));
+  expect(await screen.findByRole('button', { name: 'Retry exact handover' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Collector name')).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry exact handover' }));
+  await waitFor(() => expect(api.createCollection).toHaveBeenCalledTimes(2));
+  expect(api.createCollection.mock.calls[1][1]).toEqual(api.createCollection.mock.calls[0][1]);
+});
