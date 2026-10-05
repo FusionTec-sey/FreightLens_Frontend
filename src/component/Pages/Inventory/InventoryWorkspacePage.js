@@ -2,9 +2,11 @@ import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { inventoryLocationsApi } from "../../../services/inventoryLocationsApi";
+import { salesDraftsApi } from "../../../services/salesDraftsApi";
 import { INVENTORY_LOCATIONS_ROUTE } from "../../../utils/inventoryRoutes";
 import CostPoolSetup from "./components/CostPoolSetup";
 import ManagerCases from "./components/ManagerCases";
+import ReturnConditionCases from "./components/ReturnConditionCases";
 
 // Route adapters reuse the existing panels; no duplicate registers or APIs.
 export default function InventoryWorkspacePage({ workspace }) {
@@ -12,12 +14,20 @@ export default function InventoryWorkspacePage({ workspace }) {
   const navigate = useNavigate();
   const activeOrg = selectedOrgId || orgId;
   const retirement = workspace === "barcode-reviews";
+  const returnConditions = workspace === "return-conditions";
   const api = useMemo(() => {
+    if (returnConditions) return salesDraftsApi(token, activeOrg);
     const base = inventoryLocationsApi(token, activeOrg);
     return retirement ? { ...base, managerCases: base.barcodeRetirementCases, reviewPolicyCase: base.reviewBarcodeRetirement } : base;
-  }, [token, activeOrg, retirement]);
+  }, [token, activeOrg, retirement, returnConditions]);
   if (!activeOrg) return <p role="alert">Select an organisation first.</p>;
   const onClose = () => navigate(INVENTORY_LOCATIONS_ROUTE);
+  if (returnConditions) return <ReturnConditionCases key={`${activeOrg}:${workspace}`} api={api}
+    orgId={activeOrg} userId={userId}
+    canRequest={isSuperAdmin || permissions.includes("Request_StockCondition")}
+    canReview={isSuperAdmin || permissions.includes("Review_StockCondition")}
+    canExecute={isSuperAdmin || permissions.includes("Execute_StockCondition")}
+    onClose={onClose} />;
   return workspace === "approvals" || retirement ? <ManagerCases standalone retirement={retirement} key={`${activeOrg}:${workspace}`} api={api} userId={userId}
     canActivate={isSuperAdmin || permissions.includes(retirement ? "Retire_InventoryBarcode" : "Activate_InventoryPolicy")} onClose={onClose} /> :
     <CostPoolSetup key={`${activeOrg}:${workspace}`} api={api} orgId={activeOrg} userId={userId}

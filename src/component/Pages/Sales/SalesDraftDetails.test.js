@@ -126,7 +126,7 @@ test('prepares immutable pricing with the approved case without presenting it as
   expect(screen.getByText(/No invoice, payment, stock movement or collection authority was created/)).toBeInTheDocument();
 });
 
-test('opens a posted invoice return without requiring sale-posting permission', async () => {
+test('opens a posted invoice return for condition-only contextual access', async () => {
   const documentKey = '10000000-0000-4000-8000-000000000001';
   const invoiceKey = '20000000-0000-4000-8000-000000000001';
   const posted = { invoice_key: invoiceKey, invoice_number: 'INV-RETURN-ONLY', document_key: documentKey,
@@ -141,7 +141,7 @@ test('opens a posted invoice return without requiring sale-posting permission', 
     invoiceCreditNotes: jest.fn().mockResolvedValue({ data: { items: [], total: 0, page: 1, pages: 1, limit: 25 } }),
   };
   render(<SalesDraftDetails draft={{ ...draft, document_key: documentKey }} api={api}
-    orgId={7} userId={12} canRequestReturn onClose={jest.fn()} />);
+    orgId={7} userId={12} canRequestCondition onClose={jest.fn()} />);
   expect(screen.queryByRole('button', { name: 'Continue to payment' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Returns & credit notes' }));
   expect(await screen.findByRole('heading', { name: 'Returns · INV-RETURN-ONLY' })).toBeInTheDocument();

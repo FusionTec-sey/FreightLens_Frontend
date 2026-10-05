@@ -60,10 +60,12 @@ export default function SalesDraftsPage({ view = 'DRAFTS' }) {
     canResolvePrint={isSuperAdmin || permissions.includes('Resolve_SalePrint')}
     canRequestReturn={returnAccess && (isSuperAdmin || permissions.includes('Request_SaleReturn'))}
     canReviewReturn={returnAccess && (isSuperAdmin || permissions.includes('Review_SaleReturn'))}
-    canProcessReturn={returnAccess && (isSuperAdmin || permissions.includes('Process_SaleReturn'))} />;
+    canProcessReturn={returnAccess && (isSuperAdmin || permissions.includes('Process_SaleReturn'))}
+    canRequestCondition={returnAccess && hasModule?.('INVENTORY')
+      && (isSuperAdmin || permissions.includes('Request_StockCondition'))} />;
 }
 
-function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, canCollect, canPrint, canResolvePrint, canRequestReturn, canReviewReturn, canProcessReturn, userId }) {
+function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, canCollect, canPrint, canResolvePrint, canRequestReturn, canReviewReturn, canProcessReturn, canRequestCondition, userId }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { hasModule, isSuperAdmin } = useAuth();
@@ -218,6 +220,7 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
       canRequestReturn={canRequestReturn}
       canReviewReturn={canReviewReturn}
       canProcessReturn={canProcessReturn}
+      canRequestCondition={canRequestCondition}
       onReservations={canOpenReviews || canOpenDeadlines || canOpenReallocations ? () => setHolds(selected) : undefined} />}
     </div>
   </section>;

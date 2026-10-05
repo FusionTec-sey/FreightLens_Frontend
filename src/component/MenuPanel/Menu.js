@@ -24,7 +24,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import logo from "../../assets/Images/Freightliner.png";
-import { INVENTORY_LOCATIONS_ROUTE, INVENTORY_POOLS_ROUTE, INVENTORY_APPROVALS_ROUTE, INVENTORY_BARCODE_REVIEWS_ROUTE } from "../../utils/inventoryRoutes";
+import { INVENTORY_LOCATIONS_ROUTE, INVENTORY_POOLS_ROUTE, INVENTORY_APPROVALS_ROUTE, INVENTORY_BARCODE_REVIEWS_ROUTE, INVENTORY_RETURN_CONDITION_REVIEWS_ROUTE } from "../../utils/inventoryRoutes";
 
 function Sidebar({ onLinkClick }) {
   const { permissions, user, logout, isRoot, isSuperAdmin, hasModule } = useAuth();
@@ -404,6 +404,8 @@ function Sidebar({ onLinkClick }) {
      hasPermission("BillOfLanding") ||
      (Array.isArray(permissions) && (permissions.includes("View_BL") || permissions.includes("BillOfLanding"))));
   const canViewInventory = hasModule("INVENTORY");
+  const canViewReturnConditionReviews = hasModule("INVENTORY") && (isSuperAdmin
+    || ["Request_StockCondition", "Review_StockCondition", "Execute_StockCondition"].some(hasPermission));
   const canViewMasterData =
     hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
   const canViewCustomers = isSuperAdmin || (hasPermission("View_Customer") && hasPermission("View_Personal_Data"));
@@ -541,6 +543,7 @@ function Sidebar({ onLinkClick }) {
               {(isSuperAdmin || hasPermission("View_Product")) && <>
                 {renderSubLink(INVENTORY_LOCATIONS_ROUTE, "Branches & locations", isActive(INVENTORY_LOCATIONS_ROUTE))}
                 {renderSubLink(INVENTORY_POOLS_ROUTE, "Cost pools", isActive(INVENTORY_POOLS_ROUTE))}
+                {canViewReturnConditionReviews && renderSubLink(INVENTORY_RETURN_CONDITION_REVIEWS_ROUTE, "Return condition reviews", isActive(INVENTORY_RETURN_CONDITION_REVIEWS_ROUTE))}
               </>}
             </> })}
           {canViewInventory && (isSuperAdmin || hasPermission("Review_InventoryPolicy")) &&
