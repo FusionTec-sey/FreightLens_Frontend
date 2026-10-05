@@ -16,6 +16,7 @@ export default function SalesCollectionPanel({ api, invoice, customerName, onClo
   const [options, setOptions] = useState(null), [history, setHistory] = useState([]);
   const [counterKey, setCounterKey] = useState(''), [collectorName, setCollectorName] = useState('');
   const [collectorContact, setCollectorContact] = useState(''), [quantities, setQuantities] = useState({});
+  const [serialSelections, setSerialSelections] = useState({});
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [receipt, setReceipt] = useState(null);
   const [pendingBody, setPendingBody] = useState(null);
   const [intent, setIntent] = useState(() => ({ collection_key: newKey(), operation_key: newKey() }));
@@ -41,12 +42,34 @@ export default function SalesCollectionPanel({ api, invoice, customerName, onClo
 
   const selectedCounter = options?.counters.find(row => row.counter_key === counterKey);
   const allocations = useMemo(() => (options?.reservations || []).flatMap(row => {
+    const serialKeys = serialSelections[row.reservation_key] || [];
+    if (row.tracking_policy === 'SERIAL') return serialKeys.length ? [{
+      line_key: row.line_key, reservation_key: row.reservation_key,
+      quantity: String(serialKeys.length), expected_stock_version: row.stock_version,
+      serial_keys: serialKeys,
+    }] : [];
     const quantity = (quantities[row.reservation_key] || '').trim();
     return positiveQuantity(quantity) ? [{
       line_key: row.line_key, reservation_key: row.reservation_key,
-      quantity, expected_stock_version: row.stock_version,
+      quantity, expected_stock_version: row.stock_version, serial_keys: [],
     }] : [];
-  }), [options, quantities]);
+  }), [options, quantities, serialSelections]);
+
+  const serialOwners = useMemo(() => Object.entries(serialSelections).reduce(
+    (owners, [reservationKey, keys]) => {
+      keys.forEach(key => { owners[key] = reservationKey; }); return owners;
+    }, {}), [serialSelections]);
+  function toggleSerial(row, serialKey, checked) {
+    setSerialSelections(current => {
+      const selected = current[row.reservation_key] || [];
+      if (!checked) return { ...current,
+        [row.reservation_key]: selected.filter(key => key !== serialKey) };
+      if (Object.values(current).some(keys => keys.includes(serialKey))) return current;
+      const maximum = Number.parseInt(row.remaining, 10);
+      if (!Number.isSafeInteger(maximum) || selected.length >= maximum) return current;
+      return { ...current, [row.reservation_key]: [...selected, serialKey] };
+    });
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -68,7 +91,7 @@ export default function SalesCollectionPanel({ api, invoice, customerName, onClo
     try {
       const result = await api.createCollection(intent.collection_key, body, request.current?.signal);
       if (request.current?.signal.aborted) return;
-      setReceipt(result.data.collection); setQuantities({}); setPendingBody(null);
+      setReceipt(result.data.collection); setQuantities({}); setSerialSelections({}); setPendingBody(null);
       setIntent({ collection_key: newKey(), operation_key: newKey() });
       await load(request.current?.signal);
     } catch (failure) {
@@ -99,13 +122,17 @@ export default function SalesCollectionPanel({ api, invoice, customerName, onClo
           <label className="text-sm font-semibold">Collector contact<input disabled={busy || Boolean(pendingBody)} required maxLength="50" value={collectorContact} onChange={event => setCollectorContact(event.target.value)} className="mt-1 block min-h-[44px] w-full rounded-lg border p-2 dark:bg-slate-800" /></label>
         </div>
         <section><h3 className="font-semibold">Eligible reserved stock</h3><p className="text-xs text-slate-500 dark:text-slate-400">Enter only what is physically handed over now. Another location or batch remains a separate row.</p>
-          <div className="mt-2 space-y-2">{options.reservations.map(row => <div key={row.reservation_key} className="grid grid-cols-1 gap-2 rounded-xl border p-3 md:grid-cols-[minmax(0,1fr)_180px] md:items-center"><div><p className="font-semibold">{row.location_name} · {row.location_code}</p><p className="text-sm">Remaining {row.remaining} {row.base_unit}{row.batch_code ? ` · Batch ${row.batch_code}` : ''}</p>{(row.shade || row.calibre) && <p className="text-xs">{row.shade ? `Shade ${row.shade}` : ''}{row.shade && row.calibre ? ' · ' : ''}{row.calibre ? `Calibre ${row.calibre}` : ''}</p>}</div><label className="text-sm font-semibold">Hand over now<input disabled={busy || Boolean(pendingBody)} aria-label={`Handover quantity at ${row.location_name}`} inputMode="decimal" placeholder={`0–${row.remaining}`} value={quantities[row.reservation_key] || ''} onChange={event => setQuantities(current => ({ ...current, [row.reservation_key]: event.target.value }))} className="mt-1 block min-h-[44px] w-full rounded-lg border p-2 dark:bg-slate-800" /></label></div>)}</div>
-          {!options.reservations.length && <p className="mt-2 rounded-xl border border-amber-300 p-3">No non-serial stock is eligible for handover in this store. Serial or other-store stock remains blocked until its reviewed workflow is available.</p>}
+          <div className="mt-2 space-y-2">{options.reservations.map(row => {
+            const selected = serialSelections[row.reservation_key] || [];
+            const maximum = Number.parseInt(row.remaining, 10);
+            return <div key={row.reservation_key} className="rounded-xl border p-3"><div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_180px] md:items-center"><div><p className="font-semibold">{row.location_name} · {row.location_code}</p><p className="text-sm">Remaining {row.remaining} {row.base_unit}{row.batch_code ? ` · Batch ${row.batch_code}` : ''}</p>{(row.shade || row.calibre) && <p className="text-xs">{row.shade ? `Shade ${row.shade}` : ''}{row.shade && row.calibre ? ' · ' : ''}{row.calibre ? `Calibre ${row.calibre}` : ''}</p>}</div>{row.tracking_policy === 'SERIAL' ? <p className="text-sm font-semibold">Selected {selected.length} of {maximum}</p> : <label className="text-sm font-semibold">Hand over now<input disabled={busy || Boolean(pendingBody)} aria-label={`Handover quantity at ${row.location_name}`} inputMode="decimal" placeholder={`0–${row.remaining}`} value={quantities[row.reservation_key] || ''} onChange={event => setQuantities(current => ({ ...current, [row.reservation_key]: event.target.value }))} className="mt-1 block min-h-[44px] w-full rounded-lg border p-2 dark:bg-slate-800" /></label>}</div>{row.tracking_policy === 'SERIAL' && <fieldset className="mt-3"><legend className="text-sm font-semibold">Choose exact serials handed over now</legend><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{(row.serials || []).map(serial => { const checked = selected.includes(serial.serial_key); const ownedElsewhere = serialOwners[serial.serial_key] && serialOwners[serial.serial_key] !== row.reservation_key; return <label key={serial.serial_key} className="flex min-h-[44px] items-center gap-2 rounded-lg border p-2 font-mono text-sm"><input type="checkbox" checked={checked} disabled={busy || Boolean(pendingBody) || ownedElsewhere || (!checked && selected.length >= maximum)} onChange={event => toggleSerial(row, serial.serial_key, event.target.checked)} aria-label={`Serial ${serial.serial_number} at ${row.location_name}`} /><span className="break-all">{serial.serial_number}</span></label>; })}</div>{!row.serials?.length && <p role="alert" className="mt-2 text-sm text-amber-700 dark:text-amber-300">No available serial identities are recorded for this reserved stock. Handover is blocked.</p>}</fieldset>}</div>;
+          })}</div>
+          {!options.reservations.length && <p className="mt-2 rounded-xl border border-amber-300 p-3">No reserved stock is eligible for handover in this store. Other-store stock remains blocked until its reviewed workflow is available.</p>}
         </section>
         <div className="flex flex-wrap justify-end gap-2"><button type="submit" className={primaryButtonClass} disabled={busy || !options.counters.length || (!pendingBody && !allocations.length)}>{busy ? 'Recording handover…' : pendingBody ? 'Retry exact handover' : 'Confirm physical handover'}</button></div>
       </form>}
       {fullyCollected && <p className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/30">All eligible invoice quantities have been collected.</p>}
-      <section><h3 className="font-semibold">Collection history</h3>{history.length ? <ul className="mt-2 space-y-2">{history.map(row => <li key={row.collection_key} className="rounded-xl border p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{row.collector_name}</strong><time dateTime={row.collected_at}>{new Date(row.collected_at).toLocaleString()}</time></div><p>{row.collector_contact} · {row.allocations.length} allocation{row.allocations.length === 1 ? '' : 's'}</p></li>)}</ul> : <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">No physical handover recorded yet.</p>}</section>
+      <section><h3 className="font-semibold">Collection history</h3>{history.length ? <ul className="mt-2 space-y-2">{history.map(row => <li key={row.collection_key} className="rounded-xl border p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>{row.collector_name}</strong><time dateTime={row.collected_at}>{new Date(row.collected_at).toLocaleString()}</time></div><p>{row.collector_contact} · {row.allocations.length} allocation{row.allocations.length === 1 ? '' : 's'}</p>{row.allocations.flatMap(allocation => allocation.serials || []).length > 0 && <p className="mt-1 font-mono text-xs">Serials: {row.allocations.flatMap(allocation => allocation.serials || []).map(serial => serial.serial_number).join(', ')}</p>}</li>)}</ul> : <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">No physical handover recorded yet.</p>}</section>
     </div>
   </section>;
 }
