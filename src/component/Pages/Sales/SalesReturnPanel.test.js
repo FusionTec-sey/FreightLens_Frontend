@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SalesReturnPanel from './SalesReturnPanel';
 
+jest.mock('../../../context/ThemeContext', () => ({ useTheme: () => ({ isDark: false }) }));
+
 const invoice = { invoice_key: '10000000-0000-4000-8000-000000000001', invoice_number: 'INV-SYNTH-1',
   payment_status: 'PAID', fulfilment_status: 'COLLECTED' };
 const lineKey = '20000000-0000-4000-8000-000000000001';
@@ -32,6 +34,9 @@ function api(overrides = {}) {
     createReturnClaim: jest.fn().mockResolvedValue({ data: {} }),
     reviewReturnClaim: jest.fn().mockResolvedValue({ data: {} }),
     returnProcessingOptions: jest.fn(), createReturnCreditNote: jest.fn(),
+    stockConditionSources: jest.fn().mockResolvedValue({ data: emptyPage }),
+    stockConditionCases: jest.fn().mockResolvedValue({ data: emptyPage }),
+    requestStockCondition: jest.fn(), reviewStockCondition: jest.fn(), executeStockCondition: jest.fn(),
     ...overrides,
   };
 }
@@ -147,4 +152,31 @@ test('shows only server-calculated debt and surplus credit before processing', a
   expect(client.createReturnCreditNote.mock.calls[0][1]).toMatchObject({ expected_claim_version: 2,
     expected_option_version: 1, expected_fingerprint: 'a'.repeat(64) });
   expect(client.createReturnCreditNote.mock.calls[0][1]).not.toHaveProperty('gross_credit_scr');
+});
+
+test('offers the server-derived condition request only for an eligible processed credit-note line', async () => {
+  const credit = { credit_note_key: '90000000-0000-4000-8000-000000000001',
+    credit_note_number: 'CN-SYN-1', return_key: returnKey, invoice_key: invoice.invoice_key,
+    invoice_number: invoice.invoice_number, branch_id: 2, customer_key: options.customer_key,
+    currency: 'SCR', gross_credit_scr: '150.00', net_credit_scr: '130.43', tax_credit_scr: '19.57',
+    invoice_debt_applied_scr: '20.00', customer_credit_scr: '130.00', lines: [] };
+  const source = { credit_note_line_id: 44, credit_note_key: credit.credit_note_key,
+    credit_note_number: credit.credit_note_number, return_key: returnKey,
+    return_operation_key: '91000000-0000-4000-8000-000000000001', invoice_key: invoice.invoice_key,
+    invoice_line_key: lineKey, handover_allocation_key: handoverKey, branch_id: 2,
+    branch_name: 'Synthetic branch', location_id: 6, location_name: 'Returns quarantine',
+    product_id: 9, product_name: 'Synthetic tile', product_sku: 'SYN-TILE', base_unit: 'piece',
+    tracking_policy: 'UNTRACKED', batch_key: null, source_quantity: '1.500000',
+    previously_transitioned: '0.000000', pending_review_quantity: '0.000000',
+    remaining_eligible: '1.500000', quarantined_available: '1.500000', stock_version: 9 };
+  const client = api({
+    invoiceCreditNotes: jest.fn().mockResolvedValue({ data: { ...emptyPage, items: [credit], total: 1, limit: 25 } }),
+    stockConditionSources: jest.fn().mockResolvedValue({ data: { ...emptyPage, items: [source], total: 1, limit: 100 } }),
+  });
+  render(<SalesReturnPanel api={client} invoice={invoice} orgId={1} userId={2}
+    canRequestCondition onClose={jest.fn()} />);
+  expect(await screen.findByRole('button', { name: 'Request damaged classification' })).toBeInTheDocument();
+  expect(screen.getByText(/Stock remains unavailable/)).toBeInTheDocument();
+  expect(screen.queryByText(/discount/i)).not.toBeInTheDocument();
+  expect(client.stockConditionSources).toHaveBeenCalledWith(1, 100, expect.any(AbortSignal));
 });

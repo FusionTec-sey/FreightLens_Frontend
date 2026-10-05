@@ -27,6 +27,11 @@ test('uses the bounded invoice-return routes with company-scoped headers', () =>
   api.createReturnCreditNote('return/key', { expected_claim_version: 2 }, signal);
   api.invoiceCreditNotes('invoice/key', 1, 25, signal);
   api.readCreditNote('credit/key', signal);
+  api.stockConditionSources(3, 25, signal);
+  api.stockConditionCases(2, 10, signal, 'NEEDS_MY_REVIEW', 44);
+  api.requestStockCondition({ credit_note_line_id: 44 }, signal);
+  api.reviewStockCondition('case/key', { outcome: 'APPROVED' }, signal);
+  api.executeStockCondition('case/key', { operation_key: 'operation' }, signal);
 
   const config = { headers: { Authorization: 'Bearer synthetic-token', 'X-Active-Org': '17' }, signal };
   expect(mockClient.get).toHaveBeenNthCalledWith(1, '/sales/invoices/invoice%2Fkey/return-options', config);
@@ -39,4 +44,10 @@ test('uses the bounded invoice-return routes with company-scoped headers', () =>
   expect(mockClient.put).toHaveBeenNthCalledWith(2, '/sales/returns/return%2Fkey/credit-note', { expected_claim_version: 2 }, config);
   expect(mockClient.get).toHaveBeenNthCalledWith(6, '/sales/invoices/invoice%2Fkey/credit-notes', { ...config, params: { page: 1, limit: 25 } });
   expect(mockClient.get).toHaveBeenNthCalledWith(7, '/sales/credit-notes/credit%2Fkey', config);
+  expect(mockClient.get).toHaveBeenNthCalledWith(8, '/inventory/stock-condition-cases/sources', { ...config, params: { page: 3, limit: 25 } });
+  expect(mockClient.get).toHaveBeenNthCalledWith(9, '/inventory/stock-condition-cases', { ...config,
+    params: { page: 2, limit: 10, view: 'NEEDS_MY_REVIEW', credit_note_line_id: 44 } });
+  expect(mockClient.post).toHaveBeenCalledWith('/inventory/stock-condition-cases', { credit_note_line_id: 44 }, config);
+  expect(mockClient.post).toHaveBeenCalledWith('/inventory/stock-condition-cases/case%2Fkey/review', { outcome: 'APPROVED' }, config);
+  expect(mockClient.post).toHaveBeenCalledWith('/inventory/stock-condition-cases/case%2Fkey/execute', { operation_key: 'operation' }, config);
 });
