@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SalesDraftDetails from './SalesDraftDetails';
 jest.mock('../../../context/ThemeContext', () => ({ useTheme: () => ({ isDark: false }) }));
+jest.mock('./SalesCollectionPanel', () => ({ api, invoice, customerName, onClose }) => <section aria-label="Collection panel"><span>{`${invoice.invoice_number} · ${customerName}`}</span><button onClick={onClose}>Close collection</button></section>);
+jest.mock('./SalesInvoicePrintPanel', () => ({ invoice, canResolve, onClose }) => <section aria-label="Print panel"><span>{`${invoice.invoice_number} · ${canResolve ? 'Resolve allowed' : 'Resolve unavailable'}`}</span><button onClick={onClose}>Close printing</button></section>);
 
 const draft = { document_key: 'synthetic-draft', customer_key: 'synthetic-customer', branch_id: 2, version: 3,
   lines: [{ line_key: 'line-1', product_id: 7, product_name: 'Sample tiles', sku: 'SAMPLE-TILE',
@@ -147,4 +149,63 @@ test('opens a posted invoice return for condition-only contextual access', async
   expect(await screen.findByRole('heading', { name: 'Returns · INV-RETURN-ONLY' })).toBeInTheDocument();
   expect(api.postedInvoice).toHaveBeenCalledWith(documentKey, 3);
   expect(api.returnOptions).toHaveBeenCalledWith(invoiceKey, expect.anything());
+});
+
+const postedReference = { invoice_key: 'posted-invoice', document_key: draft.document_key, draft_version: draft.version };
+const postedSale = { ...postedReference, invoice_number: 'INV-POSTED', payment_status: 'PAID', fulfilment_status: 'RESERVED' };
+const postedApi = () => ({ postedInvoiceReference: jest.fn().mockResolvedValue({ data: postedReference }),
+  readInvoice: jest.fn().mockResolvedValue({ data: postedSale }) });
+
+test('shows direct post-sale actions by permission without requiring checkout or prepared pricing', () => {
+  const api = postedApi();
+  const view = render(<SalesDraftDetails draft={draft} api={api} onClose={jest.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Open collection' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Invoice & printing' })).not.toBeInTheDocument();
+  view.rerender(<SalesDraftDetails draft={draft} api={api} canCollect onClose={jest.fn()} />);
+  expect(screen.getByRole('button', { name: 'Open collection' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Invoice & printing' })).not.toBeInTheDocument();
+  view.rerender(<SalesDraftDetails draft={draft} api={api} canPrint onClose={jest.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Open collection' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Invoice & printing' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Continue to payment' })).not.toBeInTheDocument();
+});
+
+test('opens collection from the exact posted draft revision without entering checkout', async () => {
+  const api = postedApi();
+  render(<SalesDraftDetails draft={{ ...draft, customer_name: 'Synthetic customer' }} api={api} canCollect onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open collection' }));
+  expect(await screen.findByRole('region', { name: 'Collection panel' })).toHaveTextContent('INV-POSTED · Synthetic customer');
+  expect(api.postedInvoiceReference).toHaveBeenCalledWith(draft.document_key, draft.version, expect.any(AbortSignal));
+  expect(api.readInvoice).toHaveBeenCalledWith(postedReference.invoice_key, expect.any(AbortSignal));
+  fireEvent.click(screen.getByRole('button', { name: 'Close collection' }));
+  expect(screen.getByRole('heading', { name: 'Draft version 3' })).toBeInTheDocument();
+});
+
+test('opens existing invoice printing with resolution permission from the exact posted revision', async () => {
+  const api = postedApi();
+  render(<SalesDraftDetails draft={draft} api={api} canPrint canResolvePrint onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Invoice & printing' }));
+  expect(await screen.findByRole('region', { name: 'Print panel' })).toHaveTextContent('INV-POSTED · Resolve allowed');
+  expect(api.postedInvoiceReference).toHaveBeenCalledWith(draft.document_key, draft.version, expect.any(AbortSignal));
+  expect(api.readInvoice).toHaveBeenCalledWith(postedReference.invoice_key, expect.any(AbortSignal));
+});
+
+test('reports an unposted draft without opening collection', async () => {
+  const api = { postedInvoiceReference: jest.fn().mockRejectedValue({ response: { status: 404 } }), readInvoice: jest.fn() };
+  render(<SalesDraftDetails draft={draft} api={api} canCollect onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open collection' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('No posted invoice exists for this draft revision.');
+  expect(api.readInvoice).not.toHaveBeenCalled();
+  expect(screen.queryByRole('region', { name: 'Collection panel' })).not.toBeInTheDocument();
+});
+
+test('reports lookup failure and rejects a mismatched invoice reference', async () => {
+  const api = { postedInvoiceReference: jest.fn().mockRejectedValueOnce(new Error('Network unavailable'))
+    .mockResolvedValueOnce({ data: { ...postedReference, draft_version: 2 } }), readInvoice: jest.fn() };
+  render(<SalesDraftDetails draft={draft} api={api} canPrint onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Invoice & printing' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Network unavailable');
+  fireEvent.click(screen.getByRole('button', { name: 'Invoice & printing' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Posted invoice reference does not match this sale revision.');
+  expect(api.readInvoice).not.toHaveBeenCalled();
 });

@@ -67,6 +67,24 @@ beforeEach(() => {
   read.mockResolvedValue({ data: { ...row, customer_key: 'demo-customer', lines: [{
     line_key: 'line', product_id: 1, quantity: '2', unit: 'BOX', base_quantity: '24', base_unit: 'PCS', reserved_quantity: '20', expected_policy_version: 1 }] } });
 });
+test('post-sale actions require both sale read and their specific collection or print permission', async () => {
+  useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'Collect_Sale', 'Print_SaleInvoice'] });
+  const view = render(<SalesDraftsPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'View draft demo-draft' }));
+  expect(await screen.findByRole('heading', { name: 'Draft version 1' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Open collection' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Invoice & printing' })).not.toBeInTheDocument();
+
+  useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'View_Sale', 'Collect_Sale'] });
+  view.rerender(<SalesDraftsPage />);
+  expect(screen.getByRole('button', { name: 'Open collection' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Invoice & printing' })).not.toBeInTheDocument();
+
+  useAuth.mockReturnValue({ ...auth, permissions: [...auth.permissions, 'View_Sale', 'Print_SaleInvoice'] });
+  view.rerender(<SalesDraftsPage />);
+  expect(screen.queryByRole('button', { name: 'Open collection' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Invoice & printing' })).toBeInTheDocument();
+});
 test('opens authoritative details and distinguishes demand from confirmed sale', async () => {
   render(<SalesDraftsPage />);
   fireEvent.click(await screen.findByText('View'));

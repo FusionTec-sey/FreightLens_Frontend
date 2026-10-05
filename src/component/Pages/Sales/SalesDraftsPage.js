@@ -24,6 +24,7 @@ import { copySalesDraft } from './copySalesDraft';
 export default function SalesDraftsPage({ view = 'DRAFTS' }) {
   const { token, selectedOrgId, orgId, userId, permissions = [], isSuperAdmin, hasModule } = useAuth();
   const activeOrg = selectedOrgId || orgId;
+  const canReadSale = isSuperAdmin || permissions.includes('View_Sale');
   const returnAccess = isSuperAdmin || ['View_Sale', 'View_Financials'].every(p => permissions.includes(p));
   const pricingReview = view === 'PRICE_FLOOR_REVIEWS';
   const allowed = isSuperAdmin || (hasModule?.('SALES') && (pricingReview
@@ -55,8 +56,8 @@ export default function SalesDraftsPage({ view = 'DRAFTS' }) {
     canReviewFloor={isSuperAdmin || permissions.includes('Review_PriceFloorException')}
     canPostSale={isSuperAdmin || permissions.includes('Post_Sale')}
     canRecordCard={isSuperAdmin || permissions.includes('Record_ExternalCardConfirmation')}
-    canCollect={isSuperAdmin || permissions.includes('Collect_Sale')}
-    canPrint={isSuperAdmin || permissions.includes('Print_SaleInvoice')}
+    canCollect={canReadSale && (isSuperAdmin || permissions.includes('Collect_Sale'))}
+    canPrint={canReadSale && (isSuperAdmin || permissions.includes('Print_SaleInvoice'))}
     canResolvePrint={isSuperAdmin || permissions.includes('Resolve_SalePrint')}
     canRequestReturn={returnAccess && (isSuperAdmin || permissions.includes('Request_SaleReturn'))}
     canReviewReturn={returnAccess && (isSuperAdmin || permissions.includes('Review_SaleReturn'))}
