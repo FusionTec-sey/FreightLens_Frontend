@@ -11,7 +11,7 @@ const operationKey = () => window.crypto?.randomUUID?.()
     const r = Math.floor(Math.random() * 16); return (c === 'x' ? r : (r & 3) | 8).toString(16);
   });
 
-export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy, onAllocate, onOtherStore, onReservations, canRequestFloor = false, canPreparePricing = false, canPostSale = false, canRecordCard = false, canCollect = false, canPrint = false, canResolvePrint = false }) {
+export default function SalesDraftDetails({ draft, api, orgId, userId, onClose, onEdit, onCopy, onAllocate, onOtherStore, onReservations, canRequestFloor = false, canPreparePricing = false, canPostSale = false, canRecordCard = false, canCollect = false, canPrint = false, canResolvePrint = false, canRequestReturn = false, canReviewReturn = false, canProcessReturn = false }) {
   const [panel, setPanel] = useState('items');
   const [pricing, setPricing] = useState(null);
   const [pricingError, setPricingError] = useState('');
@@ -79,8 +79,9 @@ export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy,
     }
   }
   if (checkout && preparedPricing) return <SalesCheckoutPanel api={api} draft={draft}
-    pricing={preparedPricing} canRecordCard={canRecordCard} canCollect={canCollect}
+    pricing={preparedPricing} orgId={orgId} userId={userId} canRecordCard={canRecordCard} canCollect={canCollect}
     canPrint={canPrint} canResolvePrint={canResolvePrint}
+    canRequestReturn={canRequestReturn} canReviewReturn={canReviewReturn} canProcessReturn={canProcessReturn}
     onClose={() => setCheckout(false)} />;
   return <section aria-label="Sales draft details" className="flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-700">

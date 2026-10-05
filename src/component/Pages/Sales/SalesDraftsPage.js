@@ -24,6 +24,7 @@ import { copySalesDraft } from './copySalesDraft';
 export default function SalesDraftsPage({ view = 'DRAFTS' }) {
   const { token, selectedOrgId, orgId, userId, permissions = [], isSuperAdmin, hasModule } = useAuth();
   const activeOrg = selectedOrgId || orgId;
+  const returnAccess = isSuperAdmin || ['View_Sale', 'View_Financials'].every(p => permissions.includes(p));
   const pricingReview = view === 'PRICE_FLOOR_REVIEWS';
   const allowed = isSuperAdmin || (hasModule?.('SALES') && (pricingReview
     ? ['View_SalesDraft', 'View_Product', 'View_Financials'].every(p => permissions.includes(p))
@@ -56,10 +57,13 @@ export default function SalesDraftsPage({ view = 'DRAFTS' }) {
     canRecordCard={isSuperAdmin || permissions.includes('Record_ExternalCardConfirmation')}
     canCollect={isSuperAdmin || permissions.includes('Collect_Sale')}
     canPrint={isSuperAdmin || permissions.includes('Print_SaleInvoice')}
-    canResolvePrint={isSuperAdmin || permissions.includes('Resolve_SalePrint')} />;
+    canResolvePrint={isSuperAdmin || permissions.includes('Resolve_SalePrint')}
+    canRequestReturn={returnAccess && (isSuperAdmin || permissions.includes('Request_SaleReturn'))}
+    canReviewReturn={returnAccess && (isSuperAdmin || permissions.includes('Review_SaleReturn'))}
+    canProcessReturn={returnAccess && (isSuperAdmin || permissions.includes('Process_SaleReturn'))} />;
 }
 
-function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, canCollect, canPrint, canResolvePrint, userId }) {
+function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canReview, canExecuteRelease, canRequestRelease, canOpenDeadlines, canReviewDeadline, canRequestDeadline, canScheduleDeadline, canOpenReallocations, canReviewReallocation, canExecuteReallocation, canRequestReallocation, canOpenOtherStore, canReviewOtherStore, canExecuteOtherStore, canRequestOtherStore, canAllocate, canRequestFloor, canReviewFloor, canPostSale, canRecordCard, canCollect, canPrint, canResolvePrint, canRequestReturn, canReviewReturn, canProcessReturn, userId }) {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { hasModule, isSuperAdmin } = useAuth();
@@ -196,7 +200,7 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
     <div className="shrink-0"><PaginationToolbar page={page} pageSize={limit} totalPages={result?.pages || 1} totalCount={result?.total || 0}
       onPageChange={setPage} onPageSizeChange={value => { setLimit(value); setPage(1); }} isDark={isDark} /></div>
     </div>
-    {selected && <SalesDraftDetails key={selected.document_key} draft={selected} api={api} onClose={() => setSelected(null)}
+    {selected && <SalesDraftDetails key={selected.document_key} draft={selected} api={api} orgId={orgId} userId={userId} onClose={() => setSelected(null)}
       onEdit={canManage ? () => setEditing(selected) : undefined}
       onCopy={canManage ? () => {
         try { setCopyError(''); setEditing(copySalesDraft(selected, () => window.crypto.randomUUID())); }
@@ -211,6 +215,9 @@ function DraftRegister({ view, token, orgId, canManage, canOpenReviews, canRevie
       canCollect={canCollect}
       canPrint={canPrint}
       canResolvePrint={canResolvePrint}
+      canRequestReturn={canRequestReturn}
+      canReviewReturn={canReviewReturn}
+      canProcessReturn={canProcessReturn}
       onReservations={canOpenReviews || canOpenDeadlines || canOpenReallocations ? () => setHolds(selected) : undefined} />}
     </div>
   </section>;

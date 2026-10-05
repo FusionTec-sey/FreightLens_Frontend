@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, primaryButtonClass, secondaryButtonClass } from '../../UI/UXComponent/RegisterShell';
 import SalesCollectionPanel from './SalesCollectionPanel';
 import SalesInvoicePrintPanel from './SalesInvoicePrintPanel';
+import SalesReturnPanel from './SalesReturnPanel';
 
 const newKey = () => window.crypto?.randomUUID?.()
   || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
@@ -25,13 +26,14 @@ async function referenceHash(value) {
   return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export default function SalesCheckoutPanel({ api, draft, pricing, canRecordCard, canCollect = false, canPrint = false, canResolvePrint = false, onClose }) {
+export default function SalesCheckoutPanel({ api, draft, pricing, orgId, userId, canRecordCard, canCollect = false, canPrint = false, canResolvePrint = false, canRequestReturn = false, canReviewReturn = false, canProcessReturn = false, onClose }) {
   const [options, setOptions] = useState(null), [attempt, setAttempt] = useState(null), [invoice, setInvoice] = useState(null);
   const [counterKey, setCounterKey] = useState(''), [tenders, setTenders] = useState([]);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [confirming, setConfirming] = useState(null);
   const [discard, setDiscard] = useState(false);
   const [collecting, setCollecting] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [returning, setReturning] = useState(false);
   const [intent] = useState(() => ({ attempt_key: newKey(), operation_key: newKey(), invoice_key: newKey() }));
   const controller = useRef(null), running = useRef(false);
   const total = pricing?.gross_total_scr || '';
@@ -164,6 +166,10 @@ export default function SalesCheckoutPanel({ api, draft, pricing, canRecordCard,
     }} />;
   if (printing && invoice) return <SalesInvoicePrintPanel api={api} invoice={invoice}
     canResolve={canResolvePrint} onClose={() => setPrinting(false)} />;
+  if (returning && invoice) return <SalesReturnPanel api={api} invoice={invoice}
+    orgId={orgId} userId={userId}
+    canRequest={canRequestReturn} canReview={canReviewReturn} canProcess={canProcessReturn}
+    onClose={() => setReturning(false)} />;
   return <section aria-label="Checkout" className="flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-700">
       <div><h2 className="text-lg font-semibold">Checkout · {draft.customer_name || 'Customer'}</h2><p className="text-xs">Draft v{draft.version} · {draft.branch_name || `Store ${draft.branch_id}`}</p></div>
@@ -172,7 +178,7 @@ export default function SalesCheckoutPanel({ api, draft, pricing, canRecordCard,
     <div className="min-h-0 flex-1 overflow-auto p-4 space-y-4">
       {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{error}</p>}
       {!options && !error && <p role="status">Checking counter, payment and reservation eligibility…</p>}
-      {invoice && <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30"><div className="flex flex-wrap gap-2"><Badge tone="emerald">{invoice.payment_status}</Badge><Badge tone={invoice.fulfilment_status === 'COLLECTED' ? 'emerald' : 'amber'}>{invoice.fulfilment_status.replaceAll('_', ' ')}</Badge></div><h3 className="mt-2 text-lg font-semibold">Invoice {invoice.invoice_number}</h3><p>SCR {invoice.gross_total_scr} paid. {invoice.fulfilment_status === 'COLLECTED' ? 'All eligible goods were handed over.' : 'Goods remain reserved until authorised collection.'}</p><div className="mt-3 flex flex-wrap gap-2">{canPrint && <button type="button" className={primaryButtonClass} onClick={() => setPrinting(true)}>Invoice & printing</button>}{canCollect && invoice.fulfilment_status !== 'COLLECTED' && <button type="button" className={primaryButtonClass} onClick={() => setCollecting(true)}>Open collection</button>}</div></section>}
+      {invoice && <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30"><div className="flex flex-wrap gap-2"><Badge tone="emerald">{invoice.payment_status}</Badge><Badge tone={invoice.fulfilment_status === 'COLLECTED' ? 'emerald' : 'amber'}>{invoice.fulfilment_status.replaceAll('_', ' ')}</Badge></div><h3 className="mt-2 text-lg font-semibold">Invoice {invoice.invoice_number}</h3><p>SCR {invoice.gross_total_scr} paid. {invoice.fulfilment_status === 'COLLECTED' ? 'All eligible goods were handed over.' : 'Goods remain reserved until authorised collection.'}</p><div className="mt-3 flex flex-wrap gap-2">{canPrint && <button type="button" className={primaryButtonClass} onClick={() => setPrinting(true)}>Invoice & printing</button>}{canCollect && invoice.fulfilment_status !== 'COLLECTED' && <button type="button" className={primaryButtonClass} onClick={() => setCollecting(true)}>Open collection</button>}{(canRequestReturn || canReviewReturn || canProcessReturn) && <button type="button" className={secondaryButtonClass} onClick={() => setReturning(true)}>Returns & credit notes</button>}</div></section>}
       {options && !invoice && !attempt && <>
         {(!options.counters.length || !options.payment_methods.length || !options.reservations.length) && <p role="alert" className="rounded-xl border border-amber-300 p-3">Checkout is blocked until an enabled counter, payment mapping and full active reservation are available.</p>}
         <label className="block text-sm font-semibold">Selling counter<select className="mt-1 block min-h-[44px] w-full rounded-lg border bg-white p-2 dark:bg-slate-800" value={counterKey} onChange={event => setCounterKey(event.target.value)}><option value="">Choose counter</option>{options.counters.map(row => <option key={row.counter_key} value={row.counter_key}>{row.name} · {row.code}</option>)}</select></label>

@@ -94,3 +94,29 @@ test('missing payment or reservation configuration blocks confirmation', async (
   expect(await screen.findByRole('alert')).toHaveTextContent('Checkout is blocked');
   expect(screen.getByRole('button', { name: 'Confirm payment plan' })).toBeDisabled();
 });
+
+test('opens the contextual return workflow only with return permission', async () => {
+  const returnInvoiceKey = '10000000-0000-4000-8000-000000000001';
+  const posted = { ...options, existing_attempt_key: 'attempt-key', existing_operation_key: 'operation-key',
+    existing_status: 'POSTED', existing_invoice_key: returnInvoiceKey };
+  const postedInvoice = { invoice_key: returnInvoiceKey, invoice_number: 'INV-RETURN', payment_status: 'PAID',
+    fulfilment_status: 'COLLECTED', gross_total_scr: '2200.00' };
+  const client = api({
+    postingOptions: jest.fn().mockResolvedValue({ data: posted }),
+    readInvoice: jest.fn().mockResolvedValue({ data: postedInvoice }),
+    returnOptions: jest.fn().mockResolvedValue({ data: { invoice_key: returnInvoiceKey, invoice_number: 'INV-RETURN',
+      invoice_version: 1, customer_key: 'customer-key', customer_name: 'Synthetic customer', branch_id: 2,
+      branch_name: 'Synthetic store', lines: [], handovers: [] } }),
+    invoiceReturnClaims: jest.fn().mockResolvedValue({ data: { items: [], page: 1, pages: 1, limit: 10, total: 0 } }),
+    invoiceCreditNotes: jest.fn().mockResolvedValue({ data: { items: [], page: 1, pages: 1, limit: 25, total: 0 } }),
+  });
+  const view = render(<SalesCheckoutPanel api={client} draft={draft} pricing={pricing}
+    canRecordCard={false} orgId={1} userId={2} onClose={jest.fn()} />);
+  expect(await screen.findByText('Invoice INV-RETURN')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Returns & credit notes' })).not.toBeInTheDocument();
+  view.rerender(<SalesCheckoutPanel api={client} draft={draft} pricing={pricing}
+    canRecordCard={false} canRequestReturn orgId={1} userId={2} onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Returns & credit notes' }));
+  expect(await screen.findByRole('heading', { name: 'Returns · INV-RETURN' })).toBeInTheDocument();
+  expect(client.returnOptions).toHaveBeenCalledWith(returnInvoiceKey, expect.anything());
+});
