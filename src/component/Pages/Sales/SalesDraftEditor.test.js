@@ -147,7 +147,8 @@ test('saved copied draft shows confirmed provenance without resending it on a la
 test('stale copied source stays editable so source data can be reselected', async () => {
   const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 3 };
   const copied = { ...initial, document_key: '22222222-2222-4222-8222-222222222222', version: 0, source_reference };
-  const api = { save: jest.fn().mockRejectedValue({ response: { status: 409 } }) };
+  const api = { save: jest.fn().mockRejectedValue({ response: { status: 409,
+    data: { detail: 'Customer profile changed' } } }) };
   render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={copied} onSaved={jest.fn()} onClose={jest.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('new draft is still editable');
@@ -156,4 +157,18 @@ test('stale copied source stays editable so source data can be reselected', asyn
   expect(screen.getByLabelText('Quantity 1')).toBeEnabled();
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
   expect(screen.getByText(/original copy reference will be retained/)).toBeInTheDocument();
+});
+
+test('copy identity conflict is locked and requires a fresh copy', async () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 3 };
+  const copied = { ...initial, document_key: '22222222-2222-4222-8222-222222222222', version: 0, source_reference };
+  const api = { save: jest.fn().mockRejectedValue({ response: { status: 409,
+    data: { detail: 'Sales draft changed; reload before saving' } } }) };
+  render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={copied} onSaved={jest.fn()} onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('cannot be repaired by reselection');
+  expect(screen.getByRole('button', { name: /Customer:/ })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /Store:/ })).toBeDisabled();
+  expect(screen.getByLabelText('Quantity 1')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
 });

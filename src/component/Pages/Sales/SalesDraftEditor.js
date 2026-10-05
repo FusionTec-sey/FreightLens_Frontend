@@ -155,12 +155,19 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
         return;
       }
       const status = failure.response?.status;
+      const detail = failure.response?.data?.detail;
+      const copySourceCanBeReselected = isNewCopy && status === 409 && [
+        'Customer profile changed',
+        'Reviewed inventory policy missing or changed',
+      ].includes(detail);
       if (status === 422 || status === 404) { setPending(null); setError('The draft could not be saved. Check source selections, units and quantities; your entries are retained.'); }
-      else if (status === 409 && isNewCopy) {
+      else if (copySourceCanBeReselected) {
         setPending(null); setConflict(false);
         setError('The copied source or one of its selected customer, store or product versions changed. Your new draft is still editable: reselect the affected source data, then save again. The original copy reference will be retained.');
       }
-      else if (status === 409) { setPending(null); setConflict(true); setError('The saved draft or source policy changed. Your entries are retained; close only after reviewing them, then reopen the latest version.'); }
+      else if (status === 409) { setPending(null); setConflict(true); setError(isNewCopy
+        ? 'This copy identity conflicts with an existing or changed draft and cannot be repaired by reselection. Keep the source draft unchanged, discard this local copy, then create a new copy with fresh identities.'
+        : 'The saved draft or source policy changed. Your entries are retained; close only after reviewing them, then reopen the latest version.'); }
       else setError('Save outcome is unconfirmed. Entries are locked; retry the same request to avoid duplicate saves.');
     } finally { inFlight.current = false; if (alive.current) setBusy(false); }
   }

@@ -10,12 +10,15 @@ resubmit it. Payments, reservations, approvals and collection state remain
 excluded; current customer, branch, product-policy and unit references are still
 revalidated by the normal save path.
 
-A rejected version-zero copy remains editable so staff can reselect current source
-data without losing the original provenance reference. Confirmed provenance is
-visible in saved draft details, while local drafts distinguish a source awaiting
-server recording from an already recorded source. Thirty-one focused copy/editor/
-recovery/detail checks, twelve register checks and the production build pass with
-the repository's existing unrelated warnings. Browser acceptance remains separate.
+A version-zero copy rejected because its current customer or reviewed product policy
+changed remains editable so staff can reselect current source data without losing
+the provenance reference. Destination/version, operation or identity conflicts are
+locked and require a fresh copy rather than looping the same invalid destination.
+Confirmed provenance is visible in saved draft details, while local drafts distinguish
+a source awaiting server recording from an already recorded source. Thirty-two
+focused copy/editor/recovery/detail checks, twelve register checks and the production
+build pass with the repository's existing unrelated warnings. Browser acceptance
+remains separate.
 
 ## Payment and receiving-account configuration (2026-10-05)
 
