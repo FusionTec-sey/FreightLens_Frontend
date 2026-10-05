@@ -29,6 +29,30 @@ test('pending exact operation survives reconstruction and cannot differ from dra
   expect(readRecovery('1:2', 'doc').snapshot.pending.operation_key).toBe('stable');
   await expect(writeRecovery('1:2', 'doc', 1, { ...snapshot, pending: { ...pending, expected_version: 1 } })).rejects.toThrow('does not match');
 });
+
+test('pending initial copy retains the exact source reference while ordinary saves do not gain one', async () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 2 };
+  const pending = { operation_key: 'stable-copy', expected_version: 0, source_reference, draft: snapshot.draft };
+  await writeRecovery('1:2', 'copy', 0, { ...snapshot, source_reference, pending });
+  const stored = readRecovery('1:2', 'copy').snapshot.pending;
+  expect(stored).toMatchObject({ operation_key: 'stable-copy', expected_version: 0, source_reference });
+  expect(stored.draft.lines[0]).not.toHaveProperty('reserved_quantity');
+  expect(stored.draft.lines[0]).not.toHaveProperty('price');
+
+  await writeRecovery('1:2', 'ordinary', 0, { ...snapshot,
+    pending: { operation_key: 'stable-ordinary', expected_version: 0, draft: snapshot.draft } });
+  expect(readRecovery('1:2', 'ordinary').snapshot.pending).not.toHaveProperty('source_reference');
+  await expect(writeRecovery('1:2', 'mismatch', 0, { ...snapshot, source_reference,
+    pending: { operation_key: 'bad', expected_version: 0, draft: snapshot.draft } })).rejects.toThrow('does not match');
+
+  const savedCopy = { ...snapshot, expected_version: 1, source_reference };
+  const laterRevision = { operation_key: 'later-revision', expected_version: 1, draft: snapshot.draft };
+  await writeRecovery('1:2', 'saved-copy', 0, { ...savedCopy, pending: laterRevision });
+  const savedCopyRecovery = readRecovery('1:2', 'saved-copy').snapshot;
+  expect(savedCopyRecovery.source_reference).toEqual(source_reference);
+  expect(savedCopyRecovery.pending).toMatchObject({ operation_key: 'later-revision', expected_version: 1 });
+  expect(savedCopyRecovery.pending).not.toHaveProperty('source_reference');
+});
 test('missing browser locks and storage failures are explicit, not success', async () => {
   Object.defineProperty(window.navigator, 'locks', { configurable: true, value: undefined });
   await expect(writeRecovery('1:2', 'doc', 0, snapshot)).rejects.toThrow('locking support');
@@ -51,7 +75,7 @@ test('deleted and recreated draft cannot be overwritten by an older tab revision
   await expect(writeRecovery('1:2', 'doc', original.revision, snapshot)).rejects.toThrow('another tab');
 });
 
-test('copy source is retained only as a validated local envelope field', async () => {
+test('copy source is retained as a validated recovery envelope field', async () => {
   const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 2 };
   await writeRecovery('1:2', 'new-doc', 0, { ...snapshot, source_reference,
     payments: ['never-store'], collection: 'never-store', reservations: ['never-store'] });
