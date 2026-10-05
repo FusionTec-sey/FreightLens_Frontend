@@ -53,6 +53,15 @@ test("module and action access hide unavailable entries", () => {
   expect(screen.getByRole("link", { name: "Cost pools" })).toBeInTheDocument();
 });
 
+test("return condition reviews are a distinct permission-gated inventory screen", () => {
+  access.permissions = ["View_Product", "Review_StockCondition"];
+  show("/inventory/return-condition-reviews");
+  expect(screen.getByRole("link", { name: "Return condition reviews" }))
+    .toHaveAttribute("href", "/inventory/return-condition-reviews");
+  expect(screen.getByRole("link", { name: "Return condition reviews" }))
+    .toHaveAttribute("aria-current", "page");
+});
+
 test("inventory subscription is required for its navigation", () => {
   access.hasModule = (name) => name !== "INVENTORY";
   show("/dashboard");

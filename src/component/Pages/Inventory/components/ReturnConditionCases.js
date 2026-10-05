@@ -84,14 +84,14 @@ export default function ReturnConditionCases({ api, orgId, userId, canRequest = 
     setLoading(true); setError('');
     try {
       const requests = [api.stockConditionCases(casePage, limit, signal, view)];
-      if (canRequest) requests.push(api.stockConditionSources(sourcePage, limit, signal));
+      if (canRequest) requests.push(api.stockConditionSources(sourcePage, limit, signal, invoiceKey));
       const [caseResult, sourceResult] = await Promise.all(requests);
       if (signal.aborted) return;
       setCases(caseResult.data); setSources(sourceResult?.data || null);
     } catch (failure) {
       if (!signal.aborted) { setCases(null); setSources(null); setError(detail(failure)); }
     } finally { if (!signal.aborted) setLoading(false); }
-  }, [api, canRequest, casePage, limit, sourcePage, view]);
+  }, [api, canRequest, casePage, invoiceKey, limit, sourcePage, view]);
 
   useEffect(() => {
     const controller = new AbortController(); lifecycle.current = controller; load(controller.signal);

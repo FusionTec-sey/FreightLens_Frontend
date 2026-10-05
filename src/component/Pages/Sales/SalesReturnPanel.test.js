@@ -178,5 +178,5 @@ test('offers the server-derived condition request only for an eligible processed
   expect(await screen.findByRole('button', { name: 'Request damaged classification' })).toBeInTheDocument();
   expect(screen.getByText(/Stock remains unavailable/)).toBeInTheDocument();
   expect(screen.queryByText(/discount/i)).not.toBeInTheDocument();
-  expect(client.stockConditionSources).toHaveBeenCalledWith(1, 100, expect.any(AbortSignal));
+  expect(client.stockConditionSources).toHaveBeenCalledWith(1, 100, expect.any(AbortSignal), invoice.invoice_key);
 });

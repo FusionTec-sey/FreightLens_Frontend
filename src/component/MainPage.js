@@ -35,7 +35,7 @@ import DamageDefectsPage from "./Pages/Orders/DamageDefectsPage.js";
 import DailyOperationsPage from "./Pages/Orders/DailyOperationsPage.js";
 import ProductMasterPage from "./Pages/Inventory/ProductMasterPage.js";
 import InventoryLocationsPage from "./Pages/Inventory/InventoryLocationsPage.js";
-import { INVENTORY_LOCATIONS_ROUTE, INVENTORY_POOLS_ROUTE, INVENTORY_APPROVALS_ROUTE, INVENTORY_BARCODE_REVIEWS_ROUTE } from "../utils/inventoryRoutes";
+import { INVENTORY_LOCATIONS_ROUTE, INVENTORY_POOLS_ROUTE, INVENTORY_APPROVALS_ROUTE, INVENTORY_BARCODE_REVIEWS_ROUTE, INVENTORY_RETURN_CONDITION_REVIEWS_ROUTE } from "../utils/inventoryRoutes";
 import InventoryWorkspacePage from "./Pages/Inventory/InventoryWorkspacePage";
 import CurrenciesPage from "./Pages/MasterData/CurrenciesPage.js";
 import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
@@ -189,6 +189,7 @@ export default function MainPage() {
             <Route path={INVENTORY_POOLS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["View_Product"]}><InventoryWorkspacePage workspace="pools" /></PrivateRoute>} />
             <Route path={INVENTORY_APPROVALS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["Review_InventoryPolicy"]}><InventoryWorkspacePage workspace="approvals" /></PrivateRoute>} />
             <Route path={INVENTORY_BARCODE_REVIEWS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["Review_BarcodeRetirement"]}><InventoryWorkspacePage workspace="barcode-reviews" /></PrivateRoute>} />
+            <Route path={INVENTORY_RETURN_CONDITION_REVIEWS_ROUTE} element={<PrivateRoute requiredModules={["INVENTORY"]} requiredPermissions={["Request_StockCondition", "Review_StockCondition", "Execute_StockCondition"]}><InventoryWorkspacePage workspace="return-conditions" /></PrivateRoute>} />
 
             {/* Master Data & Multi-Currency Admin Routes */}
             <Route path="/master-data/currencies" element={<PrivateRoute><CurrenciesPage /></PrivateRoute>} />
