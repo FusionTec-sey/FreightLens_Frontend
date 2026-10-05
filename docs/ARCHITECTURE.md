@@ -10,6 +10,10 @@ read requirements. The panel consumes server-owned invoice-line and exact-handov
 eligibility, showing handed-over, previously accepted, pending and returnable
 quantities without calculating availability or money in the browser.
 
+The selected draft resolves its exact posted invoice through the read-only
+`posted-invoice` projection before opening returns. Return staff therefore do not
+need Post_Sale or access to posting options simply to inspect and request a return.
+
 Every claim identifies the returner, contact, reason, observed condition, invoice
 line and handover allocation. Manager review is mandatory. Processing displays the
 server's immutable original-term credit, invoice-debt application and surplus

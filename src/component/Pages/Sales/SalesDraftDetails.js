@@ -4,6 +4,7 @@ import SalesProductImage from './SalesProductImage';
 import SalesDraftHistory from './SalesDraftHistory';
 import SalesDraftSummary from './SalesDraftSummary';
 import SalesCheckoutPanel from './SalesCheckoutPanel';
+import SalesReturnPanel from './SalesReturnPanel';
 
 // Read-only document inspection. Only explicit action buttons invoke workflows.
 const operationKey = () => window.crypto?.randomUUID?.()
@@ -23,6 +24,9 @@ export default function SalesDraftDetails({ draft, api, orgId, userId, onClose, 
   const [preparedPricingError, setPreparedPricingError] = useState('');
   const [prepareRequest, setPrepareRequest] = useState(null);
   const [checkout, setCheckout] = useState(false);
+  const [returnInvoice, setReturnInvoice] = useState(null);
+  const [returnInvoiceError, setReturnInvoiceError] = useState('');
+  const [returnInvoiceLoading, setReturnInvoiceLoading] = useState(false);
   useEffect(() => {
     if (!api?.pricingPreview) return undefined;
     const controller = new AbortController(); let live = true;
@@ -78,6 +82,21 @@ export default function SalesDraftDetails({ draft, api, orgId, userId, onClose, 
         error: failure.response?.data?.detail || 'Exact pricing could not be prepared. Keep this form open and retry.' }));
     }
   }
+  const openReturns = async () => {
+    if (returnInvoiceLoading) return;
+    setReturnInvoiceLoading(true); setReturnInvoiceError('');
+    try {
+      const { data } = await api.postedInvoice(draft.document_key, draft.version);
+      if (String(data.document_key) !== String(draft.document_key) || data.draft_version !== draft.version) throw new Error('Posted invoice does not match this sale revision.');
+      setReturnInvoice(data);
+    } catch (failure) {
+      const value = failure.response?.data?.detail;
+      setReturnInvoiceError(typeof value === 'string' ? value : value?.message || failure.message || 'Posted invoice could not be opened for returns.');
+    } finally { setReturnInvoiceLoading(false); }
+  };
+  if (returnInvoice) return <SalesReturnPanel api={api} invoice={returnInvoice} orgId={orgId} userId={userId}
+    canRequest={canRequestReturn} canReview={canReviewReturn} canProcess={canProcessReturn}
+    onClose={() => setReturnInvoice(null)} />;
   if (checkout && preparedPricing) return <SalesCheckoutPanel api={api} draft={draft}
     pricing={preparedPricing} orgId={orgId} userId={userId} canRecordCard={canRecordCard} canCollect={canCollect}
     canPrint={canPrint} canResolvePrint={canResolvePrint}
@@ -132,6 +151,7 @@ export default function SalesDraftDetails({ draft, api, orgId, userId, onClose, 
       <SalesDraftSummary pricing={pricing} loading={pricingLoading} error={pricingError} onRetry={api?.pricingPreview ? () => setPricingRefresh(value => value + 1) : undefined} />
       {preparedPricing && <section className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100"><p role="status" className="font-semibold">Exact pricing prepared for draft v{preparedPricing.draft_version}</p><p>SCR {preparedPricing.gross_total_scr} · fingerprint <span className="break-all font-mono text-xs">{preparedPricing.pricing_fingerprint}</span></p><p className="mt-1 text-xs">This is an immutable future posting input. No invoice, payment, stock movement or collection authority was created.</p></section>}
       {preparedPricingError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{preparedPricingError}</p>}
+      {returnInvoiceError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{returnInvoiceError}</p>}
       {floorResult && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"><p role="status">Price-floor review requested. No sale, payment or stock movement was posted.</p><p className="mt-1 break-all font-mono text-xs">Case {floorResult.case_key}</p><button type="button" className={`${secondaryButtonClass} mt-2`} onClick={() => setFloorResult(null)}>Dismiss result</button></section>}
       {floorRequest && <form onSubmit={requestFloor} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30"><label className="block text-xs font-semibold">Reason for manager review<textarea autoFocus required maxLength="1000" className="mt-1 block min-h-[80px] w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" value={floorRequest.reason} onChange={e => setFloorRequest(current => ({ ...current, reason: e.target.value }))} /></label>{floorRequest.error && <p role="alert" className="mt-2 text-rose-700 dark:text-rose-300">{floorRequest.error}</p>}<div className="mt-2 flex gap-2"><button type="submit" disabled={floorRequest.saving} className={primaryButtonClass}>{floorRequest.saving ? 'Requesting…' : 'Request exact review'}</button><button type="button" disabled={floorRequest.saving} className={secondaryButtonClass} onClick={() => setFloorRequest(null)}>Cancel</button></div></form>}
       {prepareRequest && <form onSubmit={prepareExactPricing} className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm dark:border-sky-900 dark:bg-sky-950/30"><h3 className="font-semibold">Prepare immutable pricing</h3>{pricing?.requires_floor_approval && <label className="mt-2 block text-xs font-semibold">Approved price-floor case<input autoFocus required className="mt-1 block min-h-[44px] w-full rounded-lg border border-slate-300 bg-white p-2 font-mono text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" value={prepareRequest.floor_case_key} onChange={e => setPrepareRequest(current => ({ ...current, floor_case_key: e.target.value }))} placeholder="Paste the approved case UUID" /></label>}<p className="mt-2 text-xs">Preparation freezes these exact price and tax versions for future posting. It does not post the sale or consume an approval.</p>{prepareRequest.error && <p role="alert" className="mt-2 text-rose-700 dark:text-rose-300">{prepareRequest.error}</p>}<div className="mt-2 flex gap-2"><button type="submit" disabled={prepareRequest.saving} className={primaryButtonClass}>{prepareRequest.saving ? 'Preparing…' : 'Prepare exact pricing'}</button><button type="button" disabled={prepareRequest.saving} className={secondaryButtonClass} onClick={() => setPrepareRequest(null)}>Cancel</button></div></form>}
@@ -145,6 +165,7 @@ export default function SalesDraftDetails({ draft, api, orgId, userId, onClose, 
       {canRequestFloor && pricing?.requires_floor_approval && !floorRequest && !floorResult && <button type="button" className={secondaryButtonClass} onClick={() => setFloorRequest({ operation_key: operationKey(), reason: '', saving: false, error: '' })}>Request price-floor review</button>}
       {canPreparePricing && pricing && !preparedPricing && !prepareRequest && <button type="button" className={secondaryButtonClass} onClick={() => setPrepareRequest({ operation_key: operationKey(), floor_case_key: floorResult?.case_key || '', saving: false, error: '' })}>Prepare exact pricing</button>}
       {canPostSale && preparedPricing && <button type="button" className={primaryButtonClass} onClick={() => setCheckout(true)}>Continue to payment</button>}
+      {(canRequestReturn || canReviewReturn || canProcessReturn) && <button type="button" disabled={returnInvoiceLoading} className={secondaryButtonClass} onClick={openReturns}>{returnInvoiceLoading ? 'Opening returns…' : 'Returns & credit notes'}</button>}
     </footer>}
   </section>;
 }
