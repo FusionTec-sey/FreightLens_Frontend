@@ -1,5 +1,37 @@
 # FreightLens Frontend Architecture
 
+## Reviewed invoice returns and credit notes (2026-10-05)
+
+The existing posted-sale workspace now opens a contextual Returns & credit notes
+panel; it does not add another sale/cart system or top-level route. Separate
+Request_SaleReturn, Review_SaleReturn and Process_SaleReturn capabilities reveal
+only their actions, alongside the existing sale/customer/product/personal/financial
+read requirements. The panel consumes server-owned invoice-line and exact-handover
+eligibility, showing handed-over, previously accepted, pending and returnable
+quantities without calculating availability or money in the browser.
+
+The selected draft resolves its exact posted invoice through the read-only
+`posted-invoice` projection before opening returns. Return staff therefore do not
+need Post_Sale or access to posting options simply to inspect and request a return.
+
+Every claim identifies the returner, contact, reason, observed condition, invoice
+line and handover allocation. Manager review is mandatory. Processing displays the
+server's immutable original-term credit, invoice-debt application and surplus
+non-expiring customer credit separately. The UI offers no cash/card refund, credit
+redemption, serial or cross-store action, and states that physical returns enter
+quarantine rather than sellable stock.
+
+Claim and credit-note requests are written to a company/user/invoice-scoped local
+recovery record before transmission. Uncertain reloads recover the same operation
+and request body; changed conflicts lock the action until the stale record is
+explicitly discarded. The record contains no token, card data, price or credit
+amount and is removed after a confirmed response. Returner contact and reason are
+necessarily retained only while that exact uncertain claim needs recovery.
+
+Focused return/API/recovery and existing sale-detail/checkout/register tests pass.
+The production build succeeds with the repository's existing unrelated warnings;
+browser acceptance remains separate.
+
 ## Safe sales-draft copy provenance (2026-10-05)
 
 Copying a saved sales draft creates new document and line identities through the
