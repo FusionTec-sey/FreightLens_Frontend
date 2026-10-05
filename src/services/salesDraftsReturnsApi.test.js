@@ -5,6 +5,18 @@ jest.mock('axios', () => {
   const client = { get: jest.fn(), put: jest.fn(), post: jest.fn() };
   return { __esModule: true, default: { create: jest.fn(() => client), __client: client } };
 });
+
+test('looks up only the exact posted invoice reference without posting authority', () => {
+  const api = salesDraftsApi('synthetic-token', 17);
+  const signal = new AbortController().signal;
+  api.postedInvoiceReference('draft/key', 4, signal);
+  expect(mockClient.get).toHaveBeenCalledWith('/sales/drafts/draft%2Fkey/posted-invoice-reference', {
+    headers: { Authorization: 'Bearer synthetic-token', 'X-Active-Org': '17' },
+    params: { draft_version: 4 }, signal,
+  });
+  expect(mockClient.post).not.toHaveBeenCalled();
+  expect(mockClient.put).not.toHaveBeenCalled();
+});
 const mockClient = axios.__client;
 
 beforeEach(() => {

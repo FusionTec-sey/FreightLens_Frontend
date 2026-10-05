@@ -19,6 +19,7 @@ export function salesDraftsApi(token, orgId) {
     recordCardConfirmation: (attemptKey, confirmationKey, body, signal) => client.post(`/sales/posting-attempts/${encodeURIComponent(attemptKey)}/card-confirmations/${encodeURIComponent(confirmationKey)}`, body, { headers, signal }),
     finalizePostingAttempt: (key, body, signal) => client.post(`/sales/posting-attempts/${encodeURIComponent(key)}/finalize`, body, { headers, signal }),
     readInvoice: (key, signal) => client.get(`/sales/invoices/${encodeURIComponent(key)}`, { headers, signal }),
+    postedInvoiceReference: (key, draftVersion, signal) => client.get(`${SALES_DRAFTS_ROUTE}/${encodeURIComponent(key)}/posted-invoice-reference`, { headers, params: { draft_version: draftVersion }, signal }),
     postedInvoice: (key, draftVersion, signal) => client.get(`${SALES_DRAFTS_ROUTE}/${encodeURIComponent(key)}/posted-invoice`, { headers, params: { draft_version: draftVersion }, signal }),
     collectionOptions: (key, signal) => client.get(`/sales/invoices/${encodeURIComponent(key)}/collection-options`, { headers, signal }),
     createCollection: (key, body, signal) => client.put(`/sales/collections/${encodeURIComponent(key)}`, body, { headers, signal }),
