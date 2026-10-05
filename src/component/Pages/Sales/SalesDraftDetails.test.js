@@ -18,6 +18,13 @@ test('shows current branch label and saved revision attribution without inventin
   expect(screen.queryByText(/Assigned salesperson/)).not.toBeInTheDocument();
 });
 
+test('shows server-confirmed copy provenance on the saved draft', () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 2 };
+  render(<SalesDraftDetails draft={{ ...draft, source_reference }} onClose={jest.fn()} />);
+  expect(screen.getByText('Copied from — server-confirmed source')).toBeInTheDocument();
+  expect(screen.getByText(`${source_reference.document_key} v2`)).toBeInTheDocument();
+});
+
 test('inspection preserves exact units and does not expose unavailable write actions', () => {
   render(<SalesDraftDetails draft={draft} onClose={jest.fn()} />);
   expect(screen.getByText('2.5 BOX')).toBeInTheDocument();

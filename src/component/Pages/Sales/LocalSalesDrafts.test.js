@@ -28,3 +28,9 @@ test('list refresh is required after another tab changes the record', async () =
   fireEvent.click(screen.getByText('Refresh local drafts')); fireEvent.click(screen.getByText('Recover draft'));
   expect(recover.mock.calls[0][0].revision).toBe(2);
 });
+test('labels initial copy provenance as pending server recording', async () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 2 };
+  await writeRecovery('1:7', 'copy', 0, { ...snapshot, source_reference });
+  render(<LocalSalesDrafts orgId={1} userId={7} onRecover={jest.fn()} onClose={jest.fn()} />);
+  expect(screen.getByText(`Copy source to record: ${source_reference.document_key} v2`)).toBeInTheDocument();
+});

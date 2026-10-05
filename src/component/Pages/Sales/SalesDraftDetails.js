@@ -102,6 +102,7 @@ export default function SalesDraftDetails({ draft, api, onClose, onEdit, onCopy,
         <div><dt className="text-xs text-slate-500 dark:text-slate-400">This revision saved by</dt><dd>{draft.created_by ? `Staff reference ${draft.created_by}` : 'Staff reference unavailable'}</dd></div>
         <div><dt className="text-xs text-slate-500 dark:text-slate-400">Saved at</dt><dd>{draft.created_at ? <time dateTime={draft.created_at}>{new Date(draft.created_at).toLocaleString()}</time> : 'Save time unavailable'}</dd></div>
         <div className="sm:col-span-2"><dt className="text-xs text-slate-500 dark:text-slate-400">Exact draft reference</dt><dd className="break-all font-mono text-xs">{draft.document_key}</dd></div>
+        {draft.source_reference && <div className="sm:col-span-2"><dt className="text-xs text-slate-500 dark:text-slate-400">Copied from — server-confirmed source</dt><dd className="break-all font-mono text-xs">{draft.source_reference.document_key} v{draft.source_reference.version}</dd></div>}
       </dl>
       <section aria-label="Document status" className="grid grid-cols-2 gap-2 text-sm lg:grid-cols-4">
         <div className="rounded-lg bg-slate-50 p-2 dark:bg-slate-800"><p className="text-xs text-slate-500 dark:text-slate-400">Demand</p><p className="font-medium">Draft v{draft.version}</p></div>

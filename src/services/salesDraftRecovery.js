@@ -33,12 +33,19 @@ function draftFields(draft) {
 export function recoverySnapshot(value) {
   if (!Number.isSafeInteger(value.expected_version) || value.expected_version < 0) throw new Error('Invalid draft version.');
   const draft = draftFields(value.draft);
+  const source_reference = sourceReference(value.source_reference);
+  const pending_source_reference = value.pending ? sourceReference(value.pending.source_reference) : null;
+  const expected_pending_source = value.expected_version === 0 ? source_reference : null;
   const pending = value.pending ? { operation_key: text(value.pending.operation_key), expected_version: value.pending.expected_version,
-    draft: draftFields(value.pending.draft) } : null;
+    ...(pending_source_reference ? { source_reference: pending_source_reference } : {}), draft: draftFields(value.pending.draft) } : null;
   if (pending && (!pending.operation_key || pending.expected_version !== value.expected_version ||
-    JSON.stringify(pending.draft) !== JSON.stringify(draft))) throw new Error('Pending save does not match the recoverable draft.');
+    JSON.stringify(pending.draft) !== JSON.stringify(draft) ||
+    JSON.stringify(pending_source_reference) !== JSON.stringify(expected_pending_source) ||
+    (pending_source_reference && pending.expected_version !== 0))) {
+    throw new Error('Pending save does not match the recoverable draft.');
+  }
   return { expected_version: value.expected_version, draft, pending, conflict: Boolean(value.conflict),
-    source_reference: sourceReference(value.source_reference),
+    source_reference,
     units: draft.lines.map((line, index) => [...new Set([line.unit, ...(value.units?.[index] || [])])].filter(unit => text(unit)).slice(0, 17)) };
 }
 function decode(raw, scope, key) {

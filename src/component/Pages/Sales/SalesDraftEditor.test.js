@@ -110,21 +110,50 @@ test('route guard blocks running saves and preserves uncertain operation without
   expect(removeRecovery).not.toHaveBeenCalled();
 });
 
-test('copied draft keeps local provenance but sends only new demand intent', async () => {
+test('copied draft keeps exact provenance through the initial save and excludes historical effects', async () => {
   const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 3 };
   const copied = { ...initial, document_key: '22222222-2222-4222-8222-222222222222', version: 0,
     source_reference, lines: [{ ...initial.lines[0], line_key: '33333333-3333-4333-8333-333333333333',
       reserved_quantity: '2', approval_case: 'historical-case' }] };
   const api = { save: jest.fn().mockRejectedValue(new Error('connection lost')) };
   render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={copied} onSaved={jest.fn()} onClose={jest.fn()} />);
-  expect(screen.getByText(/source reference stays in local recovery only/)).toBeInTheDocument();
+  expect(screen.getByText(/exact source reference will be recorded with the initial save/)).toBeInTheDocument();
   await waitFor(() => expect(writeRecovery).toHaveBeenCalled());
   expect(writeRecovery.mock.calls.at(-1)[3].source_reference).toEqual(source_reference);
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText(/Save outcome is unconfirmed/);
   expect(api.save.mock.calls[0][0]).toBe(copied.document_key);
   expect(api.save.mock.calls[0][1].expected_version).toBe(0);
+  expect(api.save.mock.calls[0][1].source_reference).toEqual(source_reference);
   expect(api.save.mock.calls[0][1].draft.lines[0].line_key).toBe(copied.lines[0].line_key);
-  expect(JSON.stringify(api.save.mock.calls[0][1])).not.toMatch(/source_reference|reserved_quantity|approval_case/);
+  expect(JSON.stringify(api.save.mock.calls[0][1])).not.toMatch(/reserved_quantity|approval_case/);
   expect(writeRecovery.mock.calls.at(-1)[3].pending.operation_key).toBe('synthetic-operation');
+  expect(writeRecovery.mock.calls.at(-1)[3].pending.source_reference).toEqual(source_reference);
+});
+
+test('saved copied draft shows confirmed provenance without resending it on a later revision', async () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 3 };
+  const savedCopy = { ...initial, source_reference };
+  const api = { save: jest.fn().mockRejectedValue(new Error('connection lost')) };
+  render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={savedCopy} onSaved={jest.fn()} onClose={jest.fn()} />);
+  expect(screen.getByText(/server-confirmed source reference/)).toBeInTheDocument();
+  expect(writeRecovery).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '3' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText(/Save outcome is unconfirmed/);
+  expect(api.save.mock.calls[0][1]).not.toHaveProperty('source_reference');
+});
+
+test('stale copied source stays editable so source data can be reselected', async () => {
+  const source_reference = { document_key: '11111111-1111-4111-8111-111111111111', version: 3 };
+  const copied = { ...initial, document_key: '22222222-2222-4222-8222-222222222222', version: 0, source_reference };
+  const api = { save: jest.fn().mockRejectedValue({ response: { status: 409 } }) };
+  render(<SalesDraftEditor api={api} orgId={1} userId={10} initial={copied} onSaved={jest.fn()} onClose={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('new draft is still editable');
+  expect(screen.getByRole('button', { name: /Customer:/ })).toBeEnabled();
+  expect(screen.getByRole('button', { name: /Store:/ })).toBeEnabled();
+  expect(screen.getByLabelText('Quantity 1')).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+  expect(screen.getByText(/original copy reference will be retained/)).toBeInTheDocument();
 });

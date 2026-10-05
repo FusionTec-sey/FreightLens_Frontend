@@ -21,11 +21,13 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
     source_reference: recovered.source_reference,
     lines: recovered.draft.lines.map((line, index) => ({ ...line, units: recovered.units[index] })) };
   const sourceReference = initial?.source_reference || null;
+  const expectedVersion = initial?.version || 0;
+  const isNewCopy = Boolean(sourceReference && expectedVersion === 0);
   const [key] = useState(() => initial?.document_key || window.crypto.randomUUID());
   const [customer, setCustomer] = useState(initial?.customer_key ? { customerKey: initial.customer_key, version: initial.expected_customer_version, profile: { name: initial.customer_name } } : null);
   const [branch, setBranch] = useState(initial?.branch_id ? { id: initial.branch_id, name: initial.branch_name } : null);
   const [lines, setLines] = useState(() => (initial?.lines || []).map(line => ({ ...line, name: line.product_name, units: line.units || [...new Set([line.unit, line.base_unit])] })));
-  const [picker, setPicker] = useState(null); const [dirty, setDirty] = useState(Boolean(recovery || sourceReference));
+  const [picker, setPicker] = useState(null); const [dirty, setDirty] = useState(Boolean(recovery || isNewCopy));
   const [mobilePane, setMobilePane] = useState('cart');
   const [showValidation, setShowValidation] = useState(false);
   const [focusRequest, setFocusRequest] = useState(null);
@@ -39,7 +41,6 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
   const localRevision = useRef(recovery?.revision || 0), localQueue = useRef(Promise.resolve()), finished = useRef(false);
   const controller = useRef(null); const alive = useRef(true); const inFlight = useRef(false);
   const { payloadFor } = useOperationIntent();
-  const expectedVersion = initial?.version || 0;
   function snapshot(pendingSave = pending) {
     return { expected_version: expectedVersion, conflict, pending: pendingSave, source_reference: sourceReference,
       units: lines.map(line => line.units), draft: {
@@ -129,7 +130,8 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
     }
     let body;
     try {
-      body = pending || payloadFor(`${orgId}:${key}`, { expected_version: initial?.version || 0, draft: {
+      body = pending || payloadFor(`${orgId}:${key}`, { expected_version: expectedVersion,
+        ...(isNewCopy ? { source_reference: sourceReference } : {}), draft: {
         customer_key: customer.customerKey, expected_customer_version: customer.version, branch_id: branch.id,
         lines: lines.map(line => ({ line_key: line.line_key, product_id: line.product_id,
           expected_policy_version: line.expected_policy_version, quantity: line.quantity, unit: line.unit })),
@@ -154,6 +156,10 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
       }
       const status = failure.response?.status;
       if (status === 422 || status === 404) { setPending(null); setError('The draft could not be saved. Check source selections, units and quantities; your entries are retained.'); }
+      else if (status === 409 && isNewCopy) {
+        setPending(null); setConflict(false);
+        setError('The copied source or one of its selected customer, store or product versions changed. Your new draft is still editable: reselect the affected source data, then save again. The original copy reference will be retained.');
+      }
       else if (status === 409) { setPending(null); setConflict(true); setError('The saved draft or source policy changed. Your entries are retained; close only after reviewing them, then reopen the latest version.'); }
       else setError('Save outcome is unconfirmed. Entries are locked; retry the same request to avoid duplicate saves.');
     } finally { inFlight.current = false; if (alive.current) setBusy(false); }
@@ -194,7 +200,7 @@ export default function SalesDraftEditor({ api, inventoryApi, orgId, userId, ini
     </>} />
     <div className="sales-editor-body">
     {sourceReference && <p role="status" className="shrink-0 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-      New draft copied from {sourceReference.document_key} v{sourceReference.version}. This source reference stays in local recovery only; the current server save does not record copy provenance. Customer, store, product policies and units are revalidated on save. No payment, reservation, approval or collection state was copied.
+      {isNewCopy ? 'New draft copied' : 'This saved draft was copied'} from {sourceReference.document_key} v{sourceReference.version}. {isNewCopy ? 'The exact source reference will be recorded with the initial save and retained in local recovery until confirmed.' : 'The server-confirmed source reference is shown for traceability and is not resubmitted on later revisions.'} Customer, store, product policies and units are revalidated on save. No payment, reservation, approval or collection state was copied.
     </p>}
     {error && <p role="alert" className="shrink-0 text-sm">{error}</p>}
     <p role="status" className="shrink-0 text-sm">{savedReceipt ? `Server confirmed draft version ${savedReceipt.version}. Only local recovery cleanup remains; no money or stock was posted.` : localSaving ? 'Saving local recovery…' : localError ? 'Local recovery unavailable. Keep this editor open.' : dirty || pending ? 'Recovery saved on this browser for this company and user. It is not a confirmed sale.' : 'Edits will be retained locally without customer names, contacts or payment details.'}</p>

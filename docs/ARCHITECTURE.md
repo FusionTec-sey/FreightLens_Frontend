@@ -1,5 +1,22 @@
 # FreightLens Frontend Architecture
 
+## Safe sales-draft copy provenance (2026-10-05)
+
+Copying a saved sales draft creates new document and line identities through the
+existing draft editor. The exact source document/version is now included only in
+the version-zero save and is retained with the stable pending request in scoped
+local recovery. Later revisions display server-confirmed provenance but do not
+resubmit it. Payments, reservations, approvals and collection state remain
+excluded; current customer, branch, product-policy and unit references are still
+revalidated by the normal save path.
+
+A rejected version-zero copy remains editable so staff can reselect current source
+data without losing the original provenance reference. Confirmed provenance is
+visible in saved draft details, while local drafts distinguish a source awaiting
+server recording from an already recorded source. Thirty-one focused copy/editor/
+recovery/detail checks, twelve register checks and the production build pass with
+the repository's existing unrelated warnings. Browser acceptance remains separate.
+
 ## Payment and receiving-account configuration (2026-10-05)
 
 Sales > Payment configuration exposes the existing versioned T12A API as two
