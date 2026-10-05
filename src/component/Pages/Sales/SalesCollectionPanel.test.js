@@ -49,6 +49,39 @@ test('records an explicit partial handover and keeps payment separate', async ()
   expect(await screen.findByText('Handover recorded once')).toBeInTheDocument();
 });
 
+test('requires explicit serial selection and posts the derived whole-unit quantity', async () => {
+  const api = client();
+  api.collectionOptions.mockResolvedValue({ data: { ...options, reservations: [{
+    ...options.reservations[0], tracking_policy: 'SERIAL', remaining: '2.000000',
+    serials: [
+      { serial_key: 'serial-key-1', serial_number: 'SN-0001' },
+      { serial_key: 'serial-key-2', serial_number: 'SN-0002' },
+    ],
+  }] } });
+  api.invoiceCollections.mockResolvedValue({ data: [{
+    collection_key: 'previous', collector_name: 'Earlier collector',
+    collector_contact: '2 500 000', collected_at: '2026-10-05T08:00:00Z',
+    allocations: [{ serials: [{ serial_key: 'past-key', serial_number: 'SN-PAST' }] }],
+  }] });
+  render(<SalesCollectionPanel api={api} invoice={{ invoice_key: 'invoice-key', invoice_number: 'INV-1' }} customerName="Sample customer" onClose={jest.fn()} />);
+
+  expect(await screen.findByText('SN-0001')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Handover quantity at Main floor')).not.toBeInTheDocument();
+  expect(screen.getByText('Serials: SN-PAST')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Collector name'), { target: { value: 'Jane Collector' } });
+  fireEvent.change(screen.getByLabelText('Collector contact'), { target: { value: '2 510 000' } });
+  fireEvent.click(screen.getByLabelText('Serial SN-0001 at Main floor'));
+  expect(screen.getByText('Selected 1 of 2')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm physical handover' }));
+
+  await waitFor(() => expect(api.createCollection).toHaveBeenCalledTimes(1));
+  expect(api.createCollection.mock.calls[0][1].allocations[0]).toEqual({
+    line_key: 'line-key', reservation_key: 'reservation-key',
+    quantity: '1', expected_stock_version: 7,
+    serial_keys: ['serial-key-1'],
+  });
+});
+
 test('does not offer another handover after authoritative completion', async () => {
   const api = client();
   api.collectionOptions.mockResolvedValue({ data: { ...options,
