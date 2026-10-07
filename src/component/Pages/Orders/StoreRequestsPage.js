@@ -8,6 +8,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import { toast } from "react-toastify";
 import PaginationToolbar from "../../UI/UXComponent/PaginationToolbar";
+import ProductCatalogSelector from "../../UI/UXComponent/ProductCatalogSelector";
 
 export default function StoreRequestsPage() {
   const { theme, isDark } = useTheme();
@@ -33,7 +34,7 @@ export default function StoreRequestsPage() {
     store_location: "",
     required_date: "",
     notes: "",
-    items: [{ description: "", quantity_requested: 1, unit: "PCS", notes: "" }]
+    items: [{ product_id: null, item_code: "", description: "", quantity_requested: 1, unit: "PCS", notes: "" }]
   });
 
   const fetchRequests = useCallback(async () => {
@@ -83,17 +84,38 @@ export default function StoreRequestsPage() {
   const handleAddItem = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { description: "", quantity_requested: 1, unit: "PCS", notes: "" }]
+      items: [...formData.items, { product_id: null, item_code: "", description: "", quantity_requested: 1, unit: "PCS", notes: "" }]
+    });
+  };
+
+  const handleAddCatalogProduct = (product) => {
+    if (!product?.id) return;
+    const item = {
+      product_id: product.id,
+      item_code: product.sku || product.code || "",
+      description: product.name || "",
+      quantity_requested: 1,
+      unit: product.unit || "PCS",
+      image_url: product.image_url || null,
+      notes: "",
+    };
+    setFormData((prev) => {
+      const blankIndex = prev.items.findIndex((existing) => !existing.product_id && !existing.description.trim());
+      if (blankIndex < 0) return { ...prev, items: [...prev.items, item] };
+      const items = [...prev.items];
+      items[blankIndex] = item;
+      return { ...prev, items };
     });
   };
 
   const handleRemoveItem = (index) => {
     const newItems = formData.items.filter((_, i) => i !== index);
-    setFormData({ ...formData, items: newItems.length ? newItems : [{ description: "", quantity_requested: 1, unit: "PCS", notes: "" }] });
+    setFormData({ ...formData, items: newItems.length ? newItems : [{ product_id: null, item_code: "", description: "", quantity_requested: 1, unit: "PCS", notes: "" }] });
   };
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items];
+    if (newItems[index]?.product_id && ["item_code", "description", "unit"].includes(field)) return;
     newItems[index][field] = value;
     setFormData({ ...formData, items: newItems });
   };
@@ -116,7 +138,7 @@ export default function StoreRequestsPage() {
         store_location: "",
         required_date: "",
         notes: "",
-        items: [{ description: "", quantity_requested: 1, unit: "PCS", notes: "" }]
+        items: [{ product_id: null, item_code: "", description: "", quantity_requested: 1, unit: "PCS", notes: "" }]
       });
       fetchRequests();
     } catch (err) {
@@ -372,6 +394,16 @@ export default function StoreRequestsPage() {
 
               {/* Items List */}
               <div className="mt-6">
+                <div className="mb-3 rounded-lg border border-blue-100 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/20 p-3">
+                  <label className="block text-xs font-semibold uppercase text-blue-700 dark:text-blue-300 mb-2">Select from Product Catalog</label>
+                  <ProductCatalogSelector
+                    products={[]}
+                    onSelectProduct={handleAddCatalogProduct}
+                    placeholder="Search by SKU or product name..."
+                    isRFQ
+                  />
+                  <p className="mt-1.5 text-[11px] text-gray-500">Selected catalogue identity is fixed; quantity remains editable.</p>
+                </div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-bold uppercase text-gray-500 tracking-wider">Required Items</h3>
                   <button
@@ -386,14 +418,19 @@ export default function StoreRequestsPage() {
                 <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                   {formData.items.map((it, idx) => (
                     <div key={idx} className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700/60 flex items-center gap-3">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Item Description / Specs"
-                        value={it.description}
-                        onChange={(e) => handleItemChange(idx, "description", e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none"
-                      />
+                      <div className="flex-1 min-w-0">
+                        {it.item_code && <div className="mb-1 text-[10px] font-mono text-gray-500">SKU / Code: {it.item_code}</div>}
+                        <input
+                          type="text"
+                          required
+                          readOnly={Boolean(it.product_id)}
+                          title={it.product_id ? "Catalogue product description is fixed to the selected product" : undefined}
+                          placeholder="Item Description / Specs"
+                          value={it.description}
+                          onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                          className={`w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none read-only:bg-gray-100 read-only:cursor-not-allowed dark:read-only:bg-gray-700 ${it.product_id ? "text-gray-600 dark:text-gray-300" : ""}`}
+                        />
+                      </div>
                       <input
                         type="number"
                         min="0.1"
@@ -407,8 +444,10 @@ export default function StoreRequestsPage() {
                         type="text"
                         placeholder="Unit"
                         value={it.unit}
+                        readOnly={Boolean(it.product_id)}
+                        title={it.product_id ? "Catalogue product unit is fixed to the selected product" : undefined}
                         onChange={(e) => handleItemChange(idx, "unit", e.target.value)}
-                        className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center outline-none"
+                        className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-center outline-none read-only:bg-gray-100 read-only:cursor-not-allowed dark:read-only:bg-gray-700"
                       />
                       <button
                         type="button"

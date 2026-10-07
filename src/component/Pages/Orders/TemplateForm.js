@@ -288,7 +288,7 @@ export default function TemplateForm({ templateData, existingTags = [], onClose,
   const handleDuplicateItem = (originalIndex) => {
     const itemToClone = formData.items[originalIndex];
     if (!itemToClone) return;
-    const cloned = { ...itemToClone, product_id: null };
+    const cloned = { ...itemToClone };
     const updated = [...formData.items];
     updated.splice(originalIndex + 1, 0, cloned);
     setFormData((prev) => ({ ...prev, items: updated }));
@@ -302,6 +302,7 @@ export default function TemplateForm({ templateData, existingTags = [], onClose,
   };
 
   const handleItemFieldChange = (index, field, val) => {
+    if (formData.items[index]?.product_id && ["item_code", "description", "unit"].includes(field)) return;
     const updated = [...formData.items];
     updated[index] = { ...updated[index], [field]: val };
     setFormData((prev) => ({ ...prev, items: updated }));
@@ -1049,10 +1050,12 @@ export default function TemplateForm({ templateData, existingTags = [], onClose,
                           type="text"
                           placeholder="e.g. TILE-6060-GR"
                           value={item.item_code}
+                          readOnly={Boolean(item.product_id)}
+                          title={item.product_id ? "Catalog product code is fixed to the selected product" : undefined}
                           onChange={(e) =>
                             handleItemFieldChange(originalIndex, "item_code", e.target.value)
                           }
-                          className={`w-full px-2.5 py-1 text-xs rounded-md border outline-hidden transition font-mono ${
+                          className={`w-full px-2.5 py-1 text-xs rounded-md border outline-hidden transition font-mono read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${
                             isDark
                               ? "bg-slate-950/60 border-slate-700/80 focus:border-blue-500 text-slate-100"
                               : "bg-white border-slate-200 focus:border-blue-500 text-slate-900"
@@ -1067,10 +1070,12 @@ export default function TemplateForm({ templateData, existingTags = [], onClose,
                           required
                           placeholder="Item Description / Product Specification *"
                           value={item.description}
+                          readOnly={Boolean(item.product_id)}
+                          title={item.product_id ? "Catalog product description is fixed to the selected product" : undefined}
                           onChange={(e) =>
                             handleItemFieldChange(originalIndex, "description", e.target.value)
                           }
-                          className={`w-full px-2.5 py-1 text-xs rounded-md border outline-hidden transition ${
+                          className={`w-full px-2.5 py-1 text-xs rounded-md border outline-hidden transition read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${
                             isDark
                               ? "bg-slate-950/60 border-slate-700/80 focus:border-blue-500 text-slate-100"
                               : "bg-white border-slate-200 focus:border-blue-500 text-slate-900"
@@ -1103,10 +1108,12 @@ export default function TemplateForm({ templateData, existingTags = [], onClose,
                           type="text"
                           placeholder="PCS, BOX..."
                           value={item.unit}
+                          readOnly={Boolean(item.product_id)}
+                          title={item.product_id ? "Catalog product unit is fixed to the selected product" : undefined}
                           onChange={(e) =>
                             handleItemFieldChange(originalIndex, "unit", e.target.value)
                           }
-                          className={`w-full px-2.5 py-1 text-xs rounded-md border outline-hidden uppercase transition ${
+                          className={`w-full px-2.5 py-1 text-xs rounded-md border outline-hidden uppercase transition read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${
                             isDark
                               ? "bg-slate-950/60 border-slate-700/80 focus:border-blue-500 text-slate-100"
                               : "bg-white border-slate-200 focus:border-blue-500 text-slate-900"

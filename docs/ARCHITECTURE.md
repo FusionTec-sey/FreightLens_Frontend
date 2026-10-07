@@ -64,3 +64,17 @@ The current build passes with pre-existing ESLint warnings. Warning cleanup is t
 Sustained-use UI changes also follow `docs/FRONTEND_ERGONOMICS.md`. Its evidence boundary prevents unsupported medical claims while adding zoom, readability, workflow-continuity, and layout-stability checks.
 
 Supplier master data displays the backend's explicit scope. Root users can choose shared or tenant-specific when creating/editing a supplier; tenant users can view shared suppliers but cannot mutate them.
+
+## Procurement Catalogue Identity
+
+Sourcing/RFQ and purchase-order lines (`OrderEntryPage`), order-template lines, and
+Store Request requisition lines can retain a `product_id` from the product catalogue.
+When that link exists, the SKU/code, product description/name, and catalogue unit
+are read-only; quantity, price (where applicable), and notes remain editable.
+Manually entered lines without a `product_id` remain editable. Duplicating a
+catalogue-linked template line preserves its product link and read-only identity.
+
+Store Request items persist the optional product link. The API validates that the
+selected product is active, not soft-deleted, and shared or visible to the current
+organisation, then derives the stored code, name, and unit from that product rather
+than trusting client text. Historical free-text request items remain unlinked.

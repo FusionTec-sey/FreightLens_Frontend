@@ -1145,6 +1145,7 @@ export default function OrderEntryPage({
 
   const handleItemFieldChange = (index, field, val) => {
     let updated = [...(formData.items || [])];
+    if (updated[index]?.product_id && ["item_code", "description", "unit"].includes(field)) return;
     updated[index] = { ...updated[index], [field]: val };
 
     // Auto-calculate line total
@@ -2456,8 +2457,10 @@ export default function OrderEntryPage({
                               placeholder="SKU-001"
                               value={it.item_code}
                               disabled={!canEdit}
+                              readOnly={Boolean(it.product_id)}
+                              title={it.product_id ? "Catalog product code is fixed to the selected product" : undefined}
                               onChange={(e) => handleItemFieldChange(idx, "item_code", e.target.value)}
-                              className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal font-mono transition disabled:opacity-60 disabled:cursor-not-allowed ${isDark
+                              className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal font-mono transition disabled:opacity-60 disabled:cursor-not-allowed read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${isDark
                                   ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                   : "bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 }`}
@@ -2470,8 +2473,10 @@ export default function OrderEntryPage({
                             placeholder="Item name / specification *"
                             value={it.description}
                             disabled={!canEdit}
+                            readOnly={Boolean(it.product_id)}
+                            title={it.product_id ? "Catalog product description is fixed to the selected product" : undefined}
                             onChange={(e) => handleItemFieldChange(idx, "description", e.target.value)}
-                            className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal transition disabled:opacity-60 disabled:cursor-not-allowed ${isDark
+                            className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal transition disabled:opacity-60 disabled:cursor-not-allowed read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${isDark
                                 ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 : "bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                               }`}
@@ -2497,8 +2502,10 @@ export default function OrderEntryPage({
                             placeholder="PCS"
                             value={it.unit}
                             disabled={!canEdit}
+                            readOnly={Boolean(it.product_id)}
+                            title={it.product_id ? "Catalog product unit is fixed to the selected product" : undefined}
                             onChange={(e) => handleItemFieldChange(idx, "unit", e.target.value)}
-                            className={`w-full h-[24px] px-1 py-0 border rounded text-[11px] font-normal text-center uppercase transition disabled:opacity-60 disabled:cursor-not-allowed ${isDark
+                            className={`w-full h-[24px] px-1 py-0 border rounded text-[11px] font-normal text-center uppercase transition disabled:opacity-60 disabled:cursor-not-allowed read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${isDark
                                 ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 : "bg-white border-slate-200 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                               }`}
