@@ -32,7 +32,7 @@ export default function BillOfLanding() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { confirm } = useConfirm();
-  const { permissions, logout, isRoot } = useAuth();
+  const { permissions, logout, isRoot, selectedOrgId } = useAuth();
 
   // Primary Data State
   const [rows, setRows] = useState([]);
@@ -79,6 +79,7 @@ export default function BillOfLanding() {
           params,
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
+            ...(selectedOrgId ? { 'X-Active-Org': selectedOrgId.toString() } : {}),
             skip_zrok_interstitial: "true"
           }
         }
@@ -103,7 +104,7 @@ export default function BillOfLanding() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize, searchQuery, selectedConsigneeFilter, logout]);
+  }, [page, pageSize, searchQuery, selectedConsigneeFilter, selectedOrgId, logout]);
 
   useEffect(() => {
     fetchData();
