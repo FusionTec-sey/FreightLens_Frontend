@@ -10,9 +10,13 @@ const baseURL = `${process.env.REACT_APP_NETWORK}/navigation`;
  *
  * Visibility only: every node still passes PrivateRoute, and the API enforces
  * its own permissions regardless of what the sidebar shows.
+ *
+ * Takes an axios config so the caller can supply its own auth headers. The
+ * sidebar loads before AuthContext has registered its interceptors, so relying
+ * on them would send the first request of a page load unauthenticated.
  */
-export const fetchMyMenu = async () => {
-  const { data } = await axios.get(`${baseURL}/my-menu`);
+export const fetchMyMenu = async (config = {}) => {
+  const { data } = await axios.get(`${baseURL}/my-menu`, config);
   return data;
 };
 

@@ -10,6 +10,12 @@ import { fetchMyMenu } from "../services/navigationApi";
  * PrivateRoute still guards every route and the API still checks permissions,
  * so an empty or stale menu can never grant access.
  *
+ * The request carries its own Authorization header rather than relying on the
+ * axios interceptors. React runs a child's effects before its parent's, so this
+ * hook fires before AuthProvider has registered them: on a page reload the first
+ * request went out unauthenticated, the menu showed "could not be loaded", and
+ * Retry then worked because by that point the interceptors existed.
+ *
  * Returns { menu, isDefault, loading, error, reload }.
  * `isDefault` is true while no admin has arranged a menu and the tree came from
  * the page registry.
@@ -33,8 +39,20 @@ export const useAppMenu = () => {
     requestRef.current = requestId;
     setLoading(true);
     setError(null);
+
+    const headers = { Authorization: `Bearer ${token}` };
+    if (selectedOrgId) headers["X-Active-Org"] = String(selectedOrgId);
+
     try {
-      const data = await fetchMyMenu();
+      let data;
+      try {
+        data = await fetchMyMenu({ headers });
+      } catch (err) {
+        // A stored token that expired during the reload is refreshed by the
+        // interceptors, which are registered by now, so one retry resolves it.
+        if (err?.response?.status === 401) data = await fetchMyMenu();
+        else throw err;
+      }
       // Ignore a response that an org switch has already superseded.
       if (requestRef.current !== requestId) return;
       setMenu(Array.isArray(data?.menu) ? data.menu : []);
@@ -46,12 +64,12 @@ export const useAppMenu = () => {
     } finally {
       if (requestRef.current === requestId) setLoading(false);
     }
-  }, [token]);
+  }, [token, selectedOrgId]);
 
   // Reload on sign-in, sign-out and organisation switch.
   useEffect(() => {
     load();
-  }, [load, selectedOrgId]);
+  }, [load]);
 
   return { menu, isDefault, loading, error, reload: load };
 };
