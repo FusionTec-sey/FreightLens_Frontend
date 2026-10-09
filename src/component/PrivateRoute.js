@@ -1,13 +1,15 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { deniedRedirect, holds } from "../utils/accessRedirect";
 
 const PrivateRoute = ({
-  children,                   
+  children,
   requiredPermissions = [],
   requiredModules = [],
 }) => {
   const { token, permissions = [], isSuperAdmin, modules = [] } = useAuth();
+  const location = useLocation();
 
   if (!token) {
     return <Navigate to="/" replace />;
@@ -18,35 +20,22 @@ const PrivateRoute = ({
     return children;
   }
 
+
   // Check required module subscription
   if (requiredModules.length > 0) {
     const hasModule = requiredModules.some((m) => (modules || []).includes(m));
     if (!hasModule) {
-      return <Navigate to="/unauthorized" replace />;
+      return <Navigate to={deniedRedirect(permissions, location.pathname)} replace />;
     }
   }
 
   // Check required permissions (including Edit/Add/Delete granting View access)
   const hasPermission =
     requiredPermissions.length === 0 ||
-    requiredPermissions.some((perm) => {
-      if (permissions.includes(perm)) return true;
-      if (perm.startsWith("View_")) {
-        const suffix = perm.slice(5);
-        if (
-          permissions.includes(`Edit_${suffix}`) ||
-          permissions.includes(`Add_${suffix}`) ||
-          permissions.includes(`Delete_${suffix}`) ||
-          permissions.includes(suffix)
-        ) {
-          return true;
-        }
-      }
-      return false;
-    });
+    requiredPermissions.some((perm) => holds(permissions, perm));
 
   if (!hasPermission) {
-    return <Navigate to="/unauthorized" replace />;
+    return <Navigate to={deniedRedirect(permissions, location.pathname)} replace />;
   }
 
   return children;

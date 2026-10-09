@@ -136,9 +136,9 @@ function Sidebar({ onLinkClick }) {
     </div>
   );
 
-  const renderNavLink = ({ to, icon, label, isCurrentActive, locked, key }) => (
+  const renderNavLink = ({ to, icon, label, isCurrentActive, locked, permissionCodes, key }) => (
     <Link
-      to={locked ? `/unauthorized` : to}
+      to={locked ? `/unauthorized?need=${(permissionCodes || []).join(",")}` : to}
       key={key}
       onClick={onLinkClick}
       title={
@@ -246,9 +246,13 @@ function Sidebar({ onLinkClick }) {
     );
   };
 
-  const renderSubLink = ({ to, label, isCurrentActive, locked, key }) => (
+  const renderSubLink = ({ to, label, isCurrentActive, locked, permissionCodes, icon, key }) => {
+    // Show the icon the designer chose. Items with none keep the dot, which is
+    // what this level looked like before icons could be set.
+    const SubIcon = icon ? resolveMenuIcon(icon) : null;
+    return (
     <Link
-      to={locked ? "/unauthorized" : to}
+      to={locked ? `/unauthorized?need=${(permissionCodes || []).join(",")}` : to}
       key={key}
       onClick={onLinkClick}
       aria-current={isCurrentActive ? "page" : undefined}
@@ -261,17 +265,29 @@ function Sidebar({ onLinkClick }) {
           : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 font-medium"
       }`}
     >
-      <span
-        className={`w-1.5 h-1.5 rounded-full mr-2 transition-all ${
-          isCurrentActive
-            ? "bg-indigo-600 dark:bg-indigo-400 scale-125"
-            : "bg-slate-300 dark:bg-slate-600"
-        }`}
-      />
+      {SubIcon ? (
+        <SubIcon
+          size={14}
+          className={`mr-2 flex-shrink-0 ${
+            isCurrentActive
+              ? "text-indigo-600 dark:text-indigo-400"
+              : "text-slate-400 dark:text-slate-500"
+          }`}
+        />
+      ) : (
+        <span
+          className={`w-1.5 h-1.5 rounded-full mr-2 transition-all ${
+            isCurrentActive
+              ? "bg-indigo-600 dark:bg-indigo-400 scale-125"
+              : "bg-slate-300 dark:bg-slate-600"
+          }`}
+        />
+      )}
       <span className="truncate">{label}</span>
       {locked && <Lock size={11} className="ml-auto flex-shrink-0" />}
-    </Link>
-  );
+      </Link>
+    );
+  };
 
   // ── Menu tree -> sidebar ────────────────────────────────────────────────────
 
@@ -283,6 +299,8 @@ function Sidebar({ onLinkClick }) {
       label: node.label,
       isCurrentActive: isActive(node.route),
       locked: Boolean(node.locked),
+      permissionCodes: node.permission_codes,
+      icon: node.icon,
     };
     return asSubLink
       ? renderSubLink(common)
