@@ -54,7 +54,8 @@ export default function ReportTemplateEditorPage() {
   const [copiedKey, setCopiedKey] = useState(null);
 
   // Preview & Validation states
-  const [previewHtml, setPreviewHtml] = useState("");
+  // The preview is the rendered PDF, held as a blob: URL this page owns.
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewEntityId, setPreviewEntityId] = useState("");
   const [validationResult, setValidationResult] = useState(null);
@@ -260,10 +261,19 @@ export default function ReportTemplateEditorPage() {
           entity_id: previewEntityId.trim() || 0,
           page_size: pageSize,
           orientation,
+          // The real thing, through the same renderer that prints it, so the
+          // editor stops approximating paged output with screen HTML.
+          format: "pdf",
         },
-        { headers: getHeaders() }
+        { headers: getHeaders(), responseType: "blob" }
       );
-      setPreviewHtml(res.data?.html || "");
+      const url = window.URL.createObjectURL(
+        new Blob([res.data], { type: "application/pdf" })
+      );
+      setPreviewUrl((previous) => {
+        if (previous) window.URL.revokeObjectURL(previous);
+        return url;
+      });
     } catch (err) {
       console.error("Preview failed:", err);
       toast.error(await errorText(err, "Preview compilation failed."));
@@ -279,6 +289,14 @@ export default function ReportTemplateEditorPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingTemplate]);
+
+  // Release the blob when the editor closes; each new render releases the last.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Page size and orientation change the page itself, so the preview is stale
   // the moment either does. Re-render rather than wait for a manual refresh.
@@ -809,7 +827,7 @@ export default function ReportTemplateEditorPage() {
                 <Loader2 size={28} className="animate-spin text-indigo-500" />
                 <p className="text-xs">Compiling document preview...</p>
               </div>
-            ) : previewHtml ? (
+            ) : previewUrl ? (
               <div
                 className="w-full h-full bg-white shadow-xl rounded-lg overflow-hidden border border-slate-300 dark:border-slate-800"
                 style={{
@@ -822,8 +840,7 @@ export default function ReportTemplateEditorPage() {
                 <iframe
                   ref={iframeRef}
                   title="Live Preview"
-                  sandbox=""
-                  srcDoc={previewHtml}
+                  src={previewUrl}
                   className="w-full h-full border-none bg-white"
                 />
               </div>
