@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useAuth } from '../../../context/AuthContext';
 
 // Permissions that are basic operational requirements and should NOT clutter the role configuration UI.
 // They are automatically granted behind the scenes whenever container / BL access is enabled.
@@ -178,10 +179,10 @@ const PERMISSION_SECTIONS = [
     {
         id: 'administration',
         title: 'System Administration & Security',
-        description: 'User access accounts, role security configuration, reference data, and settings',
+        description: 'User access accounts, role security configuration, navigation menu design, reference data, and settings',
         icon: SettingsIcon,
         badgeColor: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
-        match: (n) => /User|Role|Setting|RefData/i.test(n)
+        match: (n) => /User|Role|Setting|RefData|Menu/i.test(n)
     },
 ];
 
@@ -367,6 +368,7 @@ function getCascadedPermissions(permName, allPermissions) {
 }
 
 function Setting({ currentUser }) {
+    const { isSuperAdmin } = useAuth();
 
     const [organisations, setOrganisations] = useState([]);
     const [roles, setRoles] = useState([]);
@@ -825,7 +827,8 @@ function Setting({ currentUser }) {
 
             const payload = {
                 name: newRoleName.trim(),
-                permissions: finalPermissions
+                permissions: finalPermissions,
+                ...(isSuperAdmin ? { org_id: null } : {})
             };
 
             if (editingRoleId) {
@@ -1396,7 +1399,13 @@ function Setting({ currentUser }) {
                                     className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400"
                                     placeholder="e.g. Sourcing Specialist, Warehouse Officer, Auditor"
                                 />
+                                {isSuperAdmin && (
+                                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                        Roles are shared across organisations. Choose organisation access when assigning the role to a user.
+                                    </p>
+                                )}
                             </div>
+
 
                             {/* Permissions Categorized Container */}
                             <div className="space-y-3">

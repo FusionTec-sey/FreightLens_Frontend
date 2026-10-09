@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Sidebar from './MenuPanel/Menu';
+import OrgSwitcher from './UI/OrgSwitcher';
 import ContainerEntry from './Pages/DataEntry/ConatinerEntry';
 import CompleteContainer from './Pages/DataEntry/CompleteContainers.js';
 import LoginPage from './Pages/Login/Login';
@@ -19,6 +20,8 @@ import BillOfLandingInfo from "./Pages/BillOfLanding/BillOfLandingInfo.js";
 import Logistics from './Pages/Setting/Logistics';
 import ReferenceData from './Pages/Setting/ReferenceData';
 import AdminOverview from "./Pages/Admin/AdminOverview.js";
+import MenuListPage from "./Pages/Admin/MenuDesigner/MenuListPage.js";
+import MenuDesignerPage from "./Pages/Admin/MenuDesigner/MenuDesignerPage.js";
 
 // Orders and Procurement Modules
 import OrdersPage from "./Pages/Orders/OrdersPage.js";
@@ -99,16 +102,17 @@ export default function MainPage() {
 
       {/* Main Content */}
       <main className={`flex-1 flex flex-col`} style={{ height: '100vh', overflow: 'hidden' }}>
-        {/* Mobile-only toggle header */}
+        {/* Active organisation and mobile menu */}
         {!isLoginPage && (
-          <header className={`md:hidden px-4 py-2.5 border-b flex items-center justify-between z-40 ${theme.background} ${theme.border}`}>
+          <header className={`px-4 py-2.5 border-b flex items-center justify-between z-40 ${theme.background} ${theme.border}`}>
             <button
-              className={`h-8 w-8 flex items-center justify-center rounded-md border ${theme.border} ${theme.text}`}
+              className={`md:hidden h-8 w-8 flex items-center justify-center rounded-md border ${theme.border} ${theme.text}`}
               onClick={() => setSidebarVisible(true)}
               aria-label="Open menu"
             >
               ☰
             </button>
+            <div className="ml-auto"><OrgSwitcher /></div>
           </header>
         )}
 
@@ -144,6 +148,8 @@ export default function MainPage() {
 
             {/* Tenant Admin & Sourcing & Purchase Orders Routes */}
             <Route path="/admin" element={<PrivateRoute requiredPermissions={["View_TenantConsole", "Manage_TenantConsole", "Administrator"]}><AdminOverview /></PrivateRoute>} />
+            <Route path="/admin/menu" element={<PrivateRoute requiredPermissions={["View_Menu", "Manage_Menu"]}><MenuListPage /></PrivateRoute>} />
+            <Route path="/admin/menu/:menuId" element={<PrivateRoute requiredPermissions={["View_Menu", "Manage_Menu"]}><MenuDesignerPage /></PrivateRoute>} />
             
             {/* Dedicated Sourcing Requisitions Module */}
             <Route path="/sourcing" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_RFQ", "View_Order", "Order"]}><SourcingPage /></PrivateRoute>} />
