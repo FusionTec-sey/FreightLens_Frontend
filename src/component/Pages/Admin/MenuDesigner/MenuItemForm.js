@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { MousePointerClick, ShieldCheck } from "lucide-react";
 
 import { fieldClass } from "../../Orders/OrderUi";
-import { MENU_ICON_NAMES, resolveMenuIcon } from "../../../../utils/menuIcons";
+import IconPicker from "./IconPicker";
 import {
   MAX_MENU_DEPTH,
   canNestUnder,
@@ -63,7 +63,6 @@ export default function MenuItemForm({ item, draft, pages, onChange, maxDepth = 
   const separator = isSeparator(item);
   const isFolder = isFolderItem(item) && !separator;
   const page = item.page_key ? pageByKey.get(item.page_key) : null;
-  const Icon = resolveMenuIcon(item.icon);
 
   const handlePageChange = (pageKey) => {
     const selected = pageByKey.get(pageKey);
@@ -176,23 +175,12 @@ export default function MenuItemForm({ item, draft, pages, onChange, maxDepth = 
         <label className={labelClass} htmlFor={`icon-${item.temp_id}`}>
           Icon
         </label>
-        <div className="mt-1.5 flex items-center gap-2">
-          <select
-            className={fieldClass}
-            id={`icon-${item.temp_id}`}
-            onChange={(event) => onChange({ icon: event.target.value || null })}
-            value={item.icon || ""}
-          >
-            <option value="">Default</option>
-            {MENU_ICON_NAMES.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300">
-            <Icon size={18} />
-          </span>
+        <div className="mt-1.5">
+          <IconPicker
+            inputId={`icon-${item.temp_id}`}
+            onChange={(name) => onChange({ icon: name })}
+            value={item.icon || null}
+          />
         </div>
         {isFolder && depthOf(draft, item.temp_id) === 1 && (
           <p className="mt-1.5 text-xs opacity-60">

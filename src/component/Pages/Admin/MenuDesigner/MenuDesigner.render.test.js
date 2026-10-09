@@ -109,6 +109,27 @@ describe("MenuItemForm", () => {
     expect(screen.queryByLabelText("Parent folder")).not.toBeInTheDocument();
   });
 
+  it("offers an icon search rather than a list of a few names", () => {
+    renderForm({ page_key: null, label: "Logistics" });
+    // The whole library is available, so the picker searches instead of listing.
+    expect(screen.getByLabelText("Icon")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search icons/i)).toBeInTheDocument();
+  });
+
+  it("finds an icon that was never on the old hand-kept list", () => {
+    const { onChange } = renderForm({ page_key: null, label: "Logistics" });
+    fireEvent.change(screen.getByLabelText("Icon"), { target: { value: "forklift" } });
+    const match = screen.getByRole("button", { name: "Forklift" });
+    fireEvent.click(match);
+    expect(onChange).toHaveBeenCalledWith({ icon: "Forklift" });
+  });
+
+  it("clears back to the default icon", () => {
+    const { onChange } = renderForm({ page_key: null, icon: "Truck", label: "L" });
+    fireEvent.click(screen.getByLabelText("Clear icon"));
+    expect(onChange).toHaveBeenCalledWith({ icon: null });
+  });
+
   it("fills label and icon from the registry when a page is picked", () => {
     const { onChange } = renderForm({ page_key: "", label: "" });
     fireEvent.change(screen.getByLabelText("Page", { selector: "select" }), {
