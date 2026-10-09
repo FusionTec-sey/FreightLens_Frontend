@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Building2, ClipboardList, Database, LockKeyhole, Settings2, Ship } from "lucide-react";
+import { Building2, ClipboardList, Database, ListTree, LockKeyhole, Settings2, Ship } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { ordersApi } from "../../../services/ordersApi";
@@ -37,6 +37,13 @@ const settingsCards = [
     title: "Reference data",
     description: "Shared procurement, shipping, container and location lists.",
     icon: Database,
+  },
+  {
+    to: "/admin/menu",
+    title: "Menus",
+    description: "Design navigation layouts and publish the one your organisation sees. Access itself stays with roles and permissions.",
+    icon: ListTree,
+    menuAdmin: true,
   },
 ];
 
@@ -76,9 +83,13 @@ export default function SettingsOverview() {
           (!card.userAccess ||
             permissions.includes("View_User") ||
             permissions.includes("View_Role")) &&
-          (!card.tenantConsole || canViewTenantConsole)
+          (!card.tenantConsole || canViewTenantConsole) &&
+          (!card.menuAdmin ||
+            isRoot ||
+            permissions.includes("Manage_Menu") ||
+            permissions.includes("View_Menu"))
       ),
-    [permissions, canViewTenantConsole]
+    [permissions, canViewTenantConsole, isRoot]
   );
 
   return (

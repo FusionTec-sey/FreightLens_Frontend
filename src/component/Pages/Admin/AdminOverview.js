@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../../../context/AuthContext";
 import { useTheme } from "../../../context/ThemeContext";
 import { toast } from "react-toastify";
+import LegacySyncPanel from "./LegacySyncPanel";
 
 export default function AdminOverview() {
   const { theme, isDark } = useTheme();
@@ -145,6 +146,8 @@ export default function AdminOverview() {
           )}
         </div>
       </div>
+
+      {isRoot && <LegacySyncPanel />}
 
       {/* KPI Cards matching Theme Context */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

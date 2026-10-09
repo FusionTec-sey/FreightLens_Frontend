@@ -32,7 +32,7 @@ import { getMaterialNames } from '../../../utils/reSolveMaterial';
 export default function CompleteContainer() {
   const { isDark } = useTheme();
   const { confirm } = useConfirm();
-  const { permissions, logout, isRoot } = useAuth();
+  const { permissions, logout, isRoot, selectedOrgId } = useAuth();
   const {
     material: materialOptions = [],
     suppliers = [],
@@ -112,6 +112,7 @@ export default function CompleteContainer() {
           params,
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
+            ...(selectedOrgId ? { 'X-Active-Org': selectedOrgId.toString() } : {}),
             skip_zrok_interstitial: "true"
           },
         }
@@ -138,6 +139,7 @@ export default function CompleteContainer() {
     selectedSupplierFilter,
     selectedConsigneeFilter,
     transformData,
+    selectedOrgId,
     logout
   ]);
 

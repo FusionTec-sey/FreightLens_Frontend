@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
+import { useAuth } from "./AuthContext";
 
 // List of option paths
 const OPTION_PATHS = {
@@ -18,12 +19,13 @@ const OPTION_PATHS = {
 const OptionsContext = createContext();
 
 export const OptionsProvider = ({ children }) => {
+  const { token, selectedOrgId } = useAuth();
   const [options, setOptions] = useState({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
 
   // Helper to fetch one path
-  const fetchPath = async (pathKey) => {
+  const fetchPath = useCallback(async (pathKey) => {
     const path = OPTION_PATHS[pathKey];
     try {
       const res = await axios.get(
@@ -31,6 +33,7 @@ export const OptionsProvider = ({ children }) => {
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
+            ...(selectedOrgId ? { "X-Active-Org": selectedOrgId.toString() } : {}),
             "skip_zrok_interstitial": "true",
           },
           
@@ -82,9 +85,9 @@ export const OptionsProvider = ({ children }) => {
       console.error(`Failed to fetch ${pathKey}:`, err);
       throw err;
     }
-  };
+  }, [selectedOrgId]);
 
-  // Fetch all options initially
+  // Refresh tenant-scoped options when the active organisation changes.
   const fetchAllOptions = async () => {
     setLoading(true);
     const newOptions = {};
@@ -115,12 +118,12 @@ export const OptionsProvider = ({ children }) => {
     } catch (err) {
       setErrors((prev) => ({ ...prev, [key]: true }));
     }
-  }, []);
+  }, [fetchPath]);
 
   useEffect(() => {
-    fetchAllOptions();
+    if (token) fetchAllOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [token, fetchPath]);
 
   const value = useMemo(
     () => ({ options, loading, errors, refresh }),

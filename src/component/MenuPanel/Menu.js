@@ -1,30 +1,52 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Container,
   ChevronDown,
-  LogOut,
-  Settings as SettingsIcon,
-  Sun,
-  Moon,
-  ShoppingBag,
-  Shield,
-  Boxes,
-  Database,
-  GitCompare,
+  Loader2,
   Lock,
+  LogOut,
+  Moon,
+  RefreshCw,
+  Sun,
+  TriangleAlert,
   Unlock,
-  Printer,
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useAppMenu } from "../../hooks/useAppMenu";
+import { resolveMenuIcon } from "../../utils/menuIcons";
 import logo from "../../assets/Images/Freightliner.png";
 
+/**
+ * The sidebar renders the tree served by `GET /navigation/my-menu`, which the
+ * Menu Designer arranges and the backend filters per user. Nothing about which
+ * items appear is decided here: PrivateRoute still guards every route and the
+ * API checks permissions on every request, so a stale or wrong menu cannot grant
+ * access to anything.
+ *
+ * Item types map onto the visual hierarchy:
+ *   separator -> section heading     folder -> accordion
+ *   page      -> nav link            page inside a folder -> sub link
+ *
+ * Headings are items an admin placed, not an accident of nesting, so the sidebar
+ * shows exactly the structure the designer shows.
+ */
+
+/** Stable key for a node, whether it came from the database or the default menu. */
+const nodeKey = (node, path) => `${path}/${node.id ?? node.page_key ?? node.label}`;
+
+/** Every route reachable inside a node, the node's own route included. */
+const routesWithin = (node) => {
+  const routes = node.route ? [node.route] : [];
+  (node.children || []).forEach((child) => routes.push(...routesWithin(child)));
+  return routes;
+};
+
 function Sidebar({ onLinkClick }) {
-  const { permissions, user, logout, isRoot, hasModule } = useAuth();
+  const { user, logout, isRoot } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { menu, loading, error, reload } = useAppMenu();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -38,44 +60,7 @@ function Sidebar({ onLinkClick }) {
     }
   });
 
-  const toggleLock = () => {
-    setIsLocked((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("sidebar_locked", next.toString());
-      } catch (e) {}
-      if (!next) {
-        // If unlocking/collapsing, close any open accordion for clean collapsed state
-        setOpenAccordion(null);
-      } else {
-        // If locking/expanding, restore active section accordion
-        if (isDashboardSectionActive) setOpenAccordion("dashboard");
-        else if (isSourcingActive) setOpenAccordion("sourcing");
-        else if (isOrdersActive) setOpenAccordion("orders");
-        else if (isContainerActive) setOpenAccordion("containers");
-        else if (isMasterDataActive) setOpenAccordion("masterdata");
-        else if (isSettingsActive) setOpenAccordion("settings");
-      }
-      return next;
-    });
-  };
-
-  const hasPermission = (field) => {
-    if (!permissions) return false;
-    if (permissions.includes(field)) return true;
-    if (field.startsWith("View_")) {
-      const suffix = field.slice(5);
-      if (
-        permissions.includes(`Edit_${suffix}`) ||
-        permissions.includes(`Add_${suffix}`) ||
-        permissions.includes(`Delete_${suffix}`) ||
-        permissions.includes(suffix)
-      ) {
-        return true;
-      }
-    }
-    return false;
-  };
+  const [openAccordion, setOpenAccordion] = useState(null);
 
   const initial = user ? user.charAt(0).toUpperCase() : "U";
 
@@ -85,111 +70,57 @@ function Sidebar({ onLinkClick }) {
     setTimeout(() => navigate("/"), 0);
   };
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = useCallback(
+    (path) =>
+      Boolean(path) &&
+      (location.pathname === path || location.pathname.startsWith(`${path}/`)),
+    [location.pathname]
+  );
 
-  // Active section checkers
-  const isDashboardSectionActive =
-    isActive("/dashboard") ||
-    isActive("/dashboard/templates") ||
-    isActive("/dashboard-templates");
-
-  const isSourcingActive =
-    isActive("/sourcing") ||
-    isActive("/store-requests");
-
-  const isOrdersActive =
-    isActive("/orders") ||
-    isActive("/orders/quotes") ||
-    isActive("/quotes") ||
-    isActive("/templates") ||
-    isActive("/orders/templates") ||
-    isActive("/packing-lists") ||
-    isActive("/goods-receiving") ||
-    isActive("/damage-defects") ||
-    isActive("/daily-operations");
-
-  const isContainerActive =
-    isActive("/viewContainer") ||
-    isActive("/ConatinerEntry") ||
-    isActive("/BillOfLanding") ||
-    isActive("/billOfLanding") ||
-    isActive("/bill-of-landing-info") ||
-    isActive("/Complete");
-
-  const isInventoryActive =
-    isActive("/inventory") ||
-    isActive("/inventory/products") ||
-    location.pathname.startsWith("/inventory");
-
-  const isMasterDataActive =
-    isActive("/master-data/suppliers") ||
-    isActive("/master-data/currencies") ||
-    isActive("/master-data/payment-terms") ||
-    isActive("/master-data/document-types");
-
-  const isSettingsActive =
-    isActive("/settings-overview") ||
-    isActive("/settings") ||
-    isActive("/organization-settings") ||
-    isActive("/order-settings") ||
-    isActive("/logistics") ||
-    isActive("/reference-data");
-
-  const isAdminActive = isActive("/admin");
-  const isReportsActive =
-    isActive("/reports") ||
-    isActive("/reports/templates") ||
-    location.pathname.startsWith("/reports");
-
-  // Single active accordion: opening one submenu automatically closes all previous ones
-  const [openAccordion, setOpenAccordion] = useState(() => {
-    // Only auto-expand active accordion if sidebar is locked/pinned
-    const initialLocked = (() => {
-      try {
-        const saved = localStorage.getItem("sidebar_locked");
-        return saved !== null ? saved === "true" : true;
-      } catch (e) {
-        return true;
+  /** The accordion key holding the current route, so it can open itself. */
+  const activeAccordionKey = useMemo(() => {
+    for (const root of menu) {
+      const level2 = root.route || !root.children?.length ? [root] : root.children;
+      const parentPath = root.route || !root.children?.length ? "" : nodeKey(root, "");
+      for (const node of level2) {
+        if (!node.children?.length) continue;
+        if (routesWithin(node).some((route) => isActive(route))) {
+          return nodeKey(node, parentPath);
+        }
       }
-    })();
-    if (!initialLocked) return null;
-    if (isDashboardSectionActive) return "dashboard";
-    if (isSourcingActive) return "sourcing";
-    if (isOrdersActive) return "orders";
-    if (isContainerActive) return "containers";
-    if (isMasterDataActive) return "masterdata";
-    if (isSettingsActive) return "settings";
+    }
     return null;
-  });
+  }, [menu, isActive]);
+
+  const toggleLock = () => {
+    setIsLocked((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("sidebar_locked", next.toString());
+      } catch (e) {}
+      // Collapsed sidebars show no labels, so an open accordion would be noise.
+      setOpenAccordion(next ? activeAccordionKey : null);
+      return next;
+    });
+  };
 
   const toggleAccordion = (sectionKey) => {
     setOpenAccordion((prev) => (prev === sectionKey ? null : sectionKey));
   };
 
-  // Automatically activate and expand the section corresponding to active route when locked
+  // Keep the section containing the current route expanded while locked.
   useEffect(() => {
-    if (isLocked) {
-      if (isDashboardSectionActive) {
-        setOpenAccordion("dashboard");
-      } else if (isSourcingActive) {
-        setOpenAccordion("sourcing");
-      } else if (isOrdersActive) {
-        setOpenAccordion("orders");
-      } else if (isContainerActive) {
-        setOpenAccordion("containers");
-      } else if (isMasterDataActive) {
-        setOpenAccordion("masterdata");
-      } else if (isSettingsActive) {
-        setOpenAccordion("settings");
-      }
-    }
-  }, [location.pathname, isLocked]);
+    if (isLocked && activeAccordionKey) setOpenAccordion(activeAccordionKey);
+  }, [isLocked, activeAccordionKey]);
 
   // ── Render Helpers ──────────────────────────────────────────────────────────
   // Height is exactly h-6 in both collapsed (divider) and expanded (header title) states
   // to prevent any vertical shift when the sidebar expands horizontally on hover.
-  const renderSectionHeader = (title) => (
-    <div className="h-6 px-3 flex items-center justify-center my-0.5 overflow-hidden transition-all duration-200">
+  const renderSectionHeader = (title, key) => (
+    <div
+      className="h-6 px-3 flex items-center justify-center my-0.5 overflow-hidden transition-all duration-200"
+      key={`header-${key}`}
+    >
       <div
         className={`w-full h-px bg-slate-200/80 dark:bg-slate-800 ${
           isLocked ? "hidden" : "hidden md:block md:group-hover:hidden"
@@ -205,13 +136,20 @@ function Sidebar({ onLinkClick }) {
     </div>
   );
 
-  const renderNavLink = (to, icon, label, isCurrentActive, badge = null) => (
+  const renderNavLink = ({ to, icon, label, isCurrentActive, locked, key }) => (
     <Link
-      to={to}
+      to={locked ? `/unauthorized` : to}
+      key={key}
       onClick={onLinkClick}
-      title={label}
+      title={
+        locked
+          ? `${label} — you do not have access. Ask your administrator.`
+          : label
+      }
       aria-current={isCurrentActive ? "page" : undefined}
       className={`relative flex items-center h-10 px-3 rounded-xl transition-all duration-150 group/item ${
+        locked ? "opacity-55" : ""
+      } ${
         isCurrentActive
           ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-semibold shadow-2xs before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-indigo-600 dark:before:bg-indigo-400 before:rounded-r-full"
           : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 font-medium"
@@ -234,35 +172,29 @@ function Sidebar({ onLinkClick }) {
       >
         {label}
       </span>
-      {badge && (
-        <span
-          className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ${
+      {locked && (
+        <Lock
+          size={13}
+          className={`ml-auto text-slate-400 ${
             isLocked
               ? "opacity-100"
               : "md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200"
           }`}
-        >
-          {badge}
-        </span>
+        />
       )}
     </Link>
   );
 
-  const renderAccordion = ({
-    sectionKey,
-    icon,
-    label,
-    isSectionActive,
-    children,
-  }) => {
+  const renderAccordion = ({ sectionKey, icon, label, isSectionActive, children }) => {
     const isOpen = openAccordion === sectionKey;
 
     return (
-      <div className="space-y-0.5">
+      <div className="space-y-0.5" key={sectionKey}>
         <button
           type="button"
           onClick={() => toggleAccordion(sectionKey)}
           title={label}
+          aria-expanded={isOpen}
           className={`relative flex items-center h-10 px-3 rounded-xl w-full text-left bg-transparent border-0 cursor-pointer transition-all duration-150 group/item ${
             isSectionActive
               ? "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold before:absolute before:left-0 before:top-2.5 before:bottom-2.5 before:w-1 before:bg-indigo-600 dark:before:bg-indigo-400 before:rounded-r-full"
@@ -314,12 +246,16 @@ function Sidebar({ onLinkClick }) {
     );
   };
 
-  const renderSubLink = (to, label, isCurrentActive) => (
+  const renderSubLink = ({ to, label, isCurrentActive, locked, key }) => (
     <Link
-      to={to}
+      to={locked ? "/unauthorized" : to}
+      key={key}
       onClick={onLinkClick}
       aria-current={isCurrentActive ? "page" : undefined}
+      title={locked ? `${label} — you do not have access.` : label}
       className={`flex items-center h-8 px-2.5 rounded-lg text-xs transition-colors duration-150 ${
+        locked ? "opacity-55" : ""
+      } ${
         isCurrentActive
           ? "bg-indigo-100/70 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold"
           : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 font-medium"
@@ -333,70 +269,58 @@ function Sidebar({ onLinkClick }) {
         }`}
       />
       <span className="truncate">{label}</span>
+      {locked && <Lock size={11} className="ml-auto flex-shrink-0" />}
     </Link>
   );
 
-  // ── Permission & Role Computations ──────────────────────────────────────────
-  const canManageTemplates =
-    hasPermission("Manage_DashboardTemplate") ||
-    isRoot ||
-    (Array.isArray(permissions) && permissions.includes("Administrator"));
+  // ── Menu tree -> sidebar ────────────────────────────────────────────────────
 
-  const canViewRFQ =
-    hasPermission("View_RFQ") || hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canViewStoreReq =
-    hasPermission("View_StoreRequest") || hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canViewTemplates =
-    hasPermission("View_OrderTemplate") || hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canViewPO =
-    hasPermission("View_Order") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
+  const renderLeaf = (node, path, asSubLink) => {
+    const key = nodeKey(node, path);
+    const common = {
+      key,
+      to: node.route,
+      label: node.label,
+      isCurrentActive: isActive(node.route),
+      locked: Boolean(node.locked),
+    };
+    return asSubLink
+      ? renderSubLink(common)
+      : renderNavLink({ ...common, icon: React.createElement(resolveMenuIcon(node.icon)) });
+  };
 
-  const canViewSourcingMenu =
-    hasModule("ORDERS") &&
-    (canViewRFQ || canViewStoreReq || (!canViewPO && canViewTemplates));
+  const renderBranch = (node, path) => {
+    const key = nodeKey(node, path);
+    const children = node.children || [];
 
-  const canViewQuotes =
-    hasPermission("Compare_Quote") || hasPermission("View_VendorQuote") || hasPermission("Send_RFQ") || canViewPO;
-  const canViewPackingList = hasPermission("View_PackingList") || canViewPO;
-  const canViewReceiving = hasPermission("View_Receiving") || canViewPO;
-  const canViewDefects =
-    hasPermission("View_Defect") ||
-    hasPermission("Add_Defect") ||
-    hasPermission("View_Report") ||
-    hasPermission("Add_Report") ||
-    hasPermission("Receive_Orders") ||
-    hasPermission("Manage_Orders") ||
-    canViewPO;
-  const canViewDailyWork = hasPermission("View_DailyWork") || canViewPO;
+    // A folder, or a page an admin nested other items under: render the group and
+    // keep the page itself reachable as its own first entry.
+    return renderAccordion({
+      sectionKey: key,
+      icon: React.createElement(resolveMenuIcon(node.icon)),
+      label: node.label,
+      isSectionActive: routesWithin(node).some((route) => isActive(route)),
+      children: [
+        ...(node.route ? [renderLeaf({ ...node, children: [] }, `${key}/self`, true)] : []),
+        ...children.map((child) =>
+          child.is_separator
+            ? renderSectionHeader(child.label, nodeKey(child, key))
+            : child.children?.length
+            ? renderBranch(child, key)
+            : renderLeaf(child, key, true)
+        ),
+      ],
+    });
+  };
 
-  const canViewOrdersMenu =
-    hasModule("ORDERS") &&
-    (canViewPO || canViewQuotes || canViewTemplates || canViewPackingList || canViewReceiving || canViewDefects || canViewDailyWork);
+  const renderedMenu = menu.flatMap((root) => {
+    const key = nodeKey(root, "");
+    const children = root.children || [];
 
-  const canViewContainers =
-    hasModule("LOGISTICS") &&
-    (hasPermission("View_Container") || hasPermission("Container") || (Array.isArray(permissions) && permissions.includes("Administrator")));
-  const canViewBL =
-    hasModule("LOGISTICS") &&
-    (hasPermission("View_BL") ||
-     hasPermission("BillOfLanding") ||
-     (Array.isArray(permissions) && (permissions.includes("View_BL") || permissions.includes("BillOfLanding"))));
-  const canViewInventory = hasModule("INVENTORY");
-  const canViewMasterData =
-    hasPermission("View_Setting") || isRoot || (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canViewTenantConsole =
-    hasPermission("View_TenantConsole") ||
-    hasPermission("Manage_TenantConsole") ||
-    isRoot ||
-    (Array.isArray(permissions) && permissions.includes("Administrator"));
-  const canViewSettings = hasPermission("View_Setting");
-  const canViewReports =
-    hasPermission("View_Report") ||
-    hasPermission("Report") ||
-    hasPermission("Manage_Report_Template") ||
-    canViewPO ||
-    canViewContainers ||
-    isRoot;
+    if (root.is_separator) return [renderSectionHeader(root.label, key)];
+    if (children.length > 0) return [renderBranch(root, "")];
+    return [renderLeaf(root, "", false)];
+  });
 
   return (
     <div
@@ -465,161 +389,43 @@ function Sidebar({ onLinkClick }) {
       {/* ── Scrollable Menu Navigation ────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col justify-start p-3 space-y-1 overflow-y-auto overflow-x-hidden">
         <nav className="flex flex-col gap-1">
-          {/* ── SECTION: CORE ───────────────────────────────────────────────── */}
-          {renderSectionHeader("Core")}
-
-          {canManageTemplates ? (
-            renderAccordion({
-              sectionKey: "dashboard",
-              icon: <LayoutDashboard />,
-              label: "Dashboard",
-              isSectionActive: isDashboardSectionActive,
-              children: (
-                <>
-                  {renderSubLink("/dashboard", "Overview", isActive("/dashboard"))}
-                  {renderSubLink(
-                    "/dashboard/templates",
-                    "Template Studio",
-                    isActive("/dashboard/templates") || isActive("/dashboard-templates")
-                  )}
-                </>
-              ),
-            })
-          ) : (
-            renderNavLink("/dashboard", <LayoutDashboard />, "Dashboard", isActive("/dashboard"))
+          {loading && menu.length === 0 && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={18} className="animate-spin text-indigo-500" />
+            </div>
           )}
 
-          {/* ── SECTION: PROCUREMENT & SOURCING ─────────────────────────────── */}
-          {(canViewSourcingMenu || canViewOrdersMenu) && renderSectionHeader("Procurement")}
+          {!loading && error && (
+            <div
+              className={`px-2 py-3 text-center ${
+                isLocked ? "block" : "hidden md:group-hover:block"
+              }`}
+            >
+              <TriangleAlert size={18} className="mx-auto mb-2 text-amber-500" />
+              <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                The menu could not be loaded.
+              </p>
+              <button
+                type="button"
+                onClick={reload}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
+              >
+                <RefreshCw size={12} /> Retry
+              </button>
+            </div>
+          )}
 
-          {/* Sourcing Module */}
-          {canViewSourcingMenu &&
-            renderAccordion({
-              sectionKey: "sourcing",
-              icon: <GitCompare />,
-              label: "Sourcing",
-              isSectionActive: isSourcingActive,
-              children: (
-                <>
-                  {canViewRFQ && renderSubLink("/sourcing", "Requisitions & RFQs", isActive("/sourcing"))}
-                  {canViewStoreReq && renderSubLink("/store-requests", "Store Requests", isActive("/store-requests"))}
-                  {!canViewPO && canViewTemplates && renderSubLink("/templates", "Order Templates", isActive("/templates"))}
-                </>
-              ),
-            })}
+          {!loading && !error && menu.length === 0 && (
+            <p
+              className={`px-3 py-6 text-center text-[11px] leading-snug text-slate-400 ${
+                isLocked ? "block" : "hidden md:group-hover:block"
+              }`}
+            >
+              No menu items are available for your account.
+            </p>
+          )}
 
-          {/* Purchase Orders Module */}
-          {canViewOrdersMenu &&
-            renderAccordion({
-              sectionKey: "orders",
-              icon: <ShoppingBag />,
-              label: "Purchase Orders",
-              isSectionActive: isOrdersActive,
-              children: (
-                <>
-                  {canViewPO && renderSubLink("/orders", "Purchase Orders", isActive("/orders"))}
-                  {canViewQuotes && (
-                    renderSubLink(
-                      "/orders/quotes",
-                      "Vendor Quotes & Bidding",
-                      isActive("/orders/quotes") || isActive("/quotes")
-                    )
-                  )}
-                  {canViewTemplates && (
-                    renderSubLink(
-                      "/templates",
-                      "Manage Templates",
-                      isActive("/templates") || isActive("/orders/templates")
-                    )
-                  )}
-                  {canViewPackingList && renderSubLink("/packing-lists", "Packing Lists", isActive("/packing-lists"))}
-                  {canViewReceiving && renderSubLink("/goods-receiving", "Goods Receiving", isActive("/goods-receiving"))}
-                  {canViewDefects && renderSubLink("/damage-defects", "Damage & Defects", isActive("/damage-defects"))}
-                  {canViewDailyWork && renderSubLink("/daily-operations", "Daily Work & EOD", isActive("/daily-operations"))}
-                </>
-              ),
-            })}
-
-          {/* ── SECTION: LOGISTICS & INVENTORY ──────────────────────────────── */}
-          {(canViewContainers || canViewInventory) && renderSectionHeader("Logistics & Stock")}
-
-          {/* Containers Module */}
-          {canViewContainers &&
-            renderAccordion({
-              sectionKey: "containers",
-              icon: <Container />,
-              label: "Containers",
-              isSectionActive: isContainerActive,
-              children: (
-                <>
-                  {renderSubLink(
-                    "/viewContainer",
-                    "Container Register",
-                    isActive("/viewContainer") || isActive("/ConatinerEntry")
-                  )}
-                  {canViewBL &&
-                    renderSubLink(
-                      "/BillOfLanding",
-                      "Bills of Lading",
-                      isActive("/BillOfLanding") || isActive("/billOfLanding") || isActive("/bill-of-landing-info")
-                    )}
-                  {renderSubLink("/Complete", "Completed Containers", isActive("/Complete"))}
-                </>
-              ),
-            })}
-
-          {/* Inventory / Product Master */}
-          {canViewInventory &&
-            renderNavLink("/inventory", <Boxes />, "Product Master", isInventoryActive)}
-
-          {/* ── Print & Reports Module ────────────────────────────────────── */}
-          {canViewReports &&
-            renderNavLink("/reports", <Printer />, "Print & Reports", isReportsActive)}
-
-          {/* ── SECTION: ADMINISTRATION & SETTINGS ─────────────────────────── */}
-          {(canViewMasterData || canViewTenantConsole || canViewSettings) &&
-            renderSectionHeader("System")}
-
-          {/* Master Data Module */}
-          {canViewMasterData &&
-            renderAccordion({
-              sectionKey: "masterdata",
-              icon: <Database />,
-              label: "Master Data",
-              isSectionActive: isMasterDataActive,
-              children: (
-                <>
-                  {renderSubLink("/master-data/suppliers", "Suppliers & Vendors", isActive("/master-data/suppliers"))}
-                  {renderSubLink("/master-data/currencies", "Currencies & FX Rates", isActive("/master-data/currencies"))}
-                  {renderSubLink("/master-data/payment-terms", "Payment Terms", isActive("/master-data/payment-terms"))}
-                  {renderSubLink("/master-data/document-types", "Document Types", isActive("/master-data/document-types"))}
-                </>
-              ),
-            })}
-
-          {/* Tenant Console */}
-          {canViewTenantConsole &&
-            renderNavLink("/admin", <Shield />, "Tenant Console", isAdminActive)}
-
-          {/* Settings Module */}
-          {canViewSettings &&
-            renderAccordion({
-              sectionKey: "settings",
-              icon: <SettingsIcon />,
-              label: "Settings",
-              isSectionActive: isSettingsActive,
-              children: (
-                <>
-                  {renderSubLink("/settings-overview", "Settings Overview", isActive("/settings-overview"))}
-                  {canViewTenantConsole &&
-                    renderSubLink("/organization-settings", "Tenant & Org Console", isActive("/organization-settings"))}
-                  {renderSubLink("/settings", "Users & Access", isActive("/settings"))}
-                  {hasModule("ORDERS") && renderSubLink("/order-settings", "Orders & Procurement", isActive("/order-settings"))}
-                  {hasModule("LOGISTICS") && renderSubLink("/logistics", "Logistics & Demurrage", isActive("/logistics"))}
-                  {renderSubLink("/reference-data", "Reference Data", isActive("/reference-data"))}
-                </>
-              ),
-            })}
+          {renderedMenu}
         </nav>
       </div>
 

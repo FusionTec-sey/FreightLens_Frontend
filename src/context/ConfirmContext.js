@@ -13,14 +13,21 @@ export const ConfirmProvider = ({ children }) => {
     const [confirmState, setConfirmState] = useState({
         isOpen: false,
         message: '',
+        title: 'Confirm Deletion',
+        confirmLabel: 'Delete',
         resolve: null,
     });
 
-    const confirm = useCallback((message) => {
+    // `options` is optional: existing callers pass a message alone and keep the
+    // delete wording. Non-delete confirmations pass their own title/label so the
+    // dialog does not say "Delete" for something that deletes nothing.
+    const confirm = useCallback((message, options = {}) => {
         return new Promise((resolve) => {
             setConfirmState({
                 isOpen: true,
                 message,
+                title: options.title || 'Confirm Deletion',
+                confirmLabel: options.confirmLabel || 'Delete',
                 resolve,
             });
         });
@@ -30,14 +37,14 @@ export const ConfirmProvider = ({ children }) => {
         if (confirmState.resolve) {
             confirmState.resolve(true);
         }
-        setConfirmState({ isOpen: false, message: '', resolve: null });
+        setConfirmState({ isOpen: false, message: '', title: 'Confirm Deletion', confirmLabel: 'Delete', resolve: null });
     }, [confirmState]);
 
     const handleCancel = useCallback(() => {
         if (confirmState.resolve) {
             confirmState.resolve(false);
         }
-        setConfirmState({ isOpen: false, message: '', resolve: null });
+        setConfirmState({ isOpen: false, message: '', title: 'Confirm Deletion', confirmLabel: 'Delete', resolve: null });
     }, [confirmState]);
 
     return (
@@ -56,7 +63,7 @@ export const ConfirmProvider = ({ children }) => {
                                     <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-500" />
                                 </div>
                                 <h3 className={`text-lg font-semibold ${theme.text}`}>
-                                    Confirm Deletion
+                                    {confirmState.title}
                                 </h3>
                             </div>
                             <button
@@ -86,7 +93,7 @@ export const ConfirmProvider = ({ children }) => {
                                 onClick={handleConfirm}
                                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-900"
                             >
-                                Delete
+                                {confirmState.confirmLabel}
                             </button>
                         </div>
                     </div>

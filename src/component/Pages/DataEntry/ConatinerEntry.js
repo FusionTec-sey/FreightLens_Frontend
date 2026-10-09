@@ -36,7 +36,7 @@ import { calculateDemurrage } from '../../../utils/DemurrageUtil';
 export default function ContainerEntry() {
   const { isDark } = useTheme();
   const { confirm } = useConfirm();
-  const { permissions, logout, isRoot } = useAuth();
+  const { permissions, logout, isRoot, selectedOrgId } = useAuth();
   const {
     material: materialOptions = [],
     status: statusOptions = [],
@@ -148,6 +148,7 @@ export default function ContainerEntry() {
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
+            ...(selectedOrgId ? { 'X-Active-Org': selectedOrgId.toString() } : {}),
             skip_zrok_interstitial: "true",
           },
         }
@@ -176,6 +177,7 @@ export default function ContainerEntry() {
     selectedConsigneeFilter,
     getStatusIdByName,
     transformData,
+    selectedOrgId,
     logout
   ]);
 
