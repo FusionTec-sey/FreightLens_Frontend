@@ -138,6 +138,9 @@ export const AuthProvider = ({ children }) => {
   const [refreshToken, setRefreshToken] = useState(localStorage.getItem(REFRESH_TOKEN_KEY) || null);
   const [permissions, setPermissions] = useState([]);
   const [access, setAccess] = useState(null);
+  // False until /auth/me/access has answered, so a guard can tell "no
+  // permissions" apart from "permissions have not arrived yet".
+  const [accessLoaded, setAccessLoaded] = useState(false);
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem(USER_KEY);
     return stored ? JSON.parse(stored) : null;
@@ -420,9 +423,11 @@ export const AuthProvider = ({ children }) => {
       setAccess(null);
       setPermissions([]);
       setModules([]);
+      setAccessLoaded(false);
       return;
     }
     let cancelled = false;
+    setAccessLoaded(false);
     const headers = { Authorization: `Bearer ${token}` };
     if (selectedOrgId) headers["X-Active-Org"] = selectedOrgId.toString();
     axios
@@ -433,12 +438,15 @@ export const AuthProvider = ({ children }) => {
         setAccess(next);
         setPermissions(Array.isArray(next.permissions) ? next.permissions : []);
         setModules(Array.isArray(next.modules) ? next.modules : []);
+        setAccessLoaded(true);
       })
       .catch(() => {
         if (cancelled) return;
         setAccess(null);
         setPermissions([]);
         setModules([]);
+        // Answered, badly: a guard should deny rather than wait for ever.
+        setAccessLoaded(true);
       });
     return () => { cancelled = true; };
   }, [token, selectedOrgId]);
@@ -495,6 +503,7 @@ export const AuthProvider = ({ children }) => {
     modules,
     plan,
     access,
+    accessLoaded,
     fieldClasses: access?.field_classes || [],
     locationIds: access?.location_ids || [],
     hasModule: (mod) => isSuperAdmin || (modules || []).includes(mod),
