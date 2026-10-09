@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
+
+import { DEFAULT_REGISTER_PAGE_SIZE } from "../../../utils/registerPaging";
 import {
   Printer,
   FileSpreadsheet,
@@ -328,6 +330,10 @@ export default function DatasetReportModal({
 
     return {
       template_id: selectedSavedTemplateId || null,
+      // Ask for a definite first page. Left out, the server applied its own
+      // default of 50 while the viewer's pager assumed something else.
+      page: 1,
+      limit: DEFAULT_REGISTER_PAGE_SIZE,
       date_from: dateFrom || null,
       date_to: dateTo || null,
       supplier_ids: selectedSuppliers.length > 0 ? selectedSuppliers : null,

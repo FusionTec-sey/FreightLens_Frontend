@@ -276,6 +276,23 @@ export default function ReportTemplatesPage() {
     setDatasetViewOpen(true);
   };
 
+  /**
+   * Fetch one page of the open register. The viewer owns the pager; the query
+   * itself stays here, because the spec that produced the current result lives
+   * here and every page must be run with the same filters.
+   */
+  const handleFetchDatasetPage = async (page, limit) => {
+    if (!activeDatasetResult || !activeQuerySpec) return;
+    const spec = { ...activeQuerySpec, page, limit };
+    const res = await axios.post(
+      `${process.env.REACT_APP_NETWORK}/reports/datasets/${activeDatasetResult.report_key}/run`,
+      spec,
+      { headers: getHeaders() }
+    );
+    setActiveDatasetResult(res.data);
+    setActiveQuerySpec(spec);
+  };
+
   const handleToggleActive = async (template) => {
     setTogglingId(template.id);
     try {
@@ -1029,6 +1046,7 @@ export default function ReportTemplatesPage() {
           reportKey={activeDatasetResult.report_key}
           datasetResult={activeDatasetResult}
           querySpec={activeQuerySpec}
+          onFetchPage={handleFetchDatasetPage}
           onModifyFilters={() => {
             setDatasetViewOpen(false);
             setDatasetModalOpen(true);

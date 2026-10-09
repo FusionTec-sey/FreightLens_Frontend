@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   FileSpreadsheet,
   Printer,
@@ -21,10 +21,19 @@ import {
 import axios from "axios";
 import { toast } from "react-toastify";
 
+import { errorText } from "../../../utils/apiError";
+import {
+  DEFAULT_REGISTER_PAGE_SIZE,
+  REGISTER_PAGE_SIZES,
+  showingRange,
+  totalPagesFor,
+} from "../../../utils/registerPaging";
+
 export default function DatasetReportView({
   reportKey,
   datasetResult,
   querySpec,
+  onFetchPage,
   onModifyFilters,
   onClose,
 }) {
@@ -33,8 +42,12 @@ export default function DatasetReportView({
   const [exportingPdf, setExportingPdf] = useState(false);
 
   // Pagination State
-  const [pageSize, setPageSize] = useState(25);
-  const [currentPage, setCurrentPage] = useState(1);
+  // The server pages the query; these mirror what it was last asked for.
+  const [pageSize, setPageSize] = useState(
+    Number(querySpec?.limit) || DEFAULT_REGISTER_PAGE_SIZE
+  );
+  const [currentPage, setCurrentPage] = useState(Number(querySpec?.page) || 1);
+  const [loadingPage, setLoadingPage] = useState(false);
 
   // View Mode: 'table' vs 'print_layout'
   const [viewMode, setViewMode] = useState("table"); // 'table' | 'print_layout'
@@ -93,7 +106,7 @@ export default function DatasetReportView({
       toast.success("Excel spreadsheet downloaded successfully.");
     } catch (err) {
       console.error("Excel export error:", err);
-      toast.error("Failed to export Excel spreadsheet.");
+      toast.error(await errorText(err, "Failed to export Excel spreadsheet."));
     } finally {
       setExportingExcel(false);
     }
@@ -117,21 +130,35 @@ export default function DatasetReportView({
       toast.success("Landscape PDF compiled and opened.");
     } catch (err) {
       console.error("PDF render error:", err);
-      toast.error("Failed to compile Landscape PDF.");
+      toast.error(await errorText(err, "Failed to compile Landscape PDF."));
     } finally {
       setExportingPdf(false);
     }
   };
 
-  // Pagination Calculations
-  const effectivePageSize = pageSize === "All" ? Math.max(1, records.length) : Number(pageSize);
-  const totalPages = Math.max(1, Math.ceil(records.length / effectivePageSize));
+  // Pagination. `records` is already the page the server returned, so it is
+  // shown as it stands; asking for another page means asking the server.
+  const effectivePageSize = Number(pageSize) || DEFAULT_REGISTER_PAGE_SIZE;
+  const totalPages = totalPagesFor(total_records, effectivePageSize);
+  const paginatedRecords = records;
 
-  const paginatedRecords = useMemo(() => {
-    if (pageSize === "All") return records;
-    const start = (currentPage - 1) * effectivePageSize;
-    return records.slice(start, start + effectivePageSize);
-  }, [records, currentPage, effectivePageSize, pageSize]);
+  const goToPage = useCallback(
+    async (page, size = effectivePageSize) => {
+      const target = Math.min(Math.max(1, page), totalPagesFor(total_records, size));
+      if (!onFetchPage) return;
+      setLoadingPage(true);
+      try {
+        await onFetchPage(target, size);
+        setCurrentPage(target);
+        setPageSize(size);
+      } catch (err) {
+        toast.error(await errorText(err, "Could not load that page."));
+      } finally {
+        setLoadingPage(false);
+      }
+    },
+    [effectivePageSize, onFetchPage, total_records]
+  );
 
   // Slices for Print Layout Pages (approx 22 rows per Landscape A4 sheet)
   const ROWS_PER_PRINT_SHEET = 22;
@@ -465,46 +492,41 @@ export default function DatasetReportView({
                 <span>Show</span>
                 <select
                   value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(e.target.value === "All" ? "All" : Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="px-2 py-1 bg-white border border-slate-300 rounded-md font-medium text-xs focus:ring-1 focus:ring-indigo-500"
+                  disabled={loadingPage}
+                  onChange={(e) => goToPage(1, Number(e.target.value))}
+                  className="px-2 py-1 bg-white border border-slate-300 rounded-md font-medium text-xs focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                 >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                  <option value={250}>250</option>
-                  <option value="All">All ({records.length})</option>
+                  {REGISTER_PAGE_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
                 </select>
                 <span className="text-slate-400">|</span>
                 <span className="font-mono text-slate-700">
                   Showing{" "}
                   <strong>
-                    {records.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}
+                    {showingRange(currentPage, effectivePageSize, records.length, total_records)}
                   </strong>{" "}
-                  –{" "}
-                  <strong>
-                    {Math.min(currentPage * effectivePageSize, records.length)}
-                  </strong>{" "}
-                  of <strong>{records.length}</strong> entries
+                  entries
                 </span>
+                {loadingPage && <span className="text-slate-400">loading…</span>}
               </div>
 
-              {pageSize !== "All" && totalPages > 1 && (
+              {totalPages > 1 && (
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage <= 1}
+                    onClick={() => goToPage(1)}
+                    disabled={currentPage <= 1 || loadingPage}
                     className="px-2 py-1 rounded bg-white border border-slate-300 font-medium disabled:opacity-40 hover:bg-slate-100 cursor-pointer"
                   >
                     First
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage <= 1 || loadingPage}
                     className="p-1 rounded bg-white border border-slate-300 font-medium disabled:opacity-40 hover:bg-slate-100 cursor-pointer"
                     title="Previous Page"
                   >
@@ -515,8 +537,8 @@ export default function DatasetReportView({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage >= totalPages}
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage >= totalPages || loadingPage}
                     className="p-1 rounded bg-white border border-slate-300 font-medium disabled:opacity-40 hover:bg-slate-100 cursor-pointer"
                     title="Next Page"
                   >
@@ -524,8 +546,8 @@ export default function DatasetReportView({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage >= totalPages}
+                    onClick={() => goToPage(totalPages)}
+                    disabled={currentPage >= totalPages || loadingPage}
                     className="px-2 py-1 rounded bg-white border border-slate-300 font-medium disabled:opacity-40 hover:bg-slate-100 cursor-pointer"
                   >
                     Last

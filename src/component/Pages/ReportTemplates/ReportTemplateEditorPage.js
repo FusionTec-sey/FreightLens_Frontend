@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+
+import { useAuth } from "../../../context/AuthContext";
+import { errorText } from "../../../utils/apiError";
 import {
   ArrowLeft,
   Download,
@@ -21,6 +24,7 @@ import {
 } from "lucide-react";
 
 export default function ReportTemplateEditorPage() {
+  const { selectedOrgId } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id || id === "new";
@@ -70,10 +74,15 @@ export default function ReportTemplateEditorPage() {
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
-    return {
+    const headers = {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
+    // Without this the server falls back to the user's own company, so an admin
+    // working in another one previewed that company's template against their
+    // own data and branding.
+    if (selectedOrgId) headers["X-Active-Org"] = String(selectedOrgId);
+    return headers;
   };
 
   // 1. Fetch available resolvers list
@@ -245,14 +254,19 @@ export default function ReportTemplateEditorPage() {
           header_html: headerHtml,
           footer_html: footerHtml,
           resolver_key: resolverKey,
-          entity_id: previewEntityId ? Number(previewEntityId) : 0,
+          // Sent as typed. Coercing with Number() turned a Bill of Lading
+          // number into NaN, which serialised as null, which the server reads
+          // as "use sample data" -- so the preview quietly showed mock records.
+          entity_id: previewEntityId.trim() || 0,
+          page_size: pageSize,
+          orientation,
         },
         { headers: getHeaders() }
       );
       setPreviewHtml(res.data?.html || "");
     } catch (err) {
       console.error("Preview failed:", err);
-      toast.error("Preview compilation failed.");
+      toast.error(await errorText(err, "Preview compilation failed."));
     } finally {
       setPreviewLoading(false);
     }
@@ -263,7 +277,16 @@ export default function ReportTemplateEditorPage() {
     if (!loadingTemplate && htmlContent) {
       handleRefreshPreview();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingTemplate]);
+
+  // Page size and orientation change the page itself, so the preview is stale
+  // the moment either does. Re-render rather than wait for a manual refresh.
+  useEffect(() => {
+    if (loadingTemplate || !htmlContent) return;
+    handleRefreshPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageSize, orientation]);
 
   // 7. Save Draft / Create Template
   const handleSaveDraft = async () => {
@@ -787,7 +810,15 @@ export default function ReportTemplateEditorPage() {
                 <p className="text-xs">Compiling document preview...</p>
               </div>
             ) : previewHtml ? (
-              <div className="w-full max-w-[800px] h-full bg-white shadow-xl rounded-lg overflow-hidden border border-slate-300 dark:border-slate-800">
+              <div
+                className="w-full h-full bg-white shadow-xl rounded-lg overflow-hidden border border-slate-300 dark:border-slate-800"
+                style={{
+                  // @page is ignored when HTML is shown in an iframe, so the
+                  // sheet is sized to match the chosen orientation. Replace this
+                  // with the real PDF once the preview renders one.
+                  maxWidth: orientation === "landscape" ? "1120px" : "800px",
+                }}
+              >
                 <iframe
                   ref={iframeRef}
                   title="Live Preview"
