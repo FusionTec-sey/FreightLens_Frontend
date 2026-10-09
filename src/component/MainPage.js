@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Sidebar from './MenuPanel/Menu';
 import OrgSwitcher from './UI/OrgSwitcher';
@@ -190,6 +190,13 @@ export default function MainPage() {
             <Route path="/reports/editor/new" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin", "View_Report", "Report"]}><ReportTemplateEditorPage /></PrivateRoute>} />
 
             <Route path="/unauthorized" element={<Unauthorized />} />
+
+            {/*
+              Anything else lands on the dashboard rather than a blank page.
+              From there the route guard decides: signed out goes to login, and
+              a user without View_Dashboard goes on to /unauthorized.
+            */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
       </main>
