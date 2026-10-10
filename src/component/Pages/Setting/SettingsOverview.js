@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Building2, ClipboardList, Database, ListTree, LockKeyhole, Settings2, Ship } from "lucide-react";
+import { Building2, ClipboardList, Database, ListTree, LockKeyhole, Settings2, Ship, Stamp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { ordersApi } from "../../../services/ordersApi";
@@ -31,6 +31,13 @@ const settingsCards = [
     title: "Logistics & demurrage",
     description: "Providers, free days and excluded-day defaults.",
     icon: Ship,
+  },
+  {
+    to: "/settings/print-profile",
+    title: "Print profile",
+    description: "Letterhead, stamp, bank details and print defaults, set separately for each company.",
+    icon: Stamp,
+    printProfile: true,
   },
   {
     to: "/reference-data",
@@ -84,6 +91,10 @@ export default function SettingsOverview() {
             permissions.includes("View_User") ||
             permissions.includes("View_Role")) &&
           (!card.tenantConsole || canViewTenantConsole) &&
+          (!card.printProfile ||
+            isRoot ||
+            permissions.includes("Manage_Print_Profile") ||
+            permissions.includes("Manage_Report_Template")) &&
           (!card.menuAdmin ||
             isRoot ||
             permissions.includes("Manage_Menu") ||

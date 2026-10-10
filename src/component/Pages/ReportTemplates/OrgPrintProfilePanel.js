@@ -44,15 +44,22 @@ function lines(value) {
   return Array.isArray(value) ? value.join("\n") : value || "";
 }
 
-export default function OrgPrintProfilePanel({ canEdit }) {
+export default function OrgPrintProfilePanel({ canEdit, orgId = null }) {
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState("");
 
+  // The company this profile belongs to is sent explicitly, so the page can edit
+  // any company the user may access without changing the global switcher. The
+  // server rejects an organisation the user is not assigned to.
   const headers = useCallback(
-    () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` }),
-    []
+    () => {
+      const value = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      if (orgId) value["X-Active-Org"] = String(orgId);
+      return value;
+    },
+    [orgId]
   );
 
   useEffect(() => {

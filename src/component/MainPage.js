@@ -13,6 +13,7 @@ import ContainerForReport1 from "./Pages/Report/Report1.js";
 import Unauthorized from "./Pages/Unauthorized/Unauthorized.js";
 import Setting from "./Pages/Setting/Setting.js";
 import SettingsOverview from "./Pages/Setting/SettingsOverview.js";
+import PrintProfileSettings from "./Pages/Setting/PrintProfileSettings.js";
 import OrganizationSettings from "./Pages/Setting/OrganizationSettings.js";
 import OrderSettings from "./Pages/Setting/OrderSettings.js";
 import BillOfLanding from "./Pages/BillOfLanding/BillOfLanding.js";
@@ -139,6 +140,7 @@ export default function MainPage() {
             <Route path="/settings" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Setting /></PrivateRoute>} />
             <Route path="/setting" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Setting /></PrivateRoute>} />
             <Route path="/logistics" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Logistics /></PrivateRoute>} />
+            <Route path="/settings/print-profile" element={<PrintProfileSettings />} />
             <Route path="/reference-data" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><ReferenceData /></PrivateRoute>} />
             <Route path="/reference" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><ReferenceData /></PrivateRoute>} />
 

@@ -23,12 +23,12 @@ import {
   Bookmark,
   Building2,
   Star,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import DatasetReportModal from "./DatasetReportModal";
 import DatasetReportView from "./DatasetReportView";
 import TabularTemplateDesignerModal from "./TabularTemplateDesignerModal";
-import OrgPrintProfilePanel from "./OrgPrintProfilePanel";
 
 export default function ReportTemplatesPage() {
   const navigate = useNavigate();
@@ -394,17 +394,17 @@ export default function ReportTemplatesPage() {
                 {datasetCatalog.length || 3}
               </span>
             </button>
-            <button
-              onClick={() => setMainHubTab("PROFILE")}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer ${
-                mainHubTab === "PROFILE"
-                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              <Building2 size={14} />
-              Print Profile
-            </button>
+            {canManagePrintProfile && (
+              <button
+                onClick={() => navigate("/settings/print-profile")}
+                title="A print profile belongs to one company, so it is set per company in Settings"
+                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                <Building2 size={14} />
+                Print Profile
+                <ExternalLink size={11} className="opacity-60" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -438,9 +438,7 @@ export default function ReportTemplatesPage() {
       </div>
 
       {/* ── View 1: Operational Registers Catalog ────────────────────────── */}
-      {mainHubTab === "PROFILE" ? (
-        <OrgPrintProfilePanel canEdit={canManagePrintProfile} />
-      ) : mainHubTab === "DATASETS" ? (
+      {mainHubTab === "DATASETS" ? (
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-6xl mx-auto space-y-8">
             
