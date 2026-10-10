@@ -541,6 +541,11 @@ function Setting({ currentUser }) {
             setOrganisations(res.data || []);
         } catch (e) {
             console.error("Failed to fetch organisations:", e);
+            // Swallowing this left the screen showing stale data with no sign
+            // anything had failed -- a role created but never listed, until the
+            // next sign-in happened to reload it.
+            toast.error(e.response?.data?.detail || "Could not refresh the list of companies.");
+            throw e;
         }
     }
 
@@ -552,6 +557,11 @@ function Setting({ currentUser }) {
             setRoles(res.data || []);
         } catch (e) {
             console.error("Failed to fetch roles:", e);
+            // Swallowing this left the screen showing stale data with no sign
+            // anything had failed -- a role created but never listed, until the
+            // next sign-in happened to reload it.
+            toast.error(e.response?.data?.detail || "Could not refresh the list of roles.");
+            throw e;
         }
     }
 
@@ -563,6 +573,11 @@ function Setting({ currentUser }) {
             setUsers(res.data || []);
         } catch (e) {
             console.error("Failed to fetch users:", e);
+            // Swallowing this left the screen showing stale data with no sign
+            // anything had failed -- a role created but never listed, until the
+            // next sign-in happened to reload it.
+            toast.error(e.response?.data?.detail || "Could not refresh the list of users.");
+            throw e;
         }
     }
 
@@ -574,14 +589,20 @@ function Setting({ currentUser }) {
             setRolePermissions(res.data || []);
         } catch (e) {
             console.error("Failed to fetch permissions:", e);
+            // Swallowing this left the screen showing stale data with no sign
+            // anything had failed -- a role created but never listed, until the
+            // next sign-in happened to reload it.
+            toast.error(e.response?.data?.detail || "Could not refresh the list of permissions.");
+            throw e;
         }
     }
 
     useEffect(() => {
-        getOrganisations();
-        getRoles();
-        getUsers();
-        getRolePermissions();
+        // Each is independent: one failing should not leave the others unloaded.
+        getOrganisations().catch(() => {});
+        getRoles().catch(() => {});
+        getUsers().catch(() => {});
+        getRolePermissions().catch(() => {});
     }, []);
 
     // USER ACTIONS
@@ -644,7 +665,7 @@ function Setting({ currentUser }) {
             setEditingUserId(null);
             setUserRoleSearch('');
             setNewUser({ name: '', password: '', org_ids: [], org_roles: {} });
-            getUsers();
+            await getUsers().catch(() => {});
         } catch (err) {
             console.error("Failed to save user:", err);
             let detail = err.response?.data?.detail;
@@ -689,7 +710,7 @@ function Setting({ currentUser }) {
             });
             toast.success("User deleted successfully!");
             setConfirmDeleteUserId(null);
-            getUsers();
+            await getUsers().catch(() => {});
         } catch (err) {
             console.error("Failed to delete user:", err);
             toast.error("Failed to delete user.");
@@ -790,7 +811,7 @@ function Setting({ currentUser }) {
             });
             toast.success("Role deleted successfully!");
             setConfirmDeleteRoleId(null);
-            getRoles();
+            await getRoles().catch(() => {});
         } catch (err) {
             console.error("Failed to delete role:", err);
             toast.error("Failed to delete role.");
@@ -850,7 +871,9 @@ function Setting({ currentUser }) {
             setOriginalRoleName('');
             setNewRolePermissions([]);
             setOriginalRolePermissions([]);
-            getRoles();
+            // Awaited, so the role is in the list the moment the form closes and
+            // is there to tick when assigning a user.
+            await getRoles().catch(() => {});
         } catch (err) {
             console.error("Failed to save role:", err);
             toast.error(err.response?.data?.detail || "Failed to save role.");
