@@ -115,6 +115,10 @@ export default function OrdersPage() {
   const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  // Counts for the stage chips, across the whole filtered set rather than the
+  // page on screen. Counting the loaded rows capped every chip at the page size
+  // and made the numbers move as you paged.
+  const [stageCounts, setStageCounts] = useState({ counts: {}, total: 0 });
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
@@ -174,6 +178,36 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  const fetchStageCounts = useCallback(async () => {
+    try {
+      const params = { doc_type: "PO" };
+      if (searchQuery && searchQuery.trim()) params.search = searchQuery.trim();
+      if (onlyUrgentFilter) params.urgent_only = true;
+      const res = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/orders/status-counts`,
+        {
+          params,
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            skip_zrok_interstitial: "true",
+          },
+        }
+      );
+      const data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+      setStageCounts({ counts: data?.counts || {}, total: data?.total || 0 });
+    } catch (err) {
+      // A chip without a number is better than a wrong number.
+      console.error("Could not fetch stage counts:", err);
+      setStageCounts({ counts: {}, total: 0 });
+    }
+  }, [searchQuery, onlyUrgentFilter]);
+
+  // Not keyed on the selected chip or the page: picking one chip must not zero
+  // the others, and paging does not change what the totals are.
+  useEffect(() => {
+    fetchStageCounts();
+  }, [fetchStageCounts]);
 
   const poOrders = useMemo(() => {
     return orders.filter((o) => o.doc_type === "PO" || !o.doc_type);
@@ -236,6 +270,7 @@ export default function OrdersPage() {
         setOrders((prev) =>
           prev.map((o) => (o.id === editingOrder.id ? res.data : o))
         );
+        fetchStageCounts();
       } else {
         const res = await axios.post(
           `${process.env.REACT_APP_NETWORK}/orders`,
@@ -248,6 +283,7 @@ export default function OrdersPage() {
           }
         );
         setOrders((prev) => [res.data, ...prev]);
+        fetchStageCounts();
       }
       setShowDrawer(false);
       setEditingOrder(null);
@@ -272,6 +308,8 @@ export default function OrdersPage() {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? res.data : o))
       );
+      // The order moved between stages, so both chips changed.
+      fetchStageCounts();
     } catch (err) {
       console.error("Failed to update status on server:", err);
       // Local fallback
@@ -301,6 +339,7 @@ export default function OrdersPage() {
         },
       });
       setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id));
+      fetchStageCounts();
       setOrderToDelete(null);
     } catch (err) {
       console.error("Failed to delete purchase order:", err);
@@ -335,7 +374,7 @@ export default function OrdersPage() {
                   Purchase Orders
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
-                  {filteredOrders.length} Orders
+                  {totalCount} Orders
                 </span>
               </div>
               <p
@@ -523,16 +562,15 @@ export default function OrdersPage() {
                     : "bg-slate-200 text-slate-700"
                 }`}
             >
-              {poOrders.length}
+              {stageCounts.total}
             </span>
           </button>
 
           {visibleStages.map((stage) => {
             const stageKey = stage.key || stage.code || stage.name;
             const stageLabel = stage.name || stage.label;
-            const count = poOrders.filter(
-              (o) => o.status === stageKey || o.status_label === stageLabel
-            ).length;
+            const count =
+              stageCounts.counts[stageKey] ?? stageCounts.counts[stageLabel] ?? 0;
             const isSelected = selectedStatusFilter === stageKey;
 
             return (
