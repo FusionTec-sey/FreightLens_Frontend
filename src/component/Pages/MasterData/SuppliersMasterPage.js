@@ -310,6 +310,7 @@ export default function SuppliersMasterPage() {
                 <th className="py-2.5 px-3">Contact Details</th>
                 <th className="py-2.5 px-3 text-center">Default Currency</th>
                 <th className="py-2.5 px-3">Bound Payment Terms</th>
+                <th className="py-2.5 px-3 text-center">Access</th>
                 <th className="py-2.5 px-3 text-center">Status</th>
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
@@ -317,14 +318,14 @@ export default function SuppliersMasterPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
                     <Loader2 size={16} className="animate-spin inline-block mr-2 text-indigo-500" />
                     Loading suppliers...
                   </td>
                 </tr>
               ) : filteredSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
                     No suppliers found matching your query.
                   </td>
                 </tr>
@@ -348,11 +349,10 @@ export default function SuppliersMasterPage() {
                             {s.name ? s.name.charAt(0).toUpperCase() : "V"}
                           </div>
                         )}
+                        {/* Who may use the vendor is its own column now, so the
+                            name stands alone and one vendor is one row. */}
                         <div>
                           <span>{s.name}</span>
-                          <div className={`text-[10px] font-semibold ${s.is_shared ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`}>
-                            {s.is_shared ? "Shared supplier" : "Tenant supplier"}
-                          </div>
                         </div>
                       </div>
                     </td>
@@ -395,6 +395,23 @@ export default function SuppliersMasterPage() {
                         </div>
                       ) : (
                         <span className="text-slate-400 italic">No terms bound</span>
+                      )}
+                    </td>
+                    {/* Which companies may quote this vendor. A shared vendor is
+                        one row usable by all of them, rather than one row per
+                        company with the same name on each. */}
+                    <td className="py-2 px-3 text-center">
+                      {s.is_shared ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold border bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20">
+                          ALL COMPANIES
+                        </span>
+                      ) : (
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[9px] font-bold border bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20"
+                          title="Only this company can quote this vendor"
+                        >
+                          {(s.org_name || `COMPANY ${s.org_id ?? "?"}`).toUpperCase()}
+                        </span>
                       )}
                     </td>
                     <td className="py-2 px-3 text-center">
