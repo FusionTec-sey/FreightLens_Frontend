@@ -7,8 +7,8 @@ import { PageHeader, cardClass, settingsPageClass } from "../Orders/OrderUi";
 
 const settingsCards = [
   {
-    to: "/organization-settings",
-    title: "Organization & companies",
+    to: "/settings/companies",
+    title: "Companies",
     description: "Group identity, company names and active companies used throughout Freightliner.",
     icon: Building2,
     tenantConsole: true,
@@ -22,7 +22,7 @@ const settingsCards = [
   },
   {
     to: "/order-settings",
-    title: "Orders & procurement",
+    title: "Document numbering",
     description: "Request and purchase-order numbering for each company.",
     icon: ClipboardList,
   },

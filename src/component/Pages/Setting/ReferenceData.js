@@ -13,7 +13,6 @@ function ReferenceData({ currentUser }) {
         { id: 'venues', label: 'Venues', endpoint: '/unload-venues' },
         { id: 'materials', label: 'Materials', endpoint: '/materials' },
         { id: 'container-types', label: 'Container Types', endpoint: '/container-types' },
-        { id: 'consignees', label: 'Consignees', endpoint: '/consignees' },
         { id: 'vessels', label: 'Vessels', endpoint: '/vessels' },
         { id: 'docs', label: 'Shipping Docs', endpoint: '/shipping-documents' },
         { id: 'order-statuses', label: 'Order Workflow Stages', endpoint: '/order-statuses' },

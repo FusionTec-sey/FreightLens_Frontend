@@ -13,9 +13,8 @@ import ContainerForReport1 from "./Pages/Report/Report1.js";
 import Unauthorized from "./Pages/Unauthorized/Unauthorized.js";
 import Setting from "./Pages/Setting/Setting.js";
 import SettingsOverview from "./Pages/Setting/SettingsOverview.js";
-import PrintProfileSettings from "./Pages/Setting/PrintProfileSettings.js";
-import OrganizationSettings from "./Pages/Setting/OrganizationSettings.js";
-import OrderSettings from "./Pages/Setting/OrderSettings.js";
+import CompanyListPage from "./Pages/Setting/CompanyListPage.js";
+import CompanyDetailPage from "./Pages/Setting/CompanyDetailPage.js";
 import BillOfLanding from "./Pages/BillOfLanding/BillOfLanding.js";
 import BillOfLandingInfo from "./Pages/BillOfLanding/BillOfLandingInfo.js";
 import Logistics from './Pages/Setting/Logistics';
@@ -135,14 +134,17 @@ export default function MainPage() {
             
             {/* Setting routes */}
             <Route path="/settings-overview" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><SettingsOverview /></PrivateRoute>} />
-            <Route path="/organization-settings" element={<PrivateRoute requiredPermissions={["View_TenantConsole", "Manage_TenantConsole", "Administrator"]}><OrganizationSettings /></PrivateRoute>} />
-            <Route path="/order-settings" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><OrderSettings /></PrivateRoute>} />
+            <Route path="/organization-settings" element={<PrivateRoute requiredPermissions={["View_TenantConsole", "Manage_TenantConsole", "Administrator"]}><Navigate to="/settings/companies" replace /></PrivateRoute>} />
+            <Route path="/order-settings" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Navigate to="/settings/companies" replace /></PrivateRoute>} />
+            {/* A company is the subject, not a row on four different screens. */}
+            <Route path="/settings/companies" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><CompanyListPage /></PrivateRoute>} />
+            <Route path="/settings/companies/:companyId" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><CompanyDetailPage /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Setting /></PrivateRoute>} />
-            <Route path="/setting" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Setting /></PrivateRoute>} />
+            <Route path="/setting" element={<Navigate to="/settings" replace />} />
             <Route path="/logistics" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Logistics /></PrivateRoute>} />
-            <Route path="/settings/print-profile" element={<PrintProfileSettings />} />
+            <Route path="/settings/print-profile" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><Navigate to="/settings/companies" replace /></PrivateRoute>} />
             <Route path="/reference-data" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><ReferenceData /></PrivateRoute>} />
-            <Route path="/reference" element={<PrivateRoute requiredPermissions={["View_Setting", "Setting", "Edit_Setting"]}><ReferenceData /></PrivateRoute>} />
+            <Route path="/reference" element={<Navigate to="/reference-data" replace />} />
 
             <Route path="/BillOfLanding" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BL", "BillOfLanding"]}><BillOfLanding /></PrivateRoute>} />
             <Route path="/billOfLanding" element={<PrivateRoute requiredModules={["LOGISTICS"]} requiredPermissions={["View_BL", "BillOfLanding"]}><BillOfLanding /></PrivateRoute>} />
