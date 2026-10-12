@@ -4,12 +4,21 @@ import axios from 'axios';
 import { useTheme } from '../../../context/ThemeContext';
 import { toast } from 'react-toastify';
 
+/**
+ * Simple code lists: a name and an id, nothing else.
+ *
+ * Suppliers used to be a tab here, over the same `supplier` table that Supplier
+ * Master edits. This screen could only set a name and a variance tolerance, so
+ * every vendor created through it arrived with no code, country, currency,
+ * payment terms or company scope -- which is why none of the 136 vendors in the
+ * master had any. Suppliers are now edited in one place, at
+ * /master-data/suppliers, which can set all of it.
+ */
 function ReferenceData({ currentUser }) {
     const { theme } = useTheme();
     const canEdit = true;
 
     const tabs = [
-        { id: 'suppliers', label: 'Suppliers', endpoint: '/suppliers' },
         { id: 'venues', label: 'Venues', endpoint: '/unload-venues' },
         { id: 'materials', label: 'Materials', endpoint: '/materials' },
         { id: 'container-types', label: 'Container Types', endpoint: '/container-types' },
@@ -22,12 +31,10 @@ function ReferenceData({ currentUser }) {
     const [dataList, setDataList] = useState([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [newItemName, setNewItemName] = useState('');
-    const [newVarianceThreshold, setNewVarianceThreshold] = useState('2.0');
 
     const [editingItem, setEditingItem] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editItemName, setEditItemName] = useState('');
-    const [editVarianceThreshold, setEditVarianceThreshold] = useState('2.0');
 
     const [itemToDelete, setItemToDelete] = useState(null);
     const [showDeleteWarning, setShowDeleteWarning] = useState(false);
@@ -49,11 +56,10 @@ function ReferenceData({ currentUser }) {
                 data = JSON.parse(data);
             }
             if (data.data) {
-                // Info.py returns { "data": [[id, "name", variance_threshold_pct?], ...] }
+                // Info.py returns { "data": [[id, "name", ...], ...] }
                 setDataList(data.data.map(item => ({
                     id: item[0],
-                    name: item[1],
-                    variance_threshold_pct: item[2] != null ? item[2] : 2.0
+                    name: item[1]
                 })));
             }
         } catch (error) {
@@ -65,9 +71,6 @@ function ReferenceData({ currentUser }) {
         if (!newItemName.trim() || !currentTab) return;
         try {
             const payload = { name: newItemName.trim() };
-            if (activeTab === 'suppliers') {
-                payload.variance_threshold_pct = parseFloat(newVarianceThreshold) || 2.0;
-            }
             const response = await axios.post(
                 `${process.env.REACT_APP_NETWORK}${currentTab.endpoint}`,
                 payload,
@@ -80,7 +83,6 @@ function ReferenceData({ currentUser }) {
             await fetchData();
             setShowAddModal(false);
             setNewItemName('');
-            setNewVarianceThreshold('2.0');
             toast.success(`${currentTab.label} added successfully!`);
         } catch (error) {
             console.error(`Failed to add ${currentTab.label}:`, error);
@@ -96,9 +98,6 @@ function ReferenceData({ currentUser }) {
         if (!editItemName.trim() || !editingItem || !currentTab) return;
         try {
             const payload = { name: editItemName.trim() };
-            if (activeTab === 'suppliers') {
-                payload.variance_threshold_pct = parseFloat(editVarianceThreshold) || 2.0;
-            }
             await axios.put(
                 `${process.env.REACT_APP_NETWORK}${currentTab.endpoint}/${editingItem.id}`,
                 payload,
@@ -183,9 +182,6 @@ function ReferenceData({ currentUser }) {
                             <tr>
                                 <th className={`p-3 text-left font-semibold ${theme.text}`}>ID</th>
                                 <th className={`p-3 text-left font-semibold ${theme.text}`}>Name / Value</th>
-                                {activeTab === 'suppliers' && (
-                                    <th className={`p-3 text-left font-semibold ${theme.text}`}>Price Variance Tolerance (%)</th>
-                                )}
                                 {canEdit && <th className={`p-3 text-center font-semibold ${theme.text}`}>Actions</th>}
                             </tr>
                         </thead>
@@ -195,19 +191,13 @@ function ReferenceData({ currentUser }) {
                                     <tr key={item.id} className={`${theme.hover} transition-colors`}>
                                         <td className={`p-3 ${theme.profileText}`}>{item.id}</td>
                                         <td className={`p-3 font-medium ${theme.text}`}>{item.name}</td>
-                                        {activeTab === 'suppliers' && (
-                                            <td className={`p-3 font-mono font-semibold text-blue-600 dark:text-blue-400`}>
-                                                {item.variance_threshold_pct != null ? `${item.variance_threshold_pct}%` : '2.0%'}
-                                            </td>
-                                        )}
                                         {canEdit && (
                                             <td className="p-3 flex justify-center gap-4">
                                                 <button
                                                     onClick={() => {
                                                         setEditingItem(item);
                                                         setEditItemName(item.name);
-                                                        setEditVarianceThreshold(String(item.variance_threshold_pct != null ? item.variance_threshold_pct : 2.0));
-                                                        setShowEditModal(true);
+                                                                        setShowEditModal(true);
                                                     }}
                                                     className="text-blue-500 hover:text-blue-700 transition"
                                                     title="Edit"
@@ -230,7 +220,7 @@ function ReferenceData({ currentUser }) {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={canEdit ? (activeTab === 'suppliers' ? 4 : 3) : (activeTab === 'suppliers' ? 3 : 2)} className={`p-6 text-center italic ${theme.profileText}`}>
+                                    <td colSpan={canEdit ? 3 : 2} className={`p-6 text-center italic ${theme.profileText}`}>
                                         No {currentTab?.label.toLowerCase()} found.
                                     </td>
                                 </tr>
@@ -256,28 +246,12 @@ function ReferenceData({ currentUser }) {
                                 autoFocus
                             />
                         </div>
-                        {activeTab === 'suppliers' && (
-                            <div>
-                                <label className="block text-xs font-semibold mb-1 text-slate-500">Price Variance Tolerance (%)</label>
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    placeholder="2.0"
-                                    value={newVarianceThreshold}
-                                    onChange={(e) => setNewVarianceThreshold(e.target.value)}
-                                    className={`w-full border px-3 py-2 rounded font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme.border} ${theme.background} ${theme.text}`}
-                                />
-                                <p className="text-[11px] text-slate-400 mt-1">Default is 2.0%. Price changes beyond this tolerance at Proforma stage will trigger an approval hold.</p>
-                            </div>
-                        )}
                         <div className="flex justify-end gap-2 pt-4">
                             <button
                                 onClick={() => {
                                     setShowAddModal(false);
                                     setNewItemName('');
-                                    setNewVarianceThreshold('2.0');
-                                }}
+                                                        }}
                                 className={`px-4 py-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${theme.border}`}
                             >
                                 Cancel
@@ -308,27 +282,11 @@ function ReferenceData({ currentUser }) {
                                 autoFocus
                             />
                         </div>
-                        {activeTab === 'suppliers' && (
-                            <div>
-                                <label className="block text-xs font-semibold mb-1 text-slate-500">Price Variance Tolerance (%)</label>
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    min="0"
-                                    placeholder="2.0"
-                                    value={editVarianceThreshold}
-                                    onChange={(e) => setEditVarianceThreshold(e.target.value)}
-                                    className={`w-full border px-3 py-2 rounded font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${theme.border} ${theme.background} ${theme.text}`}
-                                />
-                                <p className="text-[11px] text-slate-400 mt-1">Default is 2.0%. Price changes beyond this tolerance at Proforma stage will trigger an approval hold.</p>
-                            </div>
-                        )}
                         <div className="flex justify-end gap-2 pt-4">
                             <button
                                 onClick={() => {
                                     setShowEditModal(false);
                                     setEditingItem(null);
-                                    setEditVarianceThreshold('2.0');
                                 }}
                                 className={`px-4 py-2 border rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${theme.border}`}
                             >

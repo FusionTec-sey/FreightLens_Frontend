@@ -111,6 +111,15 @@ export default function VendorQuoteEntryModal({
     return suppliers;
   }, [masterSuppliers, suppliers]);
 
+  // How many vendors this list is hiding, so the screen can say so. A vendor
+  // that is simply absent reads as missing data and sends people looking for it
+  // in the supplier master, where it is sitting in plain sight.
+  const alreadyQuotedCount = useMemo(() => {
+    if (quoteToEdit) return 0;
+    const quotedSet = new Set((existingSupplierIds || []).map((id) => Number(id)));
+    return allSuppliers.filter((s) => quotedSet.has(Number(s.id ?? s.supplier_id))).length;
+  }, [allSuppliers, existingSupplierIds, quoteToEdit]);
+
   const availableSuppliers = useMemo(() => {
     if (quoteToEdit) return allSuppliers;
     const quotedSet = new Set((existingSupplierIds || []).map((id) => Number(id)));
@@ -575,14 +584,28 @@ export default function VendorQuoteEntryModal({
                         <span className="text-[11px]">All suppliers already quoted.</span>
                       </div>
                     ) : (
-                      <GenericSelector
-                        value={formData.supplier_id}
-                        onChange={handleSupplierChange}
-                        placeholder="Select Supplier..."
-                        options={availableSuppliers}
-                        labelKey="name"
-                        valueKey="id"
-                      />
+                      <>
+                        <GenericSelector
+                          value={formData.supplier_id}
+                          onChange={handleSupplierChange}
+                          placeholder="Select Supplier..."
+                          options={availableSuppliers}
+                          labelKey="name"
+                          valueKey="id"
+                        />
+                        {/* Say what the list leaves out. Both exclusions are
+                            correct, and both look like a missing vendor. */}
+                        <p className="text-[10px] text-slate-400 leading-tight">
+                          {alreadyQuotedCount > 0 && (
+                            <>
+                              {alreadyQuotedCount} vendor{alreadyQuotedCount === 1 ? "" : "s"} already
+                              quoted on this RFQ {alreadyQuotedCount === 1 ? "is" : "are"} not listed.{" "}
+                            </>
+                          )}
+                          Only vendors set up for this order&apos;s company, or marked shared,
+                          can be quoted. A missing vendor is fixed in Supplier Master.
+                        </p>
+                      </>
                     )}
                   </div>
 
