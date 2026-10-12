@@ -35,7 +35,9 @@ const Configured = ({ done, label }) => (
 export default function CompanyListPage() {
   const navigate = useNavigate();
   const { permissions = [], isSuperAdmin } = useAuth();
-  const canEdit = isSuperAdmin || permissions.includes("Edit_Setting");
+  // Creating a company is root-only on the server, so Edit_Setting must not be
+  // offered a button whose save it will refuse.
+  const canCreate = isSuperAdmin || permissions.includes("Manage_TenantConsole");
 
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,7 @@ export default function CompanyListPage() {
         description="Each company and what is set up for it. Open one to manage its details, numbering and print profile."
       />
 
-      {canEdit && (
+      {canCreate && (
         <div className="mb-4 flex justify-end">
           <button className={buttonClass} onClick={() => navigate("/settings/companies/new")}>
             <Plus size={16} />

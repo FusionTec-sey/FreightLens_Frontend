@@ -51,10 +51,14 @@ export default function CompanyDetailPage() {
   const { permissions = [], isSuperAdmin } = useAuth();
 
   const isNew = companyId === "new";
-  const canEditIdentity =
+  // Each area keeps the permission its own screen carried before this page
+  // merged them. Edit_Setting opens the page; it does not inherit the right to
+  // rename a company or change its letterhead.
+  const canEditIdentity = isSuperAdmin || permissions.includes("Manage_TenantConsole");
+  const canEditPrint =
     isSuperAdmin ||
-    permissions.includes("Manage_TenantConsole") ||
-    permissions.includes("Edit_Setting");
+    permissions.includes("Manage_Print_Profile") ||
+    permissions.includes("Manage_Report_Template");
   const canSeeNumbering =
     isSuperAdmin || permissions.includes("View_Setting") || permissions.includes("Edit_Setting");
   const canSeePrint = canSeeNumbering;
@@ -249,6 +253,12 @@ export default function CompanyDetailPage() {
         ))}
       </div>
 
+      {isNew && !canEditIdentity && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+          Only a root administrator can create a company.
+        </div>
+      )}
+
       {activeTab === "identity" && (
         <section className={`${cardClass} p-4`}>
           <div className="grid gap-4 md:grid-cols-2">
@@ -312,7 +322,7 @@ export default function CompanyDetailPage() {
       {activeTab === "identity" && !isNew && canSeePrint && (
         <section className={`${cardClass} mt-4 p-4`}>
           <OrgPrintProfilePanel
-            canEdit={canEditIdentity}
+            canEdit={canEditPrint}
             embedded
             key={companyId}
             orgId={Number(companyId)}
