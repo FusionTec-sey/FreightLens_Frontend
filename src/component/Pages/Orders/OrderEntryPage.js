@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import axios from "axios";
 import {
@@ -12,7 +12,6 @@ import {
   Boxes,
   Trash2,
   Sparkles,
-  Plus,
   Calendar,
   DollarSign,
   Truck,
@@ -386,18 +385,12 @@ export default function OrderEntryPage({
     company: "",
     goods_description: "",
     material_ids: [],
-    items: [
-      {
-        product_id: null,
-        item_code: "",
-        description: "",
-        quantity_ordered: 1,
-        unit: "PCS",
-        unit_price: "",
-        total_price: "",
-        notes: "",
-      },
-    ],
+    // Line items come from the product catalogue, where the SKU, description and
+    // unit are fixed to the chosen product (docs/ARCHITECTURE.md, "Procurement
+    // Catalogue Identity"). The table therefore starts empty and its empty state
+    // points at the catalogue search; a pre-seeded blank row invited the
+    // free-text entry that the catalogue's own "Add New Item" replaced.
+    items: [],
     status: "DRAFT",
     status_label: "Draft",
     status_id: null,
@@ -662,22 +655,8 @@ export default function OrderEntryPage({
       item_status: it.item_status || "ACTIVE",
     }));
 
-    let finalParsedItems = parsedItems;
-    if (finalParsedItems.length === 0) {
-      finalParsedItems = [
-        {
-          product_id: null,
-          item_code: "",
-          description: "",
-          quantity_ordered: 1,
-          unit: "PCS",
-          unit_price: "",
-          total_price: "",
-          notes: "",
-          item_status: "ACTIVE",
-        },
-      ];
-    }
+    // An order stored with no items opens on the empty state, not a blank row.
+    const finalParsedItems = parsedItems;
 
     setInitialItemsSnapshot(
       JSON.stringify(
@@ -1080,13 +1059,6 @@ export default function OrderEntryPage({
     if (!prod) return;
 
     const currentItems = formData.items || [];
-    const isOnlyOneBlank =
-      currentItems.length === 1 &&
-      !currentItems[0].product_id &&
-      !currentItems[0].item_code &&
-      !currentItems[0].description &&
-      !currentItems[0].unit_price;
-
     const existingIndex = currentItems.findIndex(
       (it) => it.product_id === prod.id
     );
@@ -1117,7 +1089,7 @@ export default function OrderEntryPage({
       };
       setFormData((prev) => ({
         ...prev,
-        items: isOnlyOneBlank ? [newItem] : [...currentItems, newItem],
+        items: [...currentItems, newItem],
         goods_description: prev.goods_description || prod.name,
         supplier: isRFQ ? null : (prev.supplier || prod.default_supplier_id || null),
         company: isRFQ ? "" : (prev.company || prod.supplier_name || prev.company),
@@ -1126,21 +1098,30 @@ export default function OrderEntryPage({
     setSelectedProductCode("");
   };
 
-  const handleAddCustomItem = () => {
-    const newItem = {
-      product_id: null,
-      item_code: "",
-      description: "",
-      quantity_ordered: 1,
-      unit: "PCS",
-      unit_price: "",
-      total_price: "",
-      notes: "",
-    };
-    setFormData((prev) => ({
-      ...prev,
-      items: [...(prev.items || []), newItem],
-    }));
+  // Quantity is the one field typed on every line, so the quantity column is
+  // walked with Enter: each press commits the figure and moves to the line
+  // below, arriving with the value selected so typing replaces it outright.
+  const qtyInputRefs = useRef([]);
+
+  const focusQty = (index) => {
+    // Bounded by the live list: a shrunken list can leave a ref behind pointing
+    // at a row that is no longer rendered.
+    if (index >= (formData.items || []).length) return false;
+    const input = qtyInputRefs.current[index];
+    if (!input) return false;
+    input.focus();
+    // select() rather than setSelectionRange, which throws on a number input.
+    input.select();
+    return true;
+  };
+
+  const handleQtyKeyDown = (event, index) => {
+    if (event.key !== "Enter") return;
+    // Enter inside the form would otherwise submit the order half-entered.
+    event.preventDefault();
+    // Past the last line there is nowhere to go, so the field is left as it is
+    // with the figure committed.
+    if (!focusQty(index + 1)) event.currentTarget.blur();
   };
 
   const handleItemFieldChange = (index, field, val) => {
@@ -1155,48 +1136,13 @@ export default function OrderEntryPage({
       updated[index].total_price = q > 0 && p > 0 ? (q * p).toFixed(2) : "";
     }
 
-    // Auto-append next empty row if typing in the last row and it now has content
-    if (index === updated.length - 1) {
-      const last = updated[index];
-      const hasContent = Boolean(
-        (last.description && last.description.trim()) ||
-        (last.item_code && last.item_code.trim()) ||
-        (last.unit_price && String(last.unit_price).trim()) ||
-        last.product_id
-      );
-      if (hasContent) {
-        updated.push({
-          product_id: null,
-          item_code: "",
-          description: "",
-          quantity_ordered: 1,
-          unit: "PCS",
-          unit_price: "",
-          total_price: "",
-          notes: "",
-        });
-      }
-    }
-
     setFormData((prev) => ({ ...prev, items: updated }));
   };
 
   const handleRemoveItem = (index) => {
-    let updated = (formData.items || []).filter((_, i) => i !== index);
-    if (updated.length === 0) {
-      updated = [
-        {
-          product_id: null,
-          item_code: "",
-          description: "",
-          quantity_ordered: 1,
-          unit: "PCS",
-          unit_price: "",
-          total_price: "",
-          notes: "",
-        },
-      ];
-    }
+    // Removing the last line leaves the table empty, which is the empty state --
+    // not a blank row that would read as an unsaved item.
+    const updated = (formData.items || []).filter((_, i) => i !== index);
     setFormData((prev) => ({ ...prev, items: updated }));
   };
 
@@ -2419,16 +2365,10 @@ export default function OrderEntryPage({
                           <Package className="w-8 h-8 opacity-25" />
                           <p className="text-xs font-normal">No product line items added yet</p>
                           <p className="text-[11px] text-slate-400 max-w-sm">
-                            Search the product catalog above or click &quot;Add Line Item&quot; to begin building this order.
+                            Search the product catalog above to add a line. An item
+                            that is not in the catalog yet can be created with
+                            &quot;Add New Item&quot; in that search.
                           </p>
-                          <button
-                            type="button"
-                            onClick={handleAddCustomItem}
-                            className="mt-1 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 text-xs font-normal transition border border-blue-500/20"
-                          >
-                            <Plus size={12} />
-                            <span>Add First Line Item</span>
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -2489,6 +2429,12 @@ export default function OrderEntryPage({
                             step="any"
                             value={it.quantity_ordered}
                             disabled={!canEdit}
+                            ref={(el) => {
+                              qtyInputRefs.current[idx] = el;
+                            }}
+                            onKeyDown={(e) => handleQtyKeyDown(e, idx)}
+                            onFocus={(e) => e.target.select()}
+                            title="Enter moves to the quantity on the next line"
                             onChange={(e) => handleItemFieldChange(idx, "quantity_ordered", e.target.value)}
                             className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal font-mono text-right transition disabled:opacity-60 disabled:cursor-not-allowed ${isDark
                                 ? "bg-slate-900 border-slate-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
