@@ -244,6 +244,16 @@ export default function QuoteComparisonPage() {
   const lineItems = comparisonData?.line_items || [];
   const poInfo = comparisonData?.po || {};
 
+  // Held steady across renders: the quote entry modal rebuilds its form when
+  // this changes identity, which while a quote was being typed cleared the
+  // prices already entered. It only genuinely changes when the comparison is
+  // refetched.
+  const quoteModalPo = useMemo(
+    () => ({ ...poInfo, items: lineItems.map((li) => ({ id: li.po_item_id, ...li })) }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [comparisonData]
+  );
+
   // Find strictly fastest vendor lead time (only if at least 2 quotes exist with valid lead time, and the lowest lead time is strictly less than all others)
   const fastestVendorQuote = useMemo(() => {
     const withLead = vendors.filter((v) => v.delivery_lead_time_days && v.delivery_lead_time_days > 0);
@@ -1293,7 +1303,7 @@ export default function QuoteComparisonPage() {
           setShowAddQuoteModal(false);
           setEditingQuote(null);
         }}
-        po={{ ...poInfo, items: lineItems.map((li) => ({ id: li.po_item_id, ...li })) }}
+        po={quoteModalPo}
         suppliers={suppliers}
         onQuoteSaved={fetchComparison}
         quoteToEdit={editingQuote}

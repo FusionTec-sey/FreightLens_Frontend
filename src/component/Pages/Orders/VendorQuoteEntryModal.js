@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   X,
   DollarSign,
@@ -67,9 +67,15 @@ export default function VendorQuoteEntryModal({
     const token = localStorage.getItem("token");
     const headers = { Authorization: `Bearer ${token}`, skip_zrok_interstitial: "true" };
 
-    // Fetch rich suppliers with payment_term and default_currency
+    // Fetch rich suppliers with payment_term and default_currency, narrowed to
+    // the ones this order's organisation may actually quote from. Without
+    // for_org_id a root user is offered every tenant's suppliers and the save
+    // comes back "Supplier not found."
+    const supplierParams = new URLSearchParams({ active_only: "true" });
+    if (po?.org_id != null) supplierParams.set("for_org_id", String(po.org_id));
+
     axios
-      .get(`${process.env.REACT_APP_NETWORK}/master-data/suppliers?active_only=true`, { headers })
+      .get(`${process.env.REACT_APP_NETWORK}/master-data/suppliers?${supplierParams}`, { headers })
       .then((res) => {
         if (Array.isArray(res.data) && res.data.length > 0) {
           setMasterSuppliers(res.data);
@@ -96,7 +102,9 @@ export default function VendorQuoteEntryModal({
         }
       })
       .catch((err) => console.warn("Could not load currencies:", err));
-  }, [isOpen]);
+    // po.org_id can arrive after the modal opens, and the supplier list is
+    // wrong until it does, so it is refetched when it lands.
+  }, [isOpen, po?.org_id]);
 
   const allSuppliers = useMemo(() => {
     if (masterSuppliers.length > 0) return masterSuppliers;
@@ -165,8 +173,25 @@ export default function VendorQuoteEntryModal({
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // The parent builds `po` as a fresh object literal on every one of its
+  // renders, so depending on its identity re-ran the effect below while the
+  // quote was being typed -- resetting every unit price to 0.00 and clearing
+  // the search and filter with it. The form is rebuilt when the modal opens or
+  // the quote being edited changes, which is what the ids below say; the object
+  // itself is read through a ref so a new identity alone changes nothing.
+  const poRef = useRef(po);
+  poRef.current = po;
+  const quoteToEditRef = useRef(quoteToEdit);
+  quoteToEditRef.current = quoteToEdit;
+
+  const poId = po?.id;
+  const editingQuoteId = quoteToEdit ? (quoteToEdit.quote_id || quoteToEdit.id) : null;
+
   // Populate items from PO or fetch existing quote details when editing
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    const po = poRef.current;
+    const quoteToEdit = quoteToEditRef.current;
     if (!isOpen || !po) return;
 
     const activePoItems = (po.items || []).filter((i) => !i.is_deleted);
@@ -255,7 +280,7 @@ export default function VendorQuoteEntryModal({
     setErrorMsg("");
     setSearchQuery("");
     setActiveFilterTab("ALL");
-  }, [isOpen, po, quoteToEdit]);
+  }, [isOpen, poId, editingQuoteId]);
 
   const handleItemChange = (index, field, value) => {
     setFormData((prev) => {
