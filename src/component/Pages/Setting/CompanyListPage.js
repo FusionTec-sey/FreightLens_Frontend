@@ -103,6 +103,7 @@ export default function CompanyListPage() {
                 <tr>
                   <th className="px-4 py-2 font-semibold">Company</th>
                   <th className="px-4 py-2 font-semibold">Users</th>
+                  <th className="px-4 py-2 font-semibold">Containers</th>
                   <th className="px-4 py-2 font-semibold">Set up</th>
                   <th className="px-4 py-2 font-semibold">Status</th>
                 </tr>
@@ -136,11 +137,15 @@ export default function CompanyListPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">{company.user_count}</td>
+                    <td className="px-4 py-3">{(company.container_count ?? 0).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         <Configured done={company.numbering_active > 0} label="Numbering" />
                         <Configured done={company.has_print_profile} label="Print profile" />
-                        <Configured done={(company.modules || []).length > 0} label="Modules" />
+                        <Configured
+                          done={(company.modules || []).length > 0}
+                          label={`Modules (${(company.modules || []).length})`}
+                        />
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -158,7 +163,7 @@ export default function CompanyListPage() {
                 ))}
                 {companies.length === 0 && (
                   <tr>
-                    <td className="p-6 text-center text-sm opacity-60" colSpan={4}>
+                    <td className="p-6 text-center text-sm opacity-60" colSpan={5}>
                       No companies found.
                     </td>
                   </tr>

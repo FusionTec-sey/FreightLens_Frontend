@@ -125,6 +125,11 @@ export default function AdminOverview() {
                 <Shield size={20} />
               </div>
               <h1 className={`text-lg font-bold ${theme.text}`}>Organisation & Tenant Console</h1>
+              {/* Being retired: company settings now live under Settings >
+                  Companies. Only the legacy data sync still belongs here. */}
+              <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                Legacy
+              </span>
               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isDark ? "bg-blue-500/10 text-blue-400 border border-blue-500/30" : "bg-blue-50 text-blue-700 border border-blue-200"}`}>
                 Multi-Tenant Architecture
               </span>

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, Hash, Loader2, Save, Stamp, Users } from "lucide-react";
+import { ArrowLeft, Blocks, Building2, Hash, Loader2, Save, Stamp, Users } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { useAuth } from "../../../context/AuthContext";
@@ -28,6 +28,15 @@ import {
  * cannot use is not rendered, rather than the whole page becoming root-only
  * because one tab is.
  */
+
+// What a company has subscribed to. Thirty-two routes are gated on these, and
+// access_policy builds its module map from them, so switching one off removes
+// those screens for everyone in that company.
+const MODULES = [
+  { id: "LOGISTICS", label: "Logistics", hint: "Containers, bills of lading, demurrage" },
+  { id: "ORDERS", label: "Orders", hint: "Requisitions, RFQs, purchase orders, receiving" },
+  { id: "INVENTORY", label: "Inventory", hint: "Products, stock and valuation" },
+];
 
 const RESET_OPTIONS = [
   { value: "never", label: "Never" },
@@ -57,6 +66,7 @@ export default function CompanyDetailPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(null);
   const [activeTab, setActiveTab] = useState("identity");
+  const [modules, setModules] = useState([]);
 
   const load = useCallback(async () => {
     if (isNew) return;
@@ -81,6 +91,7 @@ export default function CompanyDetailPage() {
         name: found.name || "",
         is_active: Boolean(found.is_active),
       });
+      setModules(found.modules || []);
 
       // Numbering lives behind the admin console, so a company administrator
       // may legitimately not get it; the tab is hidden rather than erroring.
@@ -138,6 +149,23 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const saveModules = async () => {
+    setSaving("modules");
+    try {
+      await axios.patch(
+        `${process.env.REACT_APP_NETWORK}/organisations/${companyId}`,
+        { modules },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      toast.success("Modules saved.");
+      await load();
+    } catch (err) {
+      toast.error(await errorText(err, "Could not save modules."));
+    } finally {
+      setSaving(null);
+    }
+  };
+
   const valueOf = (row, key) =>
     drafts[row.id]?.[key] !== undefined ? drafts[row.id][key] : row[key];
 
@@ -170,6 +198,7 @@ export default function CompanyDetailPage() {
 
   const tabs = useMemo(() => {
     const list = [{ id: "identity", label: "Details", icon: Building2 }];
+    if (!isNew) list.push({ id: "modules", label: "Modules", icon: Blocks });
     if (!isNew && canSeeNumbering) list.push({ id: "numbering", label: "Numbering", icon: Hash });
     if (!isNew && canSeePrint) list.push({ id: "print", label: "Print profile", icon: Stamp });
     if (!isNew) list.push({ id: "users", label: "Users", icon: Users });
@@ -277,6 +306,51 @@ export default function CompanyDetailPage() {
                 {saving === "identity" ? "Saving…" : isNew ? "Create company" : "Save details"}
               </button>
             </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === "modules" && (
+        <section className={`${cardClass} p-4`}>
+          <p className="mb-3 text-sm opacity-70">
+            What this company has subscribed to. Switching one off hides those
+            screens for everyone in the company; it does not delete any data.
+          </p>
+          <div className="space-y-2">
+            {MODULES.map((module) => (
+              <label
+                className="flex items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
+                key={module.id}
+              >
+                <input
+                  checked={modules.includes(module.id)}
+                  className="mt-0.5 h-4 w-4"
+                  disabled={!isSuperAdmin}
+                  onChange={(event) =>
+                    setModules((current) =>
+                      event.target.checked
+                        ? [...current, module.id]
+                        : current.filter((id) => id !== module.id)
+                    )
+                  }
+                  type="checkbox"
+                />
+                <span className="text-sm">
+                  <span className="font-medium">{module.label}</span>
+                  <span className="block text-xs opacity-60">{module.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {isSuperAdmin ? (
+            <button className={`${buttonClass} mt-4`} disabled={saving === "modules"} onClick={saveModules}>
+              <Save size={15} />
+              {saving === "modules" ? "Saving…" : "Save modules"}
+            </button>
+          ) : (
+            <p className="mt-3 text-xs opacity-60">
+              Only a root administrator can change which modules a company has.
+            </p>
           )}
         </section>
       )}
