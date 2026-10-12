@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Blocks, Building2, Hash, Loader2, Save, Stamp, Users } from "lucide-react";
+import { ArrowLeft, Blocks, Building2, Hash, Loader2, Save, Users } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { useAuth } from "../../../context/AuthContext";
@@ -200,10 +200,9 @@ export default function CompanyDetailPage() {
     const list = [{ id: "identity", label: "Details", icon: Building2 }];
     if (!isNew) list.push({ id: "modules", label: "Modules", icon: Blocks });
     if (!isNew && canSeeNumbering) list.push({ id: "numbering", label: "Numbering", icon: Hash });
-    if (!isNew && canSeePrint) list.push({ id: "print", label: "Print profile", icon: Stamp });
     if (!isNew) list.push({ id: "users", label: "Users", icon: Users });
     return list;
-  }, [isNew, canSeeNumbering, canSeePrint]);
+  }, [isNew, canSeeNumbering]);
 
   if (loading) {
     return (
@@ -307,6 +306,17 @@ export default function CompanyDetailPage() {
               </button>
             </div>
           )}
+        </section>
+      )}
+
+      {activeTab === "identity" && !isNew && canSeePrint && (
+        <section className={`${cardClass} mt-4 p-4`}>
+          <OrgPrintProfilePanel
+            canEdit={canEditIdentity}
+            embedded
+            key={companyId}
+            orgId={Number(companyId)}
+          />
         </section>
       )}
 
@@ -468,10 +478,6 @@ export default function CompanyDetailPage() {
             </table>
           </div>
         </section>
-      )}
-
-      {activeTab === "print" && (
-        <OrgPrintProfilePanel canEdit={canEditIdentity} key={companyId} orgId={Number(companyId)} />
       )}
 
       {activeTab === "users" && (

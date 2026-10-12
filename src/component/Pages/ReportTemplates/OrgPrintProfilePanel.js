@@ -44,7 +44,13 @@ function lines(value) {
   return Array.isArray(value) ? value.join("\n") : value || "";
 }
 
-export default function OrgPrintProfilePanel({ canEdit, orgId = null }) {
+/**
+ * `embedded` drops the full-page chrome and the heading, for when this sits
+ * inside a company's own page: the surrounding page already says which company
+ * it is, so repeating "Organization Print Profile" above it reads as a second,
+ * nested screen.
+ */
+export default function OrgPrintProfilePanel({ canEdit, orgId = null, embedded = false }) {
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -150,29 +156,37 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null }) {
     );
   }
 
+  const saveButton = canEdit && (
+    <button
+      type="submit"
+      disabled={saving}
+      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+    >
+      {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+      Save print profile
+    </button>
+  );
+
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 p-6 dark:bg-slate-950">
-      <form onSubmit={save} className="mx-auto max-w-6xl space-y-6">
+    <div
+      className={
+        embedded ? "" : "flex-1 overflow-y-auto bg-slate-50 p-6 dark:bg-slate-950"
+      }
+    >
+      <form onSubmit={save} className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6"}>
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-800">
           <div>
             <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
               <Building2 size={18} className="text-indigo-600" />
-              Organization Print Profile
+              {embedded ? "Printed documents" : "Organization Print Profile"}
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              Identity, contact, payment, and document defaults used by generated reports.
+              {embedded
+                ? "The letterhead, stamp, bank details and locale used on this company's printed documents."
+                : "Identity, contact, payment, and document defaults used by generated reports."}
             </p>
           </div>
-          {canEdit && (
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              Save profile
-            </button>
-          )}
+          {saveButton}
         </div>
 
         <section className="space-y-4 border-b border-slate-200 pb-6 dark:border-slate-800">
@@ -281,6 +295,11 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null }) {
             ))}
           </div>
         </section>
+        {canEdit && (
+          <div className="flex justify-end border-t border-slate-200 pt-4 dark:border-slate-800">
+            {saveButton}
+          </div>
+        )}
       </form>
     </div>
   );
