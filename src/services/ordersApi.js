@@ -4,30 +4,42 @@ import { toast } from "react-toastify";
 const baseURL = `${process.env.REACT_APP_NETWORK}/orders`;
 const SESSION_EXPIRED_EVENT = "freightliner:session-expired";
 
-const api = axios.create({ baseURL });
 let expiredToken = null;
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token && token !== expiredToken) expiredToken = null;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  config.headers["skip_zrok_interstitial"] = "true";
-  return config;
-});
+const withInterceptors = (instance) => {
+  instance.interceptors.request.use((config) => {
+    const token = localStorage.getItem("token");
+    if (token && token !== expiredToken) expiredToken = null;
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    config.headers["skip_zrok_interstitial"] = "true";
+    return config;
+  });
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error?.response?.status === 401) {
-      error.isSessionExpired = true;
-      const token = localStorage.getItem("token");
-      if (token && token !== expiredToken) {
-        expiredToken = token;
-        window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+  instance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error?.response?.status === 401) {
+        error.isSessionExpired = true;
+        const token = localStorage.getItem("token");
+        if (token && token !== expiredToken) {
+          expiredToken = token;
+          window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
+        }
       }
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
+  );
+  return instance;
+};
+
+const api = withInterceptors(axios.create({ baseURL }));
+
+// The admin router is mounted at the API root, not under /orders. Calling it
+// through `api` produced /orders/admin/settings, which 404s -- and the 404 fell
+// through to the offline fallback, so the screen quietly showed invented
+// prefixes that no save could ever persist.
+const rootApi = withInterceptors(
+  axios.create({ baseURL: process.env.REACT_APP_NETWORK })
 );
 
 export const ORDER_STATUSES = [
@@ -58,8 +70,13 @@ export const ordersApi = {
   companies: () => api.get("/companies").then((res) => res.data),
   adminSettings: async () => {
     try {
-      return await api.get("/admin/settings").then((res) => res.data);
-    } catch {
+      return await rootApi.get("/admin/settings").then((res) => res.data);
+    } catch (error) {
+      // Fall back only when the endpoint cannot be reached. Falling back on a
+      // permission error handed back companies carrying no numbering, so the
+      // screen drew an empty table instead of saying access was refused.
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) throw error;
       // Fallback for Docker backend
       const token = localStorage.getItem("token");
       const headers = token
@@ -78,23 +95,26 @@ export const ordersApi = {
                 id: o.id || o.org_id,
                 code: code,
                 name: o.display_name || o.name || o.org_name || "Company",
-                request_prefix: `REQ-${code}`,
-                po_prefix: `PO-${code}`,
                 active: true,
+                number_series: [],
               };
             })
           : [
-              { id: 1, code: "SAHAJ", name: "SAHAJ CONSTRUCTION", request_prefix: "REQ-SAHAJ", po_prefix: "PO-SAHAJ", active: true },
-              { id: 2, code: "NOBLE", name: "NOBLECON ENTERPRISE", request_prefix: "REQ-NOBLE", po_prefix: "PO-NOBLE", active: true },
-              { id: 3, code: "SAHAJANAND", name: "SAHAJANAND", request_prefix: "REQ-SAHAJANAND", po_prefix: "PO-SAHAJANAND", active: true },
+              { id: 1, code: "SAHAJ", name: "SAHAJ CONSTRUCTION", active: true, number_series: [] },
+              { id: 2, code: "NOBLE", name: "NOBLECON ENTERPRISE", active: true, number_series: [] },
+              { id: 3, code: "SAHAJANAND", name: "SAHAJANAND", active: true, number_series: [] },
             ],
       };
     }
   },
   updateCompanyGroup: (id, payload) =>
-    api.patch(`/admin/groups/${id}`, payload).then((res) => res.data).catch(() => ({ id, ...payload })),
+    rootApi.patch(`/admin/groups/${id}`, payload).then((res) => res.data).catch(() => ({ id, ...payload })),
   updateCompanySettings: (id, payload) =>
-    api.patch(`/admin/companies/${id}`, payload).then((res) => res.data).catch(() => ({ id, ...payload })),
+    rootApi.patch(`/admin/companies/${id}`, payload).then((res) => res.data),
+  // Numbering per company per document type. No catch: a failed save must not
+  // come back looking like a successful one.
+  updateNumberSeries: (seriesId, payload) =>
+    rootApi.patch(`/admin/number-series/${seriesId}`, payload).then((res) => res.data),
 
   // ── Orders / Requests ───────────────────────────────────────────────────────
   requests: (params = {}) => api.get("/requests", { params }).then((res) => res.data),
