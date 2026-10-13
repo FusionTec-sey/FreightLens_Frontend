@@ -917,8 +917,20 @@ export default function ProductMasterPage() {
     setShowCategoryModal(true);
   };
 
+  // The group catalogue is the root organisation's to manage, the same rule as
+  // a shared supplier. Refusing here, with the reason, beats offering an edit
+  // the server will reject -- which is how the vendor list went wrong.
+  const blockedByGroupCatalogue = (cat) => {
+    if (!cat?.is_shared || isRoot) return false;
+    toast.error(
+      `"${cat.name}" is in the group catalogue, shared by every company. Only the root organisation can change it.`
+    );
+    return true;
+  };
+
   const handleOpenEditCategoryModal = (cat, e) => {
     if (e) e.stopPropagation();
+    if (blockedByGroupCatalogue(cat)) return;
     setEditingCategory(cat);
     setNewCatName(cat.name);
     setNewCatDesc(cat.description || "");
@@ -928,6 +940,7 @@ export default function ProductMasterPage() {
 
   const handleOpenDeleteCategoryModal = (cat, e) => {
     if (e) e.stopPropagation();
+    if (blockedByGroupCatalogue(cat)) return;
     if (!cat.parent_id || cat.name === "Products") {
       toast.error("Cannot delete the root 'Products' category");
       return;
