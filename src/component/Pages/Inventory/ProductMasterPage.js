@@ -619,6 +619,59 @@ export default function ProductMasterPage() {
     }
   }, []);
 
+  // The group product dictionary. A product is copied from it, never shared
+  // from it: the copy carries this company's own code, cost, stock and
+  // supplier, plus a link back to the entry it came from.
+  const [showDictionary, setShowDictionary] = useState(false);
+  const [dictionarySearch, setDictionarySearch] = useState("");
+  const [dictionaryRows, setDictionaryRows] = useState([]);
+  const [dictionaryBusy, setDictionaryBusy] = useState(false);
+
+  const fetchDictionary = useCallback(async (term) => {
+    setDictionaryBusy(true);
+    try {
+      const res = await axios.get(`${process.env.REACT_APP_NETWORK}/inventory/dictionary`, {
+        headers: getAuthHeaders(),
+        params: term && term.trim() ? { search: term.trim() } : {},
+      });
+      setDictionaryRows(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not load the group dictionary.");
+    } finally {
+      setDictionaryBusy(false);
+    }
+  }, []);
+
+  const handleAdoptDefinition = async (definitionId) => {
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/dictionary/${definitionId}/adopt`,
+        {}, { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Added to this company.");
+      // The server says when the suggested category belongs to a catalogue this
+      // company does not read, which leaves the product to be filed by hand.
+      if (res.data?.note) toast.info(res.data.note);
+      await fetchDictionary(dictionarySearch);
+      await fetchProducts();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not add this product.");
+    }
+  };
+
+  const handlePublishProduct = async (product) => {
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/dictionary/publish/${product.id}`,
+        {}, { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Published to the group dictionary.");
+      await fetchProducts();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not publish this product.");
+    }
+  };
+
   const fetchCurrencies = useCallback(async () => {
     try {
       const res = await axios.get(
@@ -952,20 +1005,19 @@ export default function ProductMasterPage() {
     }
   };
 
-  // The group catalogue is the root organisation's to manage, the same rule as
-  // a shared supplier. Refusing here, with the reason, beats offering an edit
-  // the server will reject -- which is how the vendor list went wrong.
-  const blockedByGroupCatalogue = (cat) => {
-    if (!cat?.is_shared || isRoot) return false;
-    toast.error(
-      `"${cat.name}" is in the group catalogue, shared by every company. Only the root organisation can change it.`
-    );
-    return true;
+  // A category in the group catalogue is editable by anyone holding
+  // Manage_ProductCategory, from any company -- shared does not mean read-only,
+  // and the change is recorded in the master-data trail instead of prevented.
+  // What is still worth saying is that the edit is seen by everyone.
+  const warnIfGroupCatalogue = (cat) => {
+    if (cat?.is_shared) {
+      toast.info(`"${cat.name}" is in the group catalogue — this change is seen by every company.`);
+    }
   };
 
   const handleOpenEditCategoryModal = (cat, e) => {
     if (e) e.stopPropagation();
-    if (blockedByGroupCatalogue(cat)) return;
+    warnIfGroupCatalogue(cat);
     setEditingCategory(cat);
     setNewCatName(cat.name);
     setNewCatDesc(cat.description || "");
@@ -975,7 +1027,7 @@ export default function ProductMasterPage() {
 
   const handleOpenDeleteCategoryModal = (cat, e) => {
     if (e) e.stopPropagation();
-    if (blockedByGroupCatalogue(cat)) return;
+    warnIfGroupCatalogue(cat);
     if (!cat.parent_id || cat.name === "Products") {
       toast.error("Cannot delete the root 'Products' category");
       return;
@@ -4014,9 +4066,85 @@ export default function ProductMasterPage() {
   // SCREEN 2: DEDICATED CATEGORY SCREEN (HIERARCHY TREE + CATEGORY PRODUCTS)
   // WITH "+ ADD CATEGORY" BUTTON OPENING CLEAN MODAL POPUP
   // ══════════════════════════════════════════════════════════════════════════
+  const dictionaryModal = showDictionary ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+      <div className={`w-full max-w-3xl rounded-2xl border shadow-2xl flex flex-col max-h-[85vh] ${
+        isDark ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
+      }`}>
+        <div className="p-5 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold">Group product dictionary</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Adding one copies its specifications into this company. Stock, cost,
+                internal code and supplier stay this company&apos;s own.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDictionary(false)}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <input
+            type="text"
+            autoFocus
+            value={dictionarySearch}
+            onChange={(e) => { setDictionarySearch(e.target.value); fetchDictionary(e.target.value); }}
+            placeholder="Search by SKU, name or brand..."
+            className={`mt-3 w-full px-3 py-2 border rounded-xl text-xs ${
+              isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
+            }`}
+          />
+        </div>
+
+        <div className="overflow-y-auto p-3">
+          {dictionaryBusy && <p className="p-4 text-xs opacity-60">Loading...</p>}
+          {!dictionaryBusy && dictionaryRows.length === 0 && (
+            <p className="p-6 text-center text-xs opacity-60">
+              Nothing in the group dictionary yet. Publish a product from the list to add the first entry.
+            </p>
+          )}
+          {dictionaryRows.map((d) => (
+            <div
+              key={d.id}
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border mb-2 ${
+                isDark ? "border-slate-800" : "border-slate-200"
+              }`}
+            >
+              <div className="min-w-0">
+                <div className="font-bold text-xs truncate">{d.name}</div>
+                <div className="text-[10px] font-mono text-indigo-500">{d.sku}</div>
+                <div className="text-[10px] text-slate-400">
+                  {[d.brand, d.unit, d.country_of_origin].filter(Boolean).join(" · ") || "-"}
+                </div>
+              </div>
+              {d.adopted_product_id ? (
+                <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                  Already here
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleAdoptDefinition(d.id)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
+                >
+                  Add to this company
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (currentView === "categories") {
     return (
       <div className="space-y-6 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        {dictionaryModal}
         {/* Top Header */}
         <div
           className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${
@@ -4473,6 +4601,7 @@ export default function ProductMasterPage() {
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-4 w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+      {dictionaryModal}
       {/* ── Executive Top Header ────────────────────────────────────────────── */}
       <div
         className={`p-4 rounded-2xl border shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition ${
@@ -4523,6 +4652,20 @@ export default function ProductMasterPage() {
               <span>Category Taxonomy</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => { setShowDictionary(true); fetchDictionary(""); }}
+            title="Products shared by the group, to copy into this company"
+            className={`px-3.5 py-2.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer ${
+              isDark
+                ? "bg-slate-800 border-slate-700 text-indigo-300 hover:bg-slate-700"
+                : "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100"
+            }`}
+          >
+            <Boxes size={15} />
+            <span>Group dictionary</span>
+          </button>
 
           {canExport && (
             <button
@@ -5057,6 +5200,26 @@ export default function ProductMasterPage() {
                                 >
                                   <Copy size={13} />
                                   <span>Duplicate</span>
+                                </button>
+                              )}
+
+                              {canEditProduct && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenRowMenuId(null);
+                                    handlePublishProduct(p);
+                                  }}
+                                  title={
+                                    p.definition_id
+                                      ? "Already in the group dictionary"
+                                      : "Share this product's specifications with the group. Stock, cost, code and supplier are not shared."
+                                  }
+                                  disabled={Boolean(p.definition_id)}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <Boxes size={13} />
+                                  <span>{p.definition_id ? "In group dictionary" : "Publish to group"}</span>
                                 </button>
                               )}
 
