@@ -602,6 +602,23 @@ export default function ProductMasterPage() {
 
   // ── Fetch Operations ───────────────────────────────────────────────────────
 
+  // Which category tree this company reads. A company uses the group catalogue
+  // or its own, never both, so this is a choice -- and until now an invisible
+  // one, inherited silently with no way to see or change it.
+  const [catalogueState, setCatalogueState] = useState(null);
+
+  const fetchCatalogueState = useCallback(async () => {
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/inventory/categories/catalogue`,
+        { headers: getAuthHeaders() }
+      );
+      setCatalogueState(res.data || null);
+    } catch (err) {
+      console.warn("Could not load catalogue state:", err);
+    }
+  }, []);
+
   const fetchCurrencies = useCallback(async () => {
     try {
       const res = await axios.get(
@@ -872,7 +889,8 @@ export default function ProductMasterPage() {
     fetchCategories();
     fetchSuppliers();
     fetchCurrencies();
-  }, [fetchCategories, fetchSuppliers, fetchCurrencies]);
+    fetchCatalogueState();
+  }, [fetchCategories, fetchSuppliers, fetchCurrencies, fetchCatalogueState]);
 
   useEffect(() => {
     if (currentView === "products") {
@@ -915,6 +933,23 @@ export default function ProductMasterPage() {
         : categoryScreenSelectedId || (flattenedCategories[0]?.id || "");
     setNewCatParentId(parentId);
     setShowCategoryModal(true);
+  };
+
+  const handleSwitchCatalogue = async (wanted) => {
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/categories/catalogue`,
+        { catalogue: wanted },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Catalogue changed.");
+      await fetchCatalogueState();
+      await fetchCategories();
+    } catch (err) {
+      // The server explains itself -- how many products are filed, and why the
+      // switch is refused -- so that message is what the user is shown.
+      toast.error(err.response?.data?.detail || "Could not change catalogue.");
+    }
   };
 
   // The group catalogue is the root organisation's to manage, the same rule as
@@ -4010,6 +4045,46 @@ export default function ProductMasterPage() {
               <p className={`text-xs mt-0.5 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                 Browse multi-level hierarchy on the left. Click any node to filter products in that category and all its children.
               </p>
+              {/* Which catalogue is in use, and the way to change it. A tree is
+                  shared whole or not at all, so this is the only control: there
+                  is deliberately no per-category shared switch. */}
+              {catalogueState && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      catalogueState.catalogue === "group"
+                        ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                        : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
+                    }`}
+                  >
+                    {catalogueState.catalogue === "group"
+                      ? "GROUP CATALOGUE"
+                      : "THIS COMPANY'S OWN CATALOGUE"}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {catalogueState.owns_group_catalogue
+                      ? "This company's tree is the group catalogue every other company reads."
+                      : catalogueState.catalogue === "group"
+                      ? "Shared with every company, and managed by the root organisation."
+                      : "Used only by this company."}
+                  </span>
+                  {catalogueState.can_switch && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSwitchCatalogue(
+                          catalogueState.catalogue === "group" ? "own" : "group"
+                        )
+                      }
+                      className="px-2 py-0.5 rounded-lg border text-[10px] font-bold text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                    >
+                      {catalogueState.catalogue === "group"
+                        ? "Use this company's own categories"
+                        : "Return to the group catalogue"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
