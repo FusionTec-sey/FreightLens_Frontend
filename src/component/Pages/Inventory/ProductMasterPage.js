@@ -622,6 +622,7 @@ export default function ProductMasterPage() {
   // The group product dictionary. A product is copied from it, never shared
   // from it: the copy carries this company's own code, cost, stock and
   // supplier, plus a link back to the entry it came from.
+  const [publishNewToGroup, setPublishNewToGroup] = useState(false);
   const [showDictionary, setShowDictionary] = useState(false);
   const [dictionarySearch, setDictionarySearch] = useState("");
   const [dictionaryRows, setDictionaryRows] = useState([]);
@@ -632,7 +633,9 @@ export default function ProductMasterPage() {
     try {
       const res = await axios.get(`${process.env.REACT_APP_NETWORK}/inventory/dictionary`, {
         headers: getAuthHeaders(),
-        params: term && term.trim() ? { search: term.trim() } : {},
+        // Unlisted entries are shown here so they can be offered again; they are
+        // hidden everywhere an entry is picked.
+        params: { include_unlisted: true, ...(term && term.trim() ? { search: term.trim() } : {}) },
       });
       setDictionaryRows(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
@@ -641,6 +644,51 @@ export default function ProductMasterPage() {
       setDictionaryBusy(false);
     }
   }, []);
+
+  const handleWithdrawDefinition = async (entry) => {
+    // How many companies took a copy decides how the question is asked, so the
+    // consequence is on screen before the choice, not after it.
+    let adopted = 0;
+    try {
+      const usage = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/inventory/dictionary/${entry.id}/usage`,
+        { headers: getAuthHeaders() }
+      );
+      adopted = usage.data?.adopted_products || 0;
+    } catch { /* the confirmation still stands without the count */ }
+
+    const remove = window.confirm(
+      `"${entry.name}" has been copied by ${adopted} product(s).` +
+        "\n\nOK — remove it from the dictionary entirely." +
+        "\nCancel — just stop offering it; existing copies keep their link." +
+        "\n\nEither way no company loses a product: every copy already holds its own data."
+    );
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/dictionary/${entry.id}/withdraw`,
+        { mode: remove ? "remove" : "unlist" },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Updated.");
+      await fetchDictionary(dictionarySearch);
+      await fetchProducts();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not withdraw this entry.");
+    }
+  };
+
+  const handleRelistDefinition = async (entry) => {
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/dictionary/relist/${entry.id}`,
+        {}, { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Offered again.");
+      await fetchDictionary(dictionarySearch);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not offer this entry again.");
+    }
+  };
 
   const handleAdoptDefinition = async (definitionId) => {
     try {
@@ -1549,11 +1597,16 @@ export default function ProductMasterPage() {
         toast.success("Product updated successfully!");
       } else {
         payload.sku = formData.sku.trim().toUpperCase();
+        payload.publish_to_group = publishNewToGroup;
         const res = await axios.post(`${process.env.REACT_APP_NETWORK}/inventory/products`, payload, {
           headers: getAuthHeaders(),
         });
         setActiveProduct(res.data);
-        toast.success("Product registered in catalog!");
+        toast.success(
+          publishNewToGroup
+            ? "Product registered, and its specifications shared with the group."
+            : "Product registered in catalog!"
+        );
       }
     } catch (err) {
       console.error("Failed to save product:", err);
@@ -2083,6 +2136,29 @@ export default function ProductMasterPage() {
                         }`}
                       />
                       <p className="text-[10px] text-slate-400 mt-1">Trading code for suppliers & market orders (must be unique)</p>
+
+                      {/* Only on create. Publishing an existing product is done
+                          from its row menu, and an already-published one says so
+                          there rather than offering it twice. Unticked by
+                          default: sharing is a decision, not a side effect. */}
+                      {!activeProduct && canEditProduct && (
+                        <label className="mt-2.5 flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={publishNewToGroup}
+                            onChange={(e) => setPublishNewToGroup(e.target.checked)}
+                            className="mt-0.5 cursor-pointer"
+                          />
+                          <span className="text-[10px] leading-snug">
+                            <span className="font-bold">Add to the group dictionary</span>
+                            <span className="block text-slate-400">
+                              Shares the specifications with every company. Stock, cost,
+                              internal code and supplier stay with this company. Can be
+                              withdrawn later.
+                            </span>
+                          </span>
+                        </label>
+                      )}
                     </div>
 
                     <div>
@@ -4159,19 +4235,49 @@ export default function ProductMasterPage() {
                   {[d.brand, d.unit, d.country_of_origin].filter(Boolean).join(" · ") || "-"}
                 </div>
               </div>
-              {d.adopted_product_id ? (
-                <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                  Already here
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleAdoptDefinition(d.id)}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
-                >
-                  Add to this company
-                </button>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {d.is_active === false && (
+                  <span
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 whitespace-nowrap"
+                    title="Still here and still linked, but no longer offered for adoption"
+                  >
+                    Unlisted
+                  </span>
+                )}
+                {d.adopted_product_id ? (
+                  <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                    Already here
+                  </span>
+                ) : d.is_active !== false ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAdoptDefinition(d.id)}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
+                  >
+                    Add to this company
+                  </button>
+                ) : null}
+                {canEditProduct && (
+                  d.is_active === false ? (
+                    <button
+                      type="button"
+                      onClick={() => handleRelistDefinition(d)}
+                      className="px-2 py-1.5 rounded-lg text-[10px] font-bold border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
+                    >
+                      Offer again
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleWithdrawDefinition(d)}
+                      title="Stop offering this entry, or remove it entirely"
+                      className="px-2 py-1.5 rounded-lg text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 whitespace-nowrap"
+                    >
+                      Withdraw
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           ))}
         </div>
