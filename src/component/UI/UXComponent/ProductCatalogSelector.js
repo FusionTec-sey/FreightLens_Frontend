@@ -43,6 +43,36 @@ export default function ProductCatalogSelector({
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const containerRef = useRef(null);
 
+  // The real category master. The create form used to offer only the categories
+  // already worn by the products on screen, which is a different and much
+  // shorter list -- 11 categories exist, but a catalog whose loaded products
+  // carry none left "General / Uncategorized" as the only choice, and the list
+  // changed as the search narrowed. A new product could therefore not be filed
+  // under a category that no product used yet.
+  const [masterCategories, setMasterCategories] = useState([]);
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    let cancelled = false;
+    axios
+      .get(`${process.env.REACT_APP_NETWORK}/inventory/categories?flat=true`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          skip_zrok_interstitial: "true",
+        },
+      })
+      .then((res) => {
+        if (cancelled || !Array.isArray(res.data)) return;
+        setMasterCategories(res.data);
+      })
+      // Viewing categories is its own permission, so a 403 is expected rather
+      // than broken; the form falls back to the categories already in use.
+      .catch((err) => console.warn("Could not load product categories:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [showCreateModal]);
+
   // Quick Create Form State
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -113,6 +143,35 @@ export default function ProductCatalogSelector({
     });
     return Array.from(cats.entries()).map(([name, id]) => ({ name, id }));
   }, [sourceProducts]);
+
+  // What a new product may be filed under: the master when it loaded, otherwise
+  // the categories in use, so the form still works without the permission to
+  // read the master. A category with no id cannot be saved against, so those
+  // are dropped -- offering one silently filed the product as uncategorised.
+  const creatableCategories = useMemo(() => {
+    if (masterCategories.length === 0) {
+      return categories.filter((c) => c.id);
+    }
+    // "Porcelain" and "Vitrified" mean little on their own, so each is shown
+    // under its parents. The walk is depth-capped because a category tree that
+    // somehow points at itself would otherwise hang the form.
+    const byId = new Map(masterCategories.map((c) => [c.id, c]));
+    const pathFor = (cat) => {
+      const parts = [cat.name];
+      let parent = cat.parent_id ? byId.get(cat.parent_id) : null;
+      let depth = 0;
+      while (parent && depth < 10) {
+        parts.unshift(parent.name);
+        parent = parent.parent_id ? byId.get(parent.parent_id) : null;
+        depth += 1;
+      }
+      return parts.join(" / ");
+    };
+    return masterCategories
+      .filter((c) => c.id)
+      .map((c) => ({ ...c, path: pathFor(c) }))
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }, [masterCategories, categories]);
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
@@ -644,9 +703,9 @@ export default function ProductCatalogSelector({
                     }`}
                   >
                     <option value="">General / Uncategorized</option>
-                    {categories.map((cat) => (
+                    {creatableCategories.map((cat) => (
                       <option key={cat.id || cat.name} value={cat.id || ""}>
-                        {cat.name}
+                        {cat.path || cat.name}
                       </option>
                     ))}
                   </select>

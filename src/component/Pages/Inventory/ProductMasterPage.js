@@ -342,6 +342,10 @@ export default function ProductMasterPage() {
   // ── Data State ─────────────────────────────────────────────────────────────
   const [products, setProducts] = useState([]);
   const [categoriesFlat, setCategoriesFlat] = useState([]);
+  // The currencies someone actually trades in. This select used to hardcode
+  // five, which both offered currencies switched off in the master and hid
+  // active ones -- AED and CNY were missing while INR and GBP were not in use.
+  const [activeCurrencies, setActiveCurrencies] = useState([]);
   const { suppliers: contextSuppliers = [] } = useOptions();
   const [fetchedSuppliers, setFetchedSuppliers] = useState([]);
 
@@ -597,6 +601,19 @@ export default function ProductMasterPage() {
   }, [categoryScreenSelectedId, categoriesFlat]);
 
   // ── Fetch Operations ───────────────────────────────────────────────────────
+
+  const fetchCurrencies = useCallback(async () => {
+    try {
+      const res = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/master-data/currencies?active_only=true`,
+        { headers: getAuthHeaders() }
+      );
+      if (Array.isArray(res.data)) setActiveCurrencies(res.data);
+    } catch (err) {
+      // Falls back to whatever the product already carries.
+      console.warn("Could not load currencies:", err);
+    }
+  }, []);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -854,7 +871,8 @@ export default function ProductMasterPage() {
   useEffect(() => {
     fetchCategories();
     fetchSuppliers();
-  }, [fetchCategories, fetchSuppliers]);
+    fetchCurrencies();
+  }, [fetchCategories, fetchSuppliers, fetchCurrencies]);
 
   useEffect(() => {
     if (currentView === "products") {
@@ -3285,11 +3303,14 @@ export default function ProductMasterPage() {
                             isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200"
                           }`}
                         >
-                          <option value="USD">USD</option>
-                          <option value="SCR">SCR</option>
-                          <option value="EUR">EUR</option>
-                          <option value="INR">INR</option>
-                          <option value="GBP">GBP</option>
+                          {(activeCurrencies.length > 0
+                            ? activeCurrencies.map((c) => c.code)
+                            : [formData?.currency || "USD"]
+                          ).map((code) => (
+                            <option key={code} value={code}>
+                              {code}
+                            </option>
+                          ))}
                         </select>
                         <input
                           type="number"
