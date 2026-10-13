@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import {
   Search,
@@ -233,7 +234,9 @@ export default function ProductCatalogSelector({
   };
 
   const handleQuickCreateSubmit = async (e) => {
-    e.preventDefault();
+    // Called from the form's submit and from the button's own click, so the
+    // event may be either -- or absent.
+    e?.preventDefault?.();
     if (!newProductData.name.trim()) {
       setCreateError("Product description / name is required.");
       return;
@@ -601,7 +604,15 @@ export default function ProductCatalogSelector({
       )}
 
       {/* ── QUICK CREATE PRODUCT MODAL (MINIMAL INFO) ───────────────── */}
-      {showCreateModal && (
+      {/* Rendered through a portal, into the body rather than into this
+          component's place in the tree. Both order screens put this selector
+          inside their own <form>, which made this modal's <form> a nested one
+          -- and a nested form's submit event does not propagate past it, so it
+          never reached React's root listener and onSubmit never ran. The
+          button did nothing at all: no request, no error, nothing to see.
+          Verified in Chrome: an identical form outside a form reaches the root
+          listener, the nested one does not. */}
+      {showCreateModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div
             className={`w-full max-w-lg p-5 sm:p-6 rounded-2xl border shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 ${
@@ -782,7 +793,11 @@ export default function ProductCatalogSelector({
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  // Clicked directly rather than relying on form submission,
+                  // so this can never again depend on where the modal sits in
+                  // the tree. The form's onSubmit stays for the Enter key.
+                  type="button"
+                  onClick={handleQuickCreateSubmit}
                   disabled={isCreating}
                   className="px-4 py-1.5 text-[11px] font-bold rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
                 >
@@ -801,7 +816,8 @@ export default function ProductCatalogSelector({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── STOCK INFO MODAL (FUTURE READY INVENTORY PREVIEW) ───────── */}
