@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FolderInput, Download, Trash2, X, Check, Loader2 } from "lucide-react";
+import { FolderInput, Download, Trash2, X, Check, Loader2, Boxes } from "lucide-react";
 
 export default function BulkActionToolbar({
   selectedCount = 0,
@@ -10,6 +10,7 @@ export default function BulkActionToolbar({
   canExport = false,
   onClearSelection,
   onBulkCategoryMove,
+  onBulkPublish,
   onBulkExport,
   onBulkDelete,
 }) {
@@ -98,6 +99,20 @@ export default function BulkActionToolbar({
               </div>
             )}
           </div>
+        )}
+
+        {/* Publish the selection to the group dictionary. Specifications only --
+            stock, cost, internal code and supplier stay with this company. */}
+        {canEdit && onBulkPublish && (
+          <button
+            type="button"
+            onClick={onBulkPublish}
+            title="Share these products' specifications with the group. Stock, cost, codes and suppliers are not shared."
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <Boxes size={14} className="text-indigo-500" />
+            <span>Publish to group</span>
+          </button>
         )}
 
         {/* Bulk Export Action */}

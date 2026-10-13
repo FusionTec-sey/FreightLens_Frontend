@@ -821,6 +821,31 @@ export default function ProductMasterPage() {
     }
   };
 
+  // Publishing a catalogue of thousands one row at a time is not realistic, and
+  // the dictionary is useless until something is in it. `all` publishes this
+  // company's whole catalogue; a selection publishes just those.
+  const handleBulkPublish = async (all) => {
+    if (!canEditProduct) return;
+    const body = all ? { all: true } : { product_ids: selectedProductIds };
+    if (!all && selectedProductIds.length === 0) return;
+    if (all && !window.confirm(
+      "Publish this company's whole catalogue to the group dictionary? " +
+      "Specifications are shared; stock, cost, internal codes and suppliers are not."
+    )) return;
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/inventory/dictionary/publish-bulk`,
+        body, { headers: getAuthHeaders() }
+      );
+      toast.success(res.data?.message || "Published to the group dictionary.");
+      setSelectedProductIds([]);
+      await fetchProducts();
+      if (showDictionary) await fetchDictionary(dictionarySearch);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not publish to the group dictionary.");
+    }
+  };
+
   const handleBulkCategoryMove = async (categoryId) => {
     if (!canEditProduct || selectedProductIds.length === 0) return;
     try {
@@ -4103,9 +4128,22 @@ export default function ProductMasterPage() {
         <div className="overflow-y-auto p-3">
           {dictionaryBusy && <p className="p-4 text-xs opacity-60">Loading...</p>}
           {!dictionaryBusy && dictionaryRows.length === 0 && (
-            <p className="p-6 text-center text-xs opacity-60">
-              Nothing in the group dictionary yet. Publish a product from the list to add the first entry.
-            </p>
+            <div className="p-6 text-center space-y-3">
+              <p className="text-xs opacity-60">
+                {dictionarySearch.trim()
+                  ? "No entry matches that search."
+                  : "Nothing in the group dictionary yet — it starts empty and nothing is published automatically."}
+              </p>
+              {!dictionarySearch.trim() && canEditProduct && (
+                <button
+                  type="button"
+                  onClick={() => handleBulkPublish(true)}
+                  className="px-3 py-2 rounded-xl text-[11px] font-bold bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  Publish this company&apos;s catalogue to the group
+                </button>
+              )}
+            </div>
           )}
           {dictionaryRows.map((d) => (
             <div
@@ -5454,6 +5492,7 @@ export default function ProductMasterPage() {
         canExport={canExport}
         onClearSelection={() => setSelectedProductIds([])}
         onBulkCategoryMove={handleBulkCategoryMove}
+        onBulkPublish={() => handleBulkPublish(false)}
         onBulkExport={handleBulkExportSelected}
         onBulkDelete={handleBulkDelete}
       />
