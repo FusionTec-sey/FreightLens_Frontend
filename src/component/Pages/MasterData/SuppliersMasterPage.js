@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   Users,
@@ -16,7 +17,9 @@ import {
   ExternalLink,
   Building,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Power,
+  PowerOff
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
@@ -27,6 +30,7 @@ import { mediaUrl } from "../../../utils/mediaUrl";
 export default function SuppliersMasterPage() {
   const { isDark } = useTheme();
   const { isRoot } = useAuth();
+  const navigate = useNavigate();
 
   const [suppliers, setSuppliers] = useState([]);
   const [currencies, setCurrencies] = useState([]);
@@ -34,6 +38,14 @@ export default function SuppliersMasterPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  // Paging, searching and filtering all happen on the server. The screen used
+  // to pull every vendor and filter in the browser, which works at 136 and not
+  // at ten times that.
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -54,6 +66,7 @@ export default function SuppliersMasterPage() {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isShared, setIsShared] = useState(false);
+  const [isActive, setIsActive] = useState(true);
 
   const token = localStorage.getItem("token");
   const headers = useMemo(() => ({
@@ -61,35 +74,62 @@ export default function SuppliersMasterPage() {
     skip_zrok_interstitial: "true"
   }), [token]);
 
-  const loadAllData = async () => {
+  const loadSuppliers = useCallback(async () => {
     setLoading(true);
     try {
-      const [supRes, curRes, ptRes] = await Promise.all([
-        axios.get(`${process.env.REACT_APP_NETWORK}/master-data/suppliers?active_only=false`, { headers }),
-        axios.get(`${process.env.REACT_APP_NETWORK}/master-data/currencies?active_only=true`, { headers }),
-        axios.get(`${process.env.REACT_APP_NETWORK}/master-data/payment-terms?active_only=true`, { headers }),
-      ]);
-      const supList = Array.isArray(supRes.data)
-        ? supRes.data
-        : (Array.isArray(supRes.data?.items) ? supRes.data.items : (supRes.data?.data || []));
-      setSuppliers(supList);
-      setCurrencies(curRes.data || []);
-      setPaymentTerms(ptRes.data || []);
+      const params = {
+        page,
+        limit,
+        active_only: false,
+        sort_by: "name",
+        sort_dir: "asc",
+      };
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (currencyFilter !== "ALL") params.currency = currencyFilter;
+      if (statusFilter !== "ALL") params.status = statusFilter.toLowerCase();
+
+      const res = await axios.get(
+        `${process.env.REACT_APP_NETWORK}/master-data/suppliers`,
+        { headers, params }
+      );
+      const body = res.data || {};
+      setSuppliers(Array.isArray(body.items) ? body.items : (Array.isArray(body) ? body : []));
+      setTotal(Number(body.total ?? 0));
+      setPages(Number(body.pages ?? 1));
     } catch (err) {
-      console.error("Failed to load supplier master data:", err);
-      toast.error("Failed to load supplier master data.");
+      console.error("Failed to load suppliers:", err);
+      toast.error("Failed to load suppliers.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [headers, page, limit, searchQuery, currencyFilter, statusFilter]);
 
+  const loadLookups = useCallback(async () => {
+    try {
+      const [curRes, ptRes] = await Promise.all([
+        axios.get(`${process.env.REACT_APP_NETWORK}/master-data/currencies?active_only=true`, { headers }),
+        axios.get(`${process.env.REACT_APP_NETWORK}/master-data/payment-terms?active_only=true`, { headers }),
+      ]);
+      setCurrencies(curRes.data || []);
+      setPaymentTerms(ptRes.data || []);
+    } catch (err) {
+      console.error("Failed to load supplier lookups:", err);
+    }
+  }, [headers]);
+
+  useEffect(() => { loadLookups(); }, [loadLookups]);
+
+  // Typing is debounced so a search is one request, not one per keystroke.
   useEffect(() => {
-    loadAllAllData();
-  }, []);
+    const timer = setTimeout(() => { loadSuppliers(); }, 300);
+    return () => clearTimeout(timer);
+  }, [loadSuppliers]);
 
-  const loadAllAllData = () => {
-    loadAllData();
-  };
+  // A new filter starts at the first page; staying on page 4 of a narrower
+  // result is how a screen shows nothing and looks broken.
+  useEffect(() => { setPage(1); }, [searchQuery, currencyFilter, statusFilter, limit]);
+
+  const loadAllData = () => { loadSuppliers(); };
 
   const handleOpenCreateModal = () => {
     setEditingSupplier(null);
@@ -108,6 +148,7 @@ export default function SuppliersMasterPage() {
     setVarianceThreshold("2.0");
     setNotes("");
     setIsShared(false);
+    setIsActive(true);
     setShowModal(true);
   };
 
@@ -128,6 +169,7 @@ export default function SuppliersMasterPage() {
     setVarianceThreshold(String(sup.variance_threshold_pct || "2.0"));
     setNotes(sup.notes || "");
     setIsShared(Boolean(sup.is_shared));
+    setIsActive(sup.is_active !== false);
     setShowModal(true);
   };
 
@@ -149,6 +191,9 @@ export default function SuppliersMasterPage() {
 
     const payload = {
       name: name.trim(),
+      // The server issues and owns the code. Sending it back unchanged is
+      // harmless, but an edited one is refused with a 409, so the field is
+      // read-only once a supplier has one.
       code: code.trim() ? code.trim().toUpperCase() : null,
       address: address.trim() || null,
       email: email.trim() || null,
@@ -160,7 +205,7 @@ export default function SuppliersMasterPage() {
       default_payment_term_id: defaultPaymentTermId ? Number(defaultPaymentTermId) : null,
       variance_threshold_pct: parseFloat(varianceThreshold) || 2.0,
       notes: notes.trim() || null,
-      is_active: true,
+      is_active: isActive,
       is_shared: isRoot ? isShared : false
     };
 
@@ -208,6 +253,29 @@ export default function SuppliersMasterPage() {
     }
   };
 
+  const handleToggleActive = async (sup) => {
+    const id = sup.id || sup.supplier_id;
+    const next = !sup.is_active;
+    // Deactivation is not deletion: the vendor stays in the directory and in
+    // every document that already names it, and only becomes unavailable for
+    // new orders and quotes.
+    const question = next
+      ? `Reactivate '${sup.name}' so new orders and quotes can use it again?`
+      : `Deactivate '${sup.name}'? It stays in the directory and in its history, but cannot be used on new orders or quotes.`;
+    if (!window.confirm(question)) return;
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_NETWORK}/master-data/suppliers/${id}`,
+        { is_active: next },
+        { headers }
+      );
+      toast.success(next ? `'${sup.name}' reactivated.` : `'${sup.name}' deactivated.`);
+      loadSuppliers();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to change supplier status.");
+    }
+  };
+
   const handleDelete = async (sup) => {
     const id = sup.id || sup.supplier_id;
     if (!window.confirm(`Delete supplier '${sup.name}'?`)) return;
@@ -220,20 +288,9 @@ export default function SuppliersMasterPage() {
     }
   };
 
-  const filteredSuppliers = useMemo(() => {
-    return suppliers.filter((s) => {
-      if (currencyFilter !== "ALL" && s.default_currency !== currencyFilter) return false;
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        s.name.toLowerCase().includes(q) ||
-        (s.code && s.code.toLowerCase().includes(q)) ||
-        (s.contact_person && s.contact_person.toLowerCase().includes(q)) ||
-        (s.email && s.email.toLowerCase().includes(q)) ||
-        (s.country && s.country.toLowerCase().includes(q))
-      );
-    });
-  }, [suppliers, searchQuery, currencyFilter]);
+  // Searching, filtering and paging are the server's job now, so the rows that
+  // arrive are the rows to draw.
+  const filteredSuppliers = suppliers;
 
   return (
     <div className="space-y-6 pb-12">
@@ -276,6 +333,26 @@ export default function SuppliersMasterPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+        </div>
+
+        {/* A retired vendor stays in the directory and history; it is simply
+            unavailable for new work, so the filter has to be able to find it. */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1">
+          <span className="text-xs text-slate-400 font-bold mr-1">Status:</span>
+          {["ALL", "ACTIVE", "INACTIVE"].map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => setStatusFilter(st)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                statusFilter === st
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+              }`}
+            >
+              {st}
+            </button>
+          ))}
         </div>
 
         {/* Currency Filter Pills */}
@@ -333,7 +410,10 @@ export default function SuppliersMasterPage() {
                 filteredSuppliers.map((s) => (
                   <tr key={s.id || s.supplier_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                     <td className="py-2 px-3 font-mono font-bold text-slate-500">
-                      {s.code || `VEND-${s.supplier_id}`}
+                      {/* Read from the row. It used to be computed from the id
+                          when none was stored, so the code on screen existed
+                          nowhere and could not be searched. */}
+                      {s.code || <span className="text-slate-300 dark:text-slate-600">—</span>}
                     </td>
                     <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">
                       <div className="flex items-center gap-2.5">
@@ -352,7 +432,14 @@ export default function SuppliersMasterPage() {
                         {/* Who may use the vendor is its own column now, so the
                             name stands alone and one vendor is one row. */}
                         <div>
-                          <span>{s.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/master-data/suppliers/${s.id || s.supplier_id}`)}
+                            className="text-left hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline"
+                            title="Open this vendor: products, orders, quotes and who they are"
+                          >
+                            {s.name}
+                          </button>
                         </div>
                       </div>
                     </td>
@@ -438,6 +525,15 @@ export default function SuppliersMasterPage() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => handleToggleActive(s)}
+                          disabled={s.is_shared && !isRoot}
+                          className="p-1 text-slate-400 hover:text-amber-500 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          title={s.is_active ? "Deactivate — keeps history, blocks new orders and quotes" : "Reactivate"}
+                        >
+                          {s.is_active ? <PowerOff size={13} /> : <Power size={13} />}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleDelete(s)}
                           disabled={s.is_shared && !isRoot}
                           className="p-1 text-slate-400 hover:text-rose-500 transition disabled:opacity-30 disabled:cursor-not-allowed"
@@ -452,6 +548,49 @@ export default function SuppliersMasterPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Always visible, so how many vendors there are and where you are in
+            them is never a guess. */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="text-slate-500 dark:text-slate-400">
+            {total === 0 ? "No vendors" : (
+              <>
+                Showing <span className="font-bold text-slate-700 dark:text-slate-200">{suppliers.length}</span>
+                {" of "}
+                <span className="font-bold text-slate-700 dark:text-slate-200">{total}</span>
+                {" vendor"}{total === 1 ? "" : "s"}
+                {" · page "}{page} of {pages}
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              className="px-2 py-1 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+            >
+              {[25, 50, 100, 200].map((n) => (
+                <option key={n} value={n}>{n} per page</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+              className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(pages, p + 1))}
+              disabled={page >= pages || loading}
+              className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -505,17 +644,50 @@ export default function SuppliersMasterPage() {
                   </label>
                 )}
 
+                {editingSupplier && (
+                  <label className="sm:col-span-2 flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={(e) => setIsActive(e.target.checked)}
+                      className="mt-0.5 h-4 w-4"
+                    />
+                    <span>
+                      <span className="block text-xs font-bold">Active</span>
+                      <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {/* The form used to send is_active: true on every save,
+                            so a vendor could never be stood down. */}
+                        Unchecked, the vendor stays in the directory and in its history but cannot be used on new orders or quotes.
+                      </span>
+                    </span>
+                  </label>
+                )}
+
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                     Vendor Code
                   </label>
+                  {/* Issued once and then fixed: it is the reference quoted on
+                      purchase orders and delivery notes, so changing it would
+                      rewrite what those documents point at. The server refuses
+                      a change with a 409. */}
                   <input
                     type="text"
-                    placeholder="e.g. VEND-0012"
+                    placeholder={editingSupplier ? "" : "Leave blank — issued automatically"}
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg font-mono font-bold uppercase"
+                    readOnly={Boolean(editingSupplier && editingSupplier.code)}
+                    className={`w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg font-mono font-bold uppercase ${
+                      editingSupplier && editingSupplier.code
+                        ? "bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed"
+                        : ""
+                    }`}
                   />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    {editingSupplier && editingSupplier.code
+                      ? "Fixed once issued — it is the reference on documents already sent."
+                      : "Left blank, the server issues the next free code."}
+                  </p>
                 </div>
 
                 <div>

@@ -266,6 +266,10 @@ export default function OrderEntryPage({
   }, [optionsConsignees, orgName, orgId, isRoot]);
 
   const [inventoryProducts, setInventoryProducts] = useState([]);
+  // What vendors have already told us about these products. A minimum order
+  // quantity is only cheap to honour while the requisition is being typed:
+  // discovered when the quote comes back it costs a re-quote and a revision.
+  const [vendorTerms, setVendorTerms] = useState({});
   const [selectedProductCode, setSelectedProductCode] = useState("");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState(
@@ -1056,6 +1060,72 @@ export default function OrderEntryPage({
       }));
     }
   };
+
+  // Asked once per batch of new products, never per keystroke, and never for a
+  // product already answered.
+  useEffect(() => {
+    const ids = Array.from(new Set(
+      (formData.items || [])
+        .map((it) => it.product_id)
+        .filter((pid) => pid && vendorTerms[String(pid)] === undefined)
+    ));
+    if (ids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(
+          `${process.env.REACT_APP_NETWORK}/master-data/products/supplier-terms`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              skip_zrok_interstitial: "true",
+            },
+            params: { product_ids: ids.join(",") },
+          }
+        );
+        if (cancelled) return;
+        const got = res.data?.items || {};
+        setVendorTerms((prev) => {
+          const next = { ...prev };
+          // null marks "asked, nothing known", so the same product is not
+          // requested again on every render.
+          ids.forEach((pid) => { next[String(pid)] = got[String(pid)] || null; });
+          return next;
+        });
+      } catch {
+        if (!cancelled) {
+          setVendorTerms((prev) => {
+            const next = { ...prev };
+            ids.forEach((pid) => { next[String(pid)] = null; });
+            return next;
+          });
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [formData.items, vendorTerms]);
+
+  // A line below a vendor's known minimum, named with the vendor it came from.
+  const minimumOrderWarnings = useMemo(() => {
+    return (formData.items || []).reduce((acc, it, idx) => {
+      const terms = it.product_id ? vendorTerms[String(it.product_id)] : null;
+      const moq = terms?.min_order_qty;
+      const qty = parseFloat(it.quantity_ordered);
+      if (terms && moq && qty > 0 && qty < moq) {
+        acc.push({
+          line: idx + 1,
+          description: it.description || it.item_code || `Line ${idx + 1}`,
+          qty,
+          moq,
+          supplier: terms.supplier_name,
+          code: terms.supplier_code,
+          lead: terms.lead_time_days,
+        });
+      }
+      return acc;
+    }, []);
+  }, [formData.items, vendorTerms]);
 
   const handleAddCatalogProduct = (prodOrId) => {
     if (!prodOrId) return;
@@ -2372,6 +2442,38 @@ export default function OrderEntryPage({
                 />
               </div>
             </div>
+
+            {/* A vendor's known minimum, said while the quantity is still being
+                typed. Never blocking: a minimum is a fact about the vendor, and
+                the buyer may have a reason to ask for less. */}
+            {minimumOrderWarnings.length > 0 && (
+              <div className={`flex-none p-2 rounded-xl border text-[11px] ${isDark
+                  ? "bg-amber-950/20 border-amber-900/40 text-amber-200"
+                  : "bg-amber-50 border-amber-200 text-amber-800"
+                }`}>
+                <div className="font-bold flex items-center gap-1.5 mb-1">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {minimumOrderWarnings.length === 1
+                    ? "One line is below a vendor's minimum"
+                    : `${minimumOrderWarnings.length} lines are below a vendor's minimum`}
+                </div>
+                <ul className="space-y-0.5">
+                  {minimumOrderWarnings.map((w) => (
+                    <li key={w.line}>
+                      Line {w.line} · <span className="font-semibold">{w.description}</span>:
+                      {" "}asking {w.qty}, {w.supplier || "their"} minimum is{" "}
+                      <span className="font-mono font-bold">{w.moq}</span>
+                      {w.code ? ` (${w.code})` : ""}
+                      {w.lead != null ? ` · lead time ${w.lead} days` : ""}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 opacity-80">
+                  Learned from what this vendor quoted before. Raise the quantity now, or expect
+                  the vendor to answer with theirs.
+                </p>
+              </div>
+            )}
 
             {/* Dedicated Product Line Items Table */}
             <div className="w-full flex-1 min-h-[140px] overflow-y-auto overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs scrollbar-thin">
