@@ -14,6 +14,8 @@ import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 
+const BIDDING_STAGES = ["CONFIRMED", "RFQ_SENT", "QUOTE_RECEIVED", "QUOTE_APPROVED"];
+
 const QUOTE_STAGES = [
   { code: "ALL", label: "All Bidding & Quotes" },
   { code: "CONFIRMED", label: "Confirmed (Ready to Send)" },
@@ -25,7 +27,7 @@ const QUOTE_STAGES = [
 export default function VendorQuotesPage() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
-  const { isRoot, permissions = [] } = useAuth();
+  const { isRoot, permissions = [], selectedOrgId } = useAuth();
   const canSendRFQ = isRoot || permissions.includes("Send_RFQ") || permissions.includes("Administrator");
 
   const [orders, setOrders] = useState([]);
@@ -34,11 +36,29 @@ export default function VendorQuotesPage() {
   const [selectedStage, setSelectedStage] = useState("ALL");
   const [viewMode, setViewMode] = useState("table"); // "table" | "grid"
   const [sendingRfqId, setSendingRfqId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
 
+  // /orders is paged and caps at 100 a call, so asking it for everything and
+  // sifting in the browser silently showed only whatever bidding documents
+  // happened to fall in the newest 25. Stage and search go to the server, which
+  // can see the whole set, and the page walks it.
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      const params = {
+        page,
+        limit,
+        doc_type: "RFQ",
+        // "All" here means the bidding span, not every requisition ever drafted.
+        lifecycle_stage: selectedStage === "ALL" ? BIDDING_STAGES.join(",") : selectedStage,
+      };
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+
       const res = await axios.get(`${process.env.REACT_APP_NETWORK}/orders`, {
+        params,
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "skip_zrok_interstitial": "true",
@@ -50,9 +70,13 @@ export default function VendorQuotesPage() {
         ? data
         : (Array.isArray(data?.items) ? data.items : (data?.data || []));
       setOrders(allList);
+      setTotal(Number(data?.total) || allList.length);
+      setPages(Math.max(1, Number(data?.pages) || 1));
     } catch (err) {
       console.error("Could not fetch quotation orders:", err);
       setOrders([]);
+      setTotal(0);
+      setPages(1);
     } finally {
       setLoading(false);
     }
@@ -112,38 +136,32 @@ export default function VendorQuotesPage() {
     }
   };
 
+  // Switching company, stage or page is a different question for the server, not a
+  // different way of reading the same answer. Search is debounced so each keystroke
+  // is not one.
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    const t = setTimeout(fetchOrders, searchQuery.trim() ? 300 : 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, selectedStage, searchQuery, selectedOrgId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedStage, searchQuery, selectedOrgId]);
 
   // Filter for orders involved in quotation bidding (confirmed RFQs onwards)
+  // The server was asked for exactly these stages, so this is a guard against a
+  // stray row, not the filter itself -- filtering here is what hid the records.
   const quotingOrders = useMemo(() => {
     return orders.filter((o) => {
       const stage = (o.lifecycle_stage || "").toUpperCase();
-      return (
-        ["CONFIRMED", "RFQ_SENT", "QUOTE_RECEIVED", "QUOTE_APPROVED"].includes(stage) ||
-        (o.doc_type === "RFQ" && stage !== "DRAFT") ||
-        Boolean(o.selected_quote_id)
-      );
+      return BIDDING_STAGES.includes(stage) || Boolean(o.selected_quote_id);
     });
   }, [orders]);
 
-  const filteredOrders = useMemo(() => {
-    return quotingOrders.filter((o) => {
-      const stage = (o.lifecycle_stage || "DRAFT").toUpperCase();
-      if (selectedStage !== "ALL" && stage !== selectedStage) {
-        return false;
-      }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchPo = o.po_number?.toLowerCase().includes(q);
-        const matchComp = o.company?.toLowerCase().includes(q);
-        const matchDesc = o.goods_description?.toLowerCase().includes(q);
-        return matchPo || matchComp || matchDesc;
-      }
-      return true;
-    });
-  }, [quotingOrders, selectedStage, searchQuery]);
+  // Stage and search were applied by the server against the whole set; repeating
+  // them here would only hide rows it already decided belong on this page.
+  const filteredOrders = quotingOrders;
 
   return (
     <div
@@ -168,7 +186,7 @@ export default function VendorQuotesPage() {
                   Vendor Quotes & Bidding
                 </h1>
                 <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800">
-                  {filteredOrders.length} In Bidding
+                  {total || filteredOrders.length} In Bidding
                 </span>
               </div>
               <p className={`text-xs mt-0.5 font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`}>
@@ -462,7 +480,59 @@ export default function VendorQuotesPage() {
         )}
       </div>
 
-
+      {/* Pager: the list is a page of the server's answer, so always say which page
+          and how many there are. Hiding it on a short list is how a long one comes
+          as a surprise -- and leaves no way to raise the page size before it does. */}
+      {!loading && (
+        <div
+          className={`flex-none flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-2.5 border-t text-xs ${
+            isDark ? "bg-slate-900 border-slate-800 text-slate-400" : "bg-white border-slate-200 text-slate-600"
+          }`}
+        >
+          <div className="font-medium">
+            {total === 0
+              ? "No requisitions in bidding"
+              : `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total}`}
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              className={`px-2 py-1 rounded-lg border text-xs font-semibold ${
+                isDark ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-700"
+              }`}
+              title="Rows per page"
+            >
+              {[25, 50, 100].map((n) => (
+                <option key={n} value={n}>{n} / page</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className={`px-3 py-1 rounded-lg border font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                isDark ? "border-slate-700 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              Previous
+            </button>
+            <span className="font-bold tabular-nums">
+              {page} / {pages}
+            </span>
+            <button
+              type="button"
+              disabled={page >= pages || loading}
+              onClick={() => setPage((p) => Math.min(pages, p + 1))}
+              className={`px-3 py-1 rounded-lg border font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                isDark ? "border-slate-700 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

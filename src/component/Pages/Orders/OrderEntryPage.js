@@ -712,6 +712,9 @@ export default function OrderEntryPage({
       doc_type: order.doc_type || "PO",
       status: authoritativeStage,
       lifecycle_stage: authoritativeStage,
+      // Set by the server: is a revision open on this document right now? It opens
+      // when someone gives a reason and closes when the changed lines are saved.
+      was_revised: Boolean(order.was_revised),
       parent_rfq_id: order.parent_rfq_id || null,
       origin_rfq_number: order.origin_rfq_number || "",
       split_index: order.split_index || "",
@@ -1130,7 +1133,14 @@ export default function OrderEntryPage({
 
   const handleItemFieldChange = (index, field, val) => {
     let updated = [...(formData.items || [])];
-    if (updated[index]?.product_id && ["item_code", "description", "unit"].includes(field)) return;
+    // Code, description and unit say which product this line is. Once the line is
+    // saved they are what every later record points back to -- quotes, history,
+    // receipts -- so retyping one silently turns an existing line into a different
+    // product and leaves those records pointing at the wrong thing. Remove the line
+    // and add the right one instead. A catalog line is fixed from the start.
+    const onRecord = (formData.lifecycle_stage || formData.status || "DRAFT").toUpperCase() !== "DRAFT";
+    const lockedLine = Boolean(updated[index]?.product_id || (updated[index]?.id && onRecord));
+    if (lockedLine && ["item_code", "description", "unit"].includes(field)) return;
     updated[index] = { ...updated[index], [field]: val };
 
     // Auto-calculate line total
@@ -1258,9 +1268,23 @@ export default function OrderEntryPage({
 
   const currentStage = (formData.lifecycle_stage || formData.status || "DRAFT").toUpperCase();
 
+  // Past DRAFT, a saved line's product, description and unit are what every later
+  // record points back to, so they stop being editable. Quantities still move.
+  const lineIdentityLocked = currentStage !== "DRAFT";
+
   // In Sourcing: Once confirmed (non-DRAFT), no further update process is done at sourcing.
   // Sourcing requisitioners can only see updating status as sourcing proceeding.
-  const isSourcingLocked = (isRFQ || location.pathname.startsWith("/sourcing")) && isEdit && currentStage !== "DRAFT";
+  // CONFIRMED is not one of them. Nothing has gone out to vendors at that point, so
+  // a line the requisitioner got wrong, or left out, is still theirs to fix -- with
+  // no revision and no reason to record, because there is no quote to stand down.
+  // Sending to vendors is what closes the lines. The backend agrees: CONFIRMED is
+  // line-editable. A revised requisition lands back here for exactly this reason.
+  // CONFIRMED is editable, but only once Revise has opened it and taken the reason.
+  // Asking why on save would ask after the fact; this asks before anything moves.
+  const wasRevised = Boolean(formData.was_revised);
+  const isSourcingLocked = (isRFQ || location.pathname.startsWith("/sourcing")) && isEdit
+    && currentStage !== "DRAFT"
+    && !(currentStage === "CONFIRMED" && wasRevised);
 
   const canEdit = Boolean(
     !isSourcingLocked &&
@@ -1275,14 +1299,39 @@ export default function OrderEntryPage({
   // A sent RFQ can be reopened, by whoever may commit the company to a vendor.
   // Not shown once it has been awarded: the change belongs on the purchase
   // orders the award produced.
-  const canRevise = Boolean(
-    isRFQ && isEdit &&
-    ["RFQ_SENT", "QUOTE_RECEIVED"].includes(currentStage) &&
-    (isRoot || isAccountsOrAdmin ||
-      permissions.includes("Revise_RFQ") ||
-      permissions.includes("Approve_Quote") ||
-      permissions.includes("Administrator"))
+  const mayRevise = Boolean(
+    isRoot || isAccountsOrAdmin ||
+    permissions.includes("Revise_RFQ") ||
+    permissions.includes("Approve_Quote") ||
+    permissions.includes("Administrator")
   );
+
+  // Shown at every stage where reopening is a question worth asking, and disabled
+  // with the reason rather than hidden: a control that vanishes reads as broken.
+  const reviseBlockedReason = (() => {
+    if (!(isRFQ && isEdit)) return null;
+    if (!["CONFIRMED", "RFQ_SENT", "QUOTE_RECEIVED", "QUOTE_APPROVED"].includes(currentStage)) return null;
+    if (currentStage === "CONFIRMED") {
+      if (wasRevised) return "Already open for editing. Change the lines, then send to vendors.";
+      return mayRevise ? null : "You need the Revise RFQ permission to reopen this requisition.";
+    }
+    if (currentStage === "QUOTE_APPROVED") {
+      return "Already awarded. Change the purchase orders it produced, or revoke the award first.";
+    }
+    if (!mayRevise) return "You need the Revise RFQ permission to reopen a sent requisition.";
+    return null;
+  })();
+
+  const canRevise = Boolean(
+    isRFQ && isEdit && mayRevise &&
+    (["RFQ_SENT", "QUOTE_RECEIVED"].includes(currentStage) ||
+      (currentStage === "CONFIRMED" && !wasRevised))
+  );
+
+  // Shown whenever it is usable, and whenever there is a reason worth reading for
+  // why it is not. Deriving it from canRevise keeps the two from drifting apart.
+  const showRevise = canRevise || reviseBlockedReason !== null;
+
 
   const handleRevise = async () => {
     const reason = reviseReason.trim();
@@ -1429,7 +1478,7 @@ export default function OrderEntryPage({
         let level = "NONE";
         if (["QUOTE_APPROVED", "PO_ISSUED", "PROFORMA"].includes(formData.lifecycle_stage)) {
           level = "CRITICAL";
-        } else if (["CONFIRMED", "RFQ_SENT", "QUOTE_RECEIVED"].includes(formData.lifecycle_stage)) {
+        } else if (["RFQ_SENT", "QUOTE_RECEIVED"].includes(formData.lifecycle_stage)) {
           level = "WARNING";
         }
         if (level !== "NONE") {
@@ -1825,7 +1874,7 @@ export default function OrderEntryPage({
       </div>
 
       {/* ── SOURCING PROCEEDING STATUS BANNER ── */}
-      {isSourcingLocked && (
+      {(isSourcingLocked || (currentStage === "CONFIRMED" && isRFQ && isEdit)) && (
         <div className="w-full px-4 sm:px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between gap-3 animate-in fade-in duration-200">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-1.5 rounded-lg bg-amber-500 text-white flex-none shadow-xs">
@@ -1833,22 +1882,33 @@ export default function OrderEntryPage({
             </div>
             <div className="min-w-0">
               <div className="text-xs font-bold flex items-center gap-1.5 text-amber-900 dark:text-amber-200">
-                <span>Sourcing Requisition Handed Over to Procurement</span>
+                <span>{currentStage === "CONFIRMED"
+                  ? (wasRevised ? "Revised — Reopened for Editing" : "Confirmed — Not Yet Sent to Vendors")
+                  : "Sourcing Requisition Handed Over to Procurement"}</span>
               </div>
               <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                {currentStage === "QUOTE_APPROVED"
+                {currentStage === "CONFIRMED" && wasRevised
+                  ? "Open for editing: change quantities, add lines or remove them. A saved line's product and description stay fixed — remove the line and add the right one instead. Send to vendors when the changes are made."
+                  : currentStage === "CONFIRMED"
+                  ? "Confirmed, and closed to editing. To change a quantity, add a line or remove one, click Revise and say why — the reason goes on the record against this requisition."
+                  : currentStage === "QUOTE_APPROVED"
                   ? "Awarded. The line items now live on the purchase orders this produced — change them there, or revoke the award first. Dates, consignee and notes can still be edited here."
                   : "The vendors are quoting against these line items, so changing one needs a revision: it records why and stands the open quotes down. Dates, consignee and notes can still be edited here."}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-none">
-            {canRevise && (
+            {showRevise && (
               <button
                 type="button"
-                onClick={() => setIsReviseOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white transition shadow-sm"
-                title="Reopen this RFQ for editing, recording why"
+                disabled={!canRevise}
+                onClick={() => canRevise && setIsReviseOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-xl transition shadow-sm ${
+                  canRevise
+                    ? "bg-amber-600 hover:bg-amber-700 active:scale-95 text-white"
+                    : "bg-amber-200/70 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 cursor-not-allowed"
+                }`}
+                title={reviseBlockedReason || "Reopen this RFQ for editing, recording why"}
               >
                 <History className="w-3.5 h-3.5" />
                 <span>Revise</span>
@@ -2459,8 +2519,12 @@ export default function OrderEntryPage({
                               placeholder="SKU-001"
                               value={it.item_code}
                               disabled={!canEdit}
-                              readOnly={Boolean(it.product_id)}
-                              title={it.product_id ? "Catalog product code is fixed to the selected product" : undefined}
+                              readOnly={Boolean(it.product_id || (it.id && lineIdentityLocked))}
+                              title={it.product_id
+                                ? "Catalog product code is fixed to the selected product"
+                                : it.id
+                                  ? "This line is on record. Remove it and add the right product rather than retyping its code."
+                                  : undefined}
                               onChange={(e) => handleItemFieldChange(idx, "item_code", e.target.value)}
                               className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal font-mono transition disabled:opacity-60 disabled:cursor-not-allowed read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${isDark
                                   ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -2475,8 +2539,12 @@ export default function OrderEntryPage({
                             placeholder="Item name / specification *"
                             value={it.description}
                             disabled={!canEdit}
-                            readOnly={Boolean(it.product_id)}
-                            title={it.product_id ? "Catalog product description is fixed to the selected product" : undefined}
+                            readOnly={Boolean(it.product_id || (it.id && lineIdentityLocked))}
+                            title={it.product_id
+                              ? "Catalog product description is fixed to the selected product"
+                              : it.id
+                                ? "This line is on record. Remove it and add the right product rather than retyping its description."
+                                : undefined}
                             onChange={(e) => handleItemFieldChange(idx, "description", e.target.value)}
                             className={`w-full h-[24px] px-1.5 py-0 border rounded text-[11px] font-normal transition disabled:opacity-60 disabled:cursor-not-allowed read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-800 ${isDark
                                 ? "bg-slate-900 border-slate-700 text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
