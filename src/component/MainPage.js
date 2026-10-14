@@ -40,6 +40,7 @@ import CurrenciesPage from "./Pages/MasterData/CurrenciesPage.js";
 import PaymentTermsPage from "./Pages/MasterData/PaymentTermsPage.js";
 import SuppliersMasterPage from "./Pages/MasterData/SuppliersMasterPage.js";
 import SupplierProfilePage from "./Pages/MasterData/SupplierProfilePage.js";
+import SupplierFormPage from "./Pages/MasterData/SupplierFormPage.js";
 import DocumentTypesMasterPage from "./Pages/MasterData/DocumentTypesMasterPage.js";
 import ReportTemplatesPage from "./Pages/ReportTemplates/ReportTemplatesPage.js";
 import ReportTemplateEditorPage from "./Pages/ReportTemplates/ReportTemplateEditorPage.js";
@@ -186,6 +187,8 @@ export default function MainPage() {
             <Route path="/master-data/currencies" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><CurrenciesPage /></PrivateRoute>} />
             <Route path="/master-data/payment-terms" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><PaymentTermsPage /></PrivateRoute>} />
             <Route path="/master-data/suppliers" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><SuppliersMasterPage /></PrivateRoute>} />
+            <Route path="/master-data/suppliers/new" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><SupplierFormPage /></PrivateRoute>} />
+            <Route path="/master-data/suppliers/:id/edit" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><SupplierFormPage /></PrivateRoute>} />
             <Route path="/master-data/suppliers/:id" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><SupplierProfilePage /></PrivateRoute>} />
             <Route path="/master-data/document-types" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><DocumentTypesMasterPage /></PrivateRoute>} />
 
