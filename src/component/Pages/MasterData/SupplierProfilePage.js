@@ -343,6 +343,13 @@ export default function SupplierProfilePage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => navigate(`/master-data/suppliers/${id}/edit`)}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
               onClick={toggleActive}
               className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
