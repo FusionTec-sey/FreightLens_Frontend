@@ -22,6 +22,16 @@ import CurrencyInput, { CurrencyDisplay } from "../../UI/UXComponent/CurrencyInp
 import { toast } from "react-toastify";
 import { ordersApi } from "../../../services/ordersApi";
 
+/** Answers that are not a bid.
+ *
+ * They are kept apart because they are different facts about the vendor, and the
+ * buyer acts on them differently: NOT_QUOTED is "we do not deal in this" -- ask
+ * someone else, now and next time. OUT_OF_STOCK is "we deal in this but cannot
+ * supply it today" -- worth asking again, or waiting. Neither can carry a price
+ * or win a line.
+ */
+const NOT_A_BID = ["OUT_OF_STOCK", "NOT_QUOTED"];
+
 export default function VendorQuoteEntryModal({
   isOpen,
   onClose,
@@ -295,6 +305,14 @@ export default function VendorQuoteEntryModal({
     setFormData((prev) => {
       const updated = [...prev.items];
       updated[index] = { ...updated[index], [field]: value };
+      // Every line of the request is listed here, so a vendor who does not carry
+      // one still has a row for it. OUT OF STOCK is how they say so -- and a line
+      // they are not offering cannot carry a price, or it reads as a bid of that
+      // amount and competes against the vendors who did quote.
+      if (field === "availability" && NOT_A_BID.includes(value)) {
+        updated[index].unit_price = 0;
+        updated[index].total_price = 0;
+      }
       return { ...prev, items: updated };
     });
   };
@@ -341,7 +359,7 @@ export default function VendorQuoteEntryModal({
     const total = formData.items.length;
     const priced = formData.items.filter((it) => parseFloat(it.unit_price) > 0).length;
     const available = formData.items.filter((it) => it.availability === "AVAILABLE").length;
-    const outOfStock = formData.items.filter((it) => it.availability === "OUT_OF_STOCK").length;
+    const outOfStock = formData.items.filter((it) => NOT_A_BID.includes(it.availability)).length;
     const pctPriced = total > 0 ? Math.round((priced / total) * 100) : 0;
     return { total, priced, available, outOfStock, pctPriced };
   }, [formData.items]);
@@ -369,7 +387,7 @@ export default function VendorQuoteEntryModal({
     } else if (activeFilterTab === "AVAILABLE") {
       list = list.filter(({ it }) => it.availability === "AVAILABLE");
     } else if (activeFilterTab === "OUT_OF_STOCK") {
-      list = list.filter(({ it }) => it.availability === "OUT_OF_STOCK");
+      list = list.filter(({ it }) => NOT_A_BID.includes(it.availability));
     }
 
     return list;
@@ -1071,6 +1089,14 @@ export default function VendorQuoteEntryModal({
                             <CurrencyInput
                               currency={formData.currency}
                               value={it.unit_price}
+                              disabled={NOT_A_BID.includes(it.availability)}
+                              title={
+                                it.availability === "NOT_QUOTED"
+                                  ? "The vendor is not offering this line, so it carries no price"
+                                  : it.availability === "OUT_OF_STOCK"
+                                    ? "The vendor cannot supply this line, so it carries no price"
+                                    : undefined
+                              }
                               onChange={(e) => handleItemChange(originalIdx, "unit_price", parseFloat(e.target.value) || 0)}
                               placeholder="0.00"
                               className={`w-full h-[24px] px-1.5 py-0 border rounded text-right font-mono font-bold text-[11px] ${
@@ -1094,6 +1120,8 @@ export default function VendorQuoteEntryModal({
                                   ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-50/30 dark:bg-emerald-950/20"
                                   : it.availability === "PARTIAL"
                                   ? "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20"
+                                  : it.availability === "NOT_QUOTED"
+                                  ? "text-slate-500 dark:text-slate-400 border-slate-500/30 bg-slate-50/40 dark:bg-slate-900/40"
                                   : it.availability === "SUBSTITUTE_OFFERED"
                                   ? "text-blue-600 dark:text-blue-400 border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/20"
                                   : "text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-50/30 dark:bg-rose-950/20"
@@ -1103,6 +1131,7 @@ export default function VendorQuoteEntryModal({
                               <option value="PARTIAL">PARTIAL Qty</option>
                               <option value="SUBSTITUTE_OFFERED">SUBSTITUTE</option>
                               <option value="OUT_OF_STOCK">OUT OF STOCK</option>
+                              <option value="NOT_QUOTED">NOT QUOTED</option>
                             </select>
                           </td>
 

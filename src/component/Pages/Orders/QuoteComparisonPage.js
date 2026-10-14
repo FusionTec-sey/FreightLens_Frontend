@@ -51,6 +51,29 @@ const downloadBlob = (blob, name) => {
   URL.revokeObjectURL(url);
 };
 
+/** Whatever the server refused with, as something React can render.
+ *
+ * FastAPI answers a failed body validation with `detail` as a LIST of objects,
+ * not a string. Setting that straight into an error message renders an object as
+ * a React child, which throws and takes the whole page white -- so the user sees
+ * a blank screen instead of "this field is required". Anything that is not plain
+ * text gets turned into text here.
+ */
+function describeError(err, fallback) {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((d) => (typeof d === "string" ? d : d?.msg))
+      .filter(Boolean);
+    if (parts.length) return parts.join("; ");
+  }
+  if (detail && typeof detail === "object" && typeof detail.message === "string") {
+    return detail.message;
+  }
+  return fallback;
+}
+
 export default function QuoteComparisonPage() {
   const navigate = useNavigate();
   const { id: orderId } = useParams();
@@ -131,11 +154,16 @@ export default function QuoteComparisonPage() {
   const [showSplitConfirmModal, setShowSplitConfirmModal] = useState(false);
   const [splitResultData, setSplitResultData] = useState(null);
   const [awarding, setAwarding] = useState(false);
+  // Lines where the chosen quote answers differently from the request: a
+  // minimum order quantity, a substitute, a partial supply. The award is
+  // refused until these are accepted, because accepting them changes the order.
+  const [deviations, setDeviations] = useState(null);
   const [selectedQuoteId, setSelectedQuoteId] = useState(null);
   const [lineAwards, setLineAwards] = useState({}); // { po_item_id: { quote_id, unit_price } }
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [showRevokeConfirmModal, setShowRevokeConfirmModal] = useState(false);
+  const [revokeReason, setRevokeReason] = useState("");
   const [revoking, setRevoking] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
 
@@ -158,7 +186,7 @@ export default function QuoteComparisonPage() {
       fetchComparison();
     } catch (err) {
       console.error("Failed to delete vendor quote:", err);
-      toast.error(err.response?.data?.detail || "Failed to delete vendor quote.");
+      toast.error(describeError(err, "Failed to delete vendor quote."));
     } finally {
       setIsDeleting(false);
     }
@@ -230,7 +258,7 @@ export default function QuoteComparisonPage() {
       await fetchComparison();
     } catch (err) {
       console.error("Failed to dispatch RFQ:", err);
-      toast.error(err.response?.data?.detail || "Failed to dispatch RFQ to suppliers.");
+      toast.error(describeError(err, "Failed to dispatch RFQ to suppliers."));
     } finally {
       setSendingRfq(false);
     }
@@ -295,6 +323,13 @@ export default function QuoteComparisonPage() {
     }));
   };
 
+  // A vendor that does not carry a line still has a row in the grid, because the
+  // quote is entered against the whole request. OUT_OF_STOCK is that vendor saying
+  // "not this one" -- it is not a bid, so it cannot win one.
+  const NOT_A_BID = ["OUT_OF_STOCK", "NOT_QUOTED"];
+  const isNotQuoted = (qData) =>
+    !qData || NOT_A_BID.includes(qData.availability) || !(Number(qData.unit_price) > 0);
+
   // Auto-pick lowest unit price for every line item across all vendor quotes
   const handleAutoPickLowest = () => {
     const newAwards = {};
@@ -305,7 +340,7 @@ export default function QuoteComparisonPage() {
 
       vendors.forEach((v) => {
         const qData = row.vendor_quotes[v.quote_id];
-        if (qData && qData.unit_price > 0 && qData.unit_price < lowestPrice) {
+        if (!isNotQuoted(qData) && qData.unit_price < lowestPrice) {
           lowestPrice = qData.unit_price;
           bestQuoteId = v.quote_id;
           bestAvail = qData.availability;
@@ -423,7 +458,7 @@ export default function QuoteComparisonPage() {
 
   const hasExistingChildPOs = Boolean(poInfo?.child_pos && poInfo.child_pos.length > 0);
 
-  const executeSplitAward = async () => {
+  const executeSplitAward = async (acceptDeviations = false) => {
     if (hasExistingChildPOs) {
       setErrorMsg("This RFQ has already been awarded and split into Purchase Orders. To change allocations, revoke the current award first.");
       return;
@@ -452,7 +487,7 @@ export default function QuoteComparisonPage() {
 
       const res = await axios.post(
         `${process.env.REACT_APP_NETWORK}/orders/${orderId}/quotes/split-award`,
-        { allocations },
+        { allocations, accept_deviations: acceptDeviations },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -462,25 +497,42 @@ export default function QuoteComparisonPage() {
       );
 
       setShowSplitConfirmModal(false);
+      setDeviations(null);
       setSplitResultData(res.data);
       setSuccessMsg(res.data.message || "Purchase Orders successfully created!");
       fetchComparison();
     } catch (err) {
       console.error("Failed to execute split award:", err);
-      setErrorMsg(err.response?.data?.detail || "Failed to split and award quotes.");
+      const detail = err.response?.data?.detail;
+      // A refusal that lists deviations is not an error to read and dismiss:
+      // it is the decision the buyer has to make before the order is written.
+      if (detail && typeof detail === "object" && Array.isArray(detail.deviations)) {
+        setDeviations(detail);
+        setShowSplitConfirmModal(false);
+      } else {
+        setErrorMsg(
+          describeError(err, null) ||
+          "Failed to split and award quotes."
+        );
+      }
     } finally {
       setAwarding(false);
     }
   };
 
   const executeRevokeAward = async () => {
+    const reason = revokeReason.trim();
+    if (reason.length < 5) {
+      toast.error("Say why this award is being revoked — the vendor was told they won.");
+      return;
+    }
     setRevoking(true);
     setErrorMsg("");
     setSuccessMsg("");
     try {
       const res = await axios.post(
         `${process.env.REACT_APP_NETWORK}/orders/${orderId}/quotes/revoke-award`,
-        {},
+        { reason },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -490,10 +542,11 @@ export default function QuoteComparisonPage() {
       );
       toast.success(res.data.message || "Award revoked successfully.");
       setShowRevokeConfirmModal(false);
+      setRevokeReason("");
       fetchComparison();
     } catch (err) {
       console.error("Failed to revoke award:", err);
-      setErrorMsg(err.response?.data?.detail || "Failed to revoke award.");
+      setErrorMsg(describeError(err, "Failed to revoke award."));
     } finally {
       setRevoking(false);
     }
@@ -1147,6 +1200,17 @@ export default function QuoteComparisonPage() {
                                           —
                                         </span>
                                       )
+                                    ) : isNotQuoted(qData) ? (
+                                      <span
+                                        className="text-[10px] font-bold px-2 py-0.5 rounded text-slate-400 border border-dashed border-slate-300 dark:border-slate-700"
+                                        title={
+                                          qData?.availability === "OUT_OF_STOCK"
+                                            ? "The vendor cannot supply this line, so it cannot be awarded to them."
+                                            : "The vendor is not offering this line, so it cannot be awarded to them."
+                                        }
+                                      >
+                                        {qData?.availability === "OUT_OF_STOCK" ? "No stock" : "Not quoted"}
+                                      </span>
                                     ) : (
                                       <button
                                         type="button"
@@ -1398,6 +1462,28 @@ export default function QuoteComparisonPage() {
               already generated ({poInfo.child_pos?.map((c) => c.po_number).join(", ")}) and return this RFQ back to quote comparison.
             </p>
 
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Why is this being revoked? <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                disabled={revoking}
+                autoFocus
+                placeholder="e.g. Vendor withdrew after award; lead time no longer meets the site date"
+                className={`w-full px-3 py-2 rounded-xl border text-xs transition resize-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500 ${
+                  isDark
+                    ? "bg-slate-950 border-slate-700 text-slate-100 placeholder:text-slate-600"
+                    : "bg-white border-slate-200 text-slate-900 placeholder:text-slate-400"
+                }`}
+              />
+              <p className="text-[11px] text-slate-400">
+                Goes on the record against this requisition, with the purchase orders it cancelled.
+              </p>
+            </div>
+
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex items-center gap-2">
               <AlertTriangle size={15} className="flex-none" />
               <span>Only allowed if no payments or shipments have been recorded on the issued POs.</span>
@@ -1406,7 +1492,7 @@ export default function QuoteComparisonPage() {
             <div className="pt-2 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setShowRevokeConfirmModal(false)}
+                onClick={() => { setShowRevokeConfirmModal(false); setRevokeReason(""); }}
                 disabled={revoking}
                 className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               >
@@ -1415,7 +1501,7 @@ export default function QuoteComparisonPage() {
               <button
                 type="button"
                 onClick={executeRevokeAward}
-                disabled={revoking}
+                disabled={revoking || revokeReason.trim().length < 5}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 active:scale-95 text-white transition shadow-sm disabled:opacity-50"
               >
                 {revoking ? (
@@ -1562,7 +1648,7 @@ export default function QuoteComparisonPage() {
               </button>
               <button
                 type="button"
-                onClick={executeSplitAward}
+                onClick={() => executeSplitAward(false)}
                 disabled={awarding}
                 className="flex items-center gap-1.5 px-6 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition shadow-md shadow-blue-500/20 disabled:opacity-50"
               >
@@ -1648,6 +1734,75 @@ export default function QuoteComparisonPage() {
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 transition"
               >
                 Stay in Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── WHAT THE VENDOR ANSWERED DIFFERENTLY ─────────────────── */}
+      {deviations && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-2xl rounded-2xl border shadow-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-amber-500 text-white shadow-xs">
+                <AlertTriangle size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold tracking-tight">The quote answers differently from the request</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Accepting writes the vendor&apos;s figures onto the order. The request is kept beside them, so the order shows both.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5 max-h-[50vh] overflow-auto">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <th className="pb-2 font-bold uppercase tracking-wider">Line</th>
+                    <th className="pb-2 font-bold uppercase tracking-wider text-right">Requested</th>
+                    <th className="pb-2 font-bold uppercase tracking-wider text-right">Quoted</th>
+                    <th className="pb-2 font-bold uppercase tracking-wider">What differs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deviations.deviations.map((d) => (
+                    <tr key={d.po_item_id} className="border-b border-slate-100 dark:border-slate-800/60">
+                      <td className="py-2 pr-3 font-semibold">
+                        {d.description}
+                        {d.substitute_description && (
+                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                            offered instead: {d.substitute_description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 text-right font-mono">{d.quantity_requested}</td>
+                      <td className="py-2 text-right font-mono font-bold">{d.quantity_quoted}</td>
+                      <td className="py-2 pl-3 capitalize">{(d.kinds || []).join(", ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeviations(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                title="Leave the award alone — revise the request instead"
+              >
+                Don&apos;t award
+              </button>
+              <button
+                type="button"
+                disabled={awarding}
+                onClick={() => executeSplitAward(true)}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 active:scale-95 text-white transition shadow-md disabled:opacity-50"
+              >
+                <Check size={14} />
+                <span>{awarding ? "Awarding…" : "Accept and award"}</span>
               </button>
             </div>
           </div>
