@@ -279,6 +279,10 @@ export default function OrderEntryPage({
   const [initialItemsSnapshot, setInitialItemsSnapshot] = useState("[]");
   const [historyDrawerItem, setHistoryDrawerItem] = useState(null);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  // Revising a sent RFQ: the way back out of the lock.
+  const [isReviseOpen, setIsReviseOpen] = useState(false);
+  const [reviseReason, setReviseReason] = useState("");
+  const [isRevising, setIsRevising] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningLevel, setWarningLevel] = useState("NONE");
   const [showVarianceModal, setShowVarianceModal] = useState(false);
@@ -1268,6 +1272,51 @@ export default function OrderEntryPage({
       : (permissions.includes("Edit_Order") || permissions.includes("Order") || permissions.includes("Administrator"))))
   );
 
+  // A sent RFQ can be reopened, by whoever may commit the company to a vendor.
+  // Not shown once it has been awarded: the change belongs on the purchase
+  // orders the award produced.
+  const canRevise = Boolean(
+    isRFQ && isEdit &&
+    ["RFQ_SENT", "QUOTE_RECEIVED"].includes(currentStage) &&
+    (isRoot || isAccountsOrAdmin ||
+      permissions.includes("Revise_RFQ") ||
+      permissions.includes("Approve_Quote") ||
+      permissions.includes("Administrator"))
+  );
+
+  const handleRevise = async () => {
+    const reason = reviseReason.trim();
+    if (reason.length < 5) {
+      toast.error("Say why this is being revised — the vendors have to be told.");
+      return;
+    }
+    setIsRevising(true);
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/orders/${orderId}/revise`,
+        { reason },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            skip_zrok_interstitial: "true",
+          },
+        }
+      );
+      toast.success(res.data?.message || "Open for editing again.");
+      setIsReviseOpen(false);
+      setReviseReason("");
+      await fetchOrderDetails(orderId, true);
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      toast.error(
+        (typeof detail === "string" ? detail : detail?.message) ||
+        "Could not revise this RFQ."
+      );
+    } finally {
+      setIsRevising(false);
+    }
+  };
+
   // Financial synchronization helper (auto-calculates balance and synchronizes payment status)
   const handleFinancialChange = (field, val) => {
     setFormData((prev) => {
@@ -1787,11 +1836,24 @@ export default function OrderEntryPage({
                 <span>Sourcing Requisition Handed Over to Procurement</span>
               </div>
               <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                Specifications are confirmed and locked. Vendor quoting, bidding, and purchase order awards are managed in Procurement under Vendor Quotes & Bidding. Live status updates will reflect here automatically as sourcing proceeds.
+                {currentStage === "QUOTE_APPROVED"
+                  ? "Awarded. The line items now live on the purchase orders this produced — change them there, or revoke the award first. Dates, consignee and notes can still be edited here."
+                  : "The vendors are quoting against these line items, so changing one needs a revision: it records why and stands the open quotes down. Dates, consignee and notes can still be edited here."}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-none">
+            {canRevise && (
+              <button
+                type="button"
+                onClick={() => setIsReviseOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white transition shadow-sm"
+                title="Reopen this RFQ for editing, recording why"
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Revise</span>
+              </button>
+            )}
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-mono uppercase tracking-wider">
               Status: {currentStage.replace(/_/g, " ")}
             </span>
@@ -2780,6 +2842,69 @@ export default function OrderEntryPage({
                 ? "Upload and view tender specifications, supplier quotation sheets, and compliance datasheets."
                 : "Upload and view supplier proformas, executed purchase contracts, and order documentation."}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ── REVISE A SENT RFQ ───────────────────────────────────── */}
+      {isReviseOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className={`w-full max-w-lg p-5 sm:p-6 rounded-2xl border shadow-2xl space-y-4 ${
+            isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+          }`}>
+            <div className="flex items-start gap-2.5 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+              <div className="p-2 rounded-xl bg-amber-600 text-white shadow-xs">
+                <History size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold tracking-tight">Revise {formData.po_number || "this RFQ"}</h3>
+                <p className="text-[10px] text-slate-400">
+                  Reopens it for editing and stands down the open quotes, because they answered the version the vendors were sent. Nothing is deleted.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Why is it being revised? <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                autoFocus
+                value={reviseReason}
+                onChange={(e) => setReviseReason(e.target.value)}
+                placeholder="e.g. Site revised the quantity: 1,500 valves needed, not 1,200"
+                className={`w-full px-2.5 py-2 border rounded-lg text-[11px] focus:outline-none focus:ring-2 focus:ring-amber-500 transition ${
+                  isDark
+                    ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500"
+                    : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
+                }`}
+              />
+              <p className="text-[10px] text-slate-400">
+                Kept with the revision, so the next version can be explained to the vendors.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={isRevising}
+                onClick={() => { setIsReviseOpen(false); setReviseReason(""); }}
+                className={`px-3.5 py-1.5 text-[11px] font-bold rounded-xl border transition ${
+                  isDark ? "border-slate-700 hover:bg-slate-800 text-slate-300" : "border-slate-300 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isRevising || reviseReason.trim().length < 5}
+                onClick={handleRevise}
+                className="px-4 py-1.5 text-[11px] font-bold rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              >
+                {isRevising ? "Reopening…" : "Revise and reopen"}
+              </button>
+            </div>
           </div>
         </div>
       )}

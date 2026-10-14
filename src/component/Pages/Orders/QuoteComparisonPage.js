@@ -131,6 +131,10 @@ export default function QuoteComparisonPage() {
   const [showSplitConfirmModal, setShowSplitConfirmModal] = useState(false);
   const [splitResultData, setSplitResultData] = useState(null);
   const [awarding, setAwarding] = useState(false);
+  // Lines where the chosen quote answers differently from the request: a
+  // minimum order quantity, a substitute, a partial supply. The award is
+  // refused until these are accepted, because accepting them changes the order.
+  const [deviations, setDeviations] = useState(null);
   const [selectedQuoteId, setSelectedQuoteId] = useState(null);
   const [lineAwards, setLineAwards] = useState({}); // { po_item_id: { quote_id, unit_price } }
   const [successMsg, setSuccessMsg] = useState("");
@@ -423,7 +427,7 @@ export default function QuoteComparisonPage() {
 
   const hasExistingChildPOs = Boolean(poInfo?.child_pos && poInfo.child_pos.length > 0);
 
-  const executeSplitAward = async () => {
+  const executeSplitAward = async (acceptDeviations = false) => {
     if (hasExistingChildPOs) {
       setErrorMsg("This RFQ has already been awarded and split into Purchase Orders. To change allocations, revoke the current award first.");
       return;
@@ -452,7 +456,7 @@ export default function QuoteComparisonPage() {
 
       const res = await axios.post(
         `${process.env.REACT_APP_NETWORK}/orders/${orderId}/quotes/split-award`,
-        { allocations },
+        { allocations, accept_deviations: acceptDeviations },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -462,12 +466,24 @@ export default function QuoteComparisonPage() {
       );
 
       setShowSplitConfirmModal(false);
+      setDeviations(null);
       setSplitResultData(res.data);
       setSuccessMsg(res.data.message || "Purchase Orders successfully created!");
       fetchComparison();
     } catch (err) {
       console.error("Failed to execute split award:", err);
-      setErrorMsg(err.response?.data?.detail || "Failed to split and award quotes.");
+      const detail = err.response?.data?.detail;
+      // A refusal that lists deviations is not an error to read and dismiss:
+      // it is the decision the buyer has to make before the order is written.
+      if (detail && typeof detail === "object" && Array.isArray(detail.deviations)) {
+        setDeviations(detail);
+        setShowSplitConfirmModal(false);
+      } else {
+        setErrorMsg(
+          (typeof detail === "string" ? detail : detail?.message) ||
+          "Failed to split and award quotes."
+        );
+      }
     } finally {
       setAwarding(false);
     }
@@ -1562,7 +1578,7 @@ export default function QuoteComparisonPage() {
               </button>
               <button
                 type="button"
-                onClick={executeSplitAward}
+                onClick={() => executeSplitAward(false)}
                 disabled={awarding}
                 className="flex items-center gap-1.5 px-6 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition shadow-md shadow-blue-500/20 disabled:opacity-50"
               >
@@ -1648,6 +1664,75 @@ export default function QuoteComparisonPage() {
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 transition"
               >
                 Stay in Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── WHAT THE VENDOR ANSWERED DIFFERENTLY ─────────────────── */}
+      {deviations && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-2xl rounded-2xl border shadow-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-amber-500 text-white shadow-xs">
+                <AlertTriangle size={18} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold tracking-tight">The quote answers differently from the request</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Accepting writes the vendor&apos;s figures onto the order. The request is kept beside them, so the order shows both.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5 max-h-[50vh] overflow-auto">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="text-left text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <th className="pb-2 font-bold uppercase tracking-wider">Line</th>
+                    <th className="pb-2 font-bold uppercase tracking-wider text-right">Requested</th>
+                    <th className="pb-2 font-bold uppercase tracking-wider text-right">Quoted</th>
+                    <th className="pb-2 font-bold uppercase tracking-wider">What differs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deviations.deviations.map((d) => (
+                    <tr key={d.po_item_id} className="border-b border-slate-100 dark:border-slate-800/60">
+                      <td className="py-2 pr-3 font-semibold">
+                        {d.description}
+                        {d.substitute_description && (
+                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                            offered instead: {d.substitute_description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 text-right font-mono">{d.quantity_requested}</td>
+                      <td className="py-2 text-right font-mono font-bold">{d.quantity_quoted}</td>
+                      <td className="py-2 pl-3 capitalize">{(d.kinds || []).join(", ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeviations(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                title="Leave the award alone — revise the request instead"
+              >
+                Don&apos;t award
+              </button>
+              <button
+                type="button"
+                disabled={awarding}
+                onClick={() => executeSplitAward(true)}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 active:scale-95 text-white transition shadow-md disabled:opacity-50"
+              >
+                <Check size={14} />
+                <span>{awarding ? "Awarding…" : "Accept and award"}</span>
               </button>
             </div>
           </div>
