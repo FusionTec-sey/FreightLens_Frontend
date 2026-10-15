@@ -70,11 +70,29 @@ function Sidebar({ onLinkClick }) {
     setTimeout(() => navigate("/"), 0);
   };
 
+  /**
+   * The one route the current URL belongs to: the longest menu route that the
+   * path matches. Prefix matching is what keeps "Purchase Orders" lit on
+   * /orders/1234, a detail screen that is in no menu -- but the registry also
+   * holds routes nested under one another (/orders and /orders/new), and there
+   * a plain prefix test lights both items at once. Longest wins, so exactly one
+   * item is ever the current page.
+   */
+  const activeRoute = useMemo(() => {
+    const pathname = location.pathname;
+    let best = null;
+    menu.forEach((root) =>
+      routesWithin(root).forEach((route) => {
+        if (pathname !== route && !pathname.startsWith(`${route}/`)) return;
+        if (!best || route.length > best.length) best = route;
+      })
+    );
+    return best;
+  }, [menu, location.pathname]);
+
   const isActive = useCallback(
-    (path) =>
-      Boolean(path) &&
-      (location.pathname === path || location.pathname.startsWith(`${path}/`)),
-    [location.pathname]
+    (path) => Boolean(path) && path === activeRoute,
+    [activeRoute]
   );
 
   /** The accordion key holding the current route, so it can open itself. */
