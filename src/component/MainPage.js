@@ -193,10 +193,18 @@ export default function MainPage() {
             <Route path="/master-data/document-types" element={<PrivateRoute requiredPermissions={["View_MasterData", "View_Order", "View_Product"]}><DocumentTypesMasterPage /></PrivateRoute>} />
 
             {/* Customer-Configurable Report & Print Templates */}
-            <Route path="/reports" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage /></PrivateRoute>} />
-            <Route path="/reports/templates" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage /></PrivateRoute>} />
-            <Route path="/reports/editor/:id" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin", "View_Report", "Report"]}><ReportTemplateEditorPage /></PrivateRoute>} />
-            <Route path="/reports/editor/new" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Administrator", "admin", "View_Report", "Report"]}><ReportTemplateEditorPage /></PrivateRoute>} />
+            {/* Print layouts and operational registers are separate screens with
+                separate menu entries; /reports and /reports/templates are kept
+                so existing menus, bookmarks and links still land somewhere. */}
+            <Route path="/reports" element={<Navigate to="/reports/documents" replace />} />
+            <Route path="/reports/templates" element={<Navigate to="/reports/documents" replace />} />
+            <Route path="/reports/documents" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage view="DOCUMENTS" /></PrivateRoute>} />
+            <Route path="/reports/registers" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage view="DATASETS" /></PrivateRoute>} />
+            {/* Designing a template is not a viewing right. The server already
+                refuses a save without Manage_Report_Template; admitting a viewer
+                to the designer only taught them that after the work was done. */}
+            <Route path="/reports/editor/:id" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Manage_Operational_Template", "Administrator", "admin"]}><ReportTemplateEditorPage /></PrivateRoute>} />
+            <Route path="/reports/editor/new" element={<PrivateRoute requiredPermissions={["Manage_Report_Template", "Manage_Operational_Template", "Administrator", "admin"]}><ReportTemplateEditorPage /></PrivateRoute>} />
 
             <Route path="/unauthorized" element={<Unauthorized />} />
 

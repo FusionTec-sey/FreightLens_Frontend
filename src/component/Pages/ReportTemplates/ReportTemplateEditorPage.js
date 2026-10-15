@@ -455,7 +455,7 @@ export default function ReportTemplateEditorPage() {
         {/* Left: Back button & Template Details */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate("/reports")}
+            onClick={() => navigate("/reports/documents")}
             className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           >
             <ArrowLeft size={18} />

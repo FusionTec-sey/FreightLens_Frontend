@@ -21,16 +21,26 @@ import {
   Filter,
   Play,
   Bookmark,
-  Building2,
   Star,
-  ExternalLink,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import DatasetReportModal from "./DatasetReportModal";
 import DatasetReportView from "./DatasetReportView";
 import TabularTemplateDesignerModal from "./TabularTemplateDesignerModal";
+import TemplatePreviewModal from "./TemplatePreviewModal";
 
-export default function ReportTemplatesPage() {
+/**
+ * Two screens, not one hub.
+ *
+ * Print document templates and operational registers are different jobs done by
+ * different people: one is the layout a purchase order prints on, the other is a
+ * parametric list someone runs and exports. They were behind a segmented toggle
+ * inside one page, which made the second one invisible from the menu. Each is now
+ * its own route and its own menu entry, and this component renders whichever it
+ * was given.
+ */
+export default function ReportTemplatesPage({ view = "DOCUMENTS" }) {
   const navigate = useNavigate();
   const { permissions = [], user, hasModule, isRoot } = useAuth();
 
@@ -43,11 +53,9 @@ export default function ReportTemplatesPage() {
     user?.role === "admin" ||
     user?.role === "Administrator";
 
-  const canManagePrintProfile =
-    canManage || permissions.includes("Manage_Print_Profile");
-
-  // Dual-mode Hub: "DOCUMENTS" vs "DATASETS"
-  const [mainHubTab, setMainHubTab] = useState("DOCUMENTS");
+  // Which of the two screens this is. Kept as a variable rather than state:
+  // the route decides it, so it cannot be switched from inside the page.
+  const mainHubTab = view === "DATASETS" ? "DATASETS" : "DOCUMENTS";
 
   // Document Templates State
   const [templates, setTemplates] = useState([]);
@@ -106,6 +114,10 @@ export default function ReportTemplatesPage() {
   // Module clearance tabs
   const hasOrders = hasModule ? hasModule("ORDERS") : true;
   const hasLogistics = hasModule ? hasModule("LOGISTICS") : true;
+
+  // What a template looks like. Open to anyone who can open this page: reading
+  // a blank form rendered from sample data is not reading anybody's data.
+  const [previewTemplate, setPreviewTemplate] = useState(null);
 
   const [togglingId, setTogglingId] = useState(null);
   const [defaultingId, setDefaultingId] = useState(null);
@@ -359,52 +371,18 @@ export default function ReportTemplatesPage() {
         <div className="flex items-center gap-6 flex-wrap">
           <div>
             <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-              <FileCode className="text-indigo-600 dark:text-indigo-400" size={22} />
-              Reporting & Document Hub
+              {mainHubTab === "DOCUMENTS" ? (
+                <FileCode className="text-indigo-600 dark:text-indigo-400" size={22} />
+              ) : (
+                <FileSpreadsheet className="text-indigo-600 dark:text-indigo-400" size={22} />
+              )}
+              {mainHubTab === "DOCUMENTS" ? "Print Document Templates" : "Operational Registers"}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Customer-configurable print layouts, transactional documents & parametric operational registers
+              {mainHubTab === "DOCUMENTS"
+                ? "The layouts transactional documents print on. Preview any of them before using it."
+                : "Parametric lists to run, filter and export, with optional saved column layouts."}
             </p>
-          </div>
-
-          {/* Segmented Dual Mode Toggle */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => setMainHubTab("DOCUMENTS")}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer ${
-                mainHubTab === "DOCUMENTS"
-                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              <FileText size={14} />
-              Document Templates
-            </button>
-            <button
-              onClick={() => setMainHubTab("DATASETS")}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer ${
-                mainHubTab === "DATASETS"
-                  ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              <FileSpreadsheet size={14} />
-              Operational Registers
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold">
-                {datasetCatalog.length || 3}
-              </span>
-            </button>
-            {canManagePrintProfile && (
-              <button
-                onClick={() => navigate("/settings/print-profile")}
-                title="A print profile belongs to one company, so it is set per company in Settings"
-                className="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              >
-                <Building2 size={14} />
-                Print Profile
-                <ExternalLink size={11} className="opacity-60" />
-              </button>
-            )}
           </div>
         </div>
 
@@ -931,6 +909,18 @@ export default function ReportTemplatesPage() {
                           {/* Action Buttons */}
                           <td className="px-5 py-4 text-right">
                             <div className="inline-flex items-center gap-1">
+                              {/* View — the only action every user gets, and the
+                                  one that was missing: the layout rendered from
+                                  sample data, so nobody has to print a real
+                                  document to see what a template looks like. */}
+                              <button
+                                onClick={() => setPreviewTemplate(tmpl)}
+                                title="Preview this layout with sample data"
+                                className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                              >
+                                <Eye size={15} />
+                              </button>
+
                               {/* Default Template */}
                               {canManage && (
                                 <button
@@ -974,6 +964,17 @@ export default function ReportTemplatesPage() {
                                 >
                                   <Edit3 size={15} />
                                 </button>
+                              )}
+
+                              {/* A locked template with no explanation reads as
+                                  a missing button. */}
+                              {canManage && tmpl.is_system && (
+                                <span
+                                  title="System default — clone it to make an editable copy for this company"
+                                  className="p-1.5 text-slate-400 dark:text-slate-500 rounded-lg inline-flex"
+                                >
+                                  <Lock size={15} />
+                                </span>
                               )}
 
                               {/* Delete */}
@@ -1113,6 +1114,20 @@ export default function ReportTemplatesPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── Template Preview ──────────────────────────────────────────────── */}
+      {previewTemplate && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          isDark={document.documentElement.classList.contains("dark")}
+          canEdit={canManage}
+          onEdit={(tmpl) => {
+            setPreviewTemplate(null);
+            navigate(`/reports/editor/${tmpl.id}`);
+          }}
+          onClose={() => setPreviewTemplate(null)}
+        />
       )}
 
       {/* ── Operational Tabular Template Designer Modal ───────────────────── */}

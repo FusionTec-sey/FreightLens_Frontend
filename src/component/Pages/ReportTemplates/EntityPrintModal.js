@@ -197,7 +197,7 @@ export default function EntityPrintModal({
 
   const goToLibrary = () => {
     onClose();
-    navigate("/reports");
+    navigate("/reports/documents");
   };
 
   return (
