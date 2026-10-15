@@ -15,12 +15,14 @@ import {
   ShieldCheck,
   Trash2,
   Plus,
+  Users,
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
 import { getCountryFlag, formatCountryDisplay } from "../../../utils/countries";
 import { mediaUrl } from "../../../utils/mediaUrl";
+import SupplierPeoplePlaces from "./SupplierPeoplePlaces";
 
 /**
  * One vendor, and everything attached to it.
@@ -36,6 +38,7 @@ const TABS = [
   { key: "products", label: "Products", icon: Package },
   { key: "orders", label: "Purchase orders", icon: FileText },
   { key: "quotes", label: "Quotes", icon: QuoteIcon },
+  { key: "people", label: "Contacts & places", icon: Users },
   { key: "identity", label: "Identity", icon: ShieldCheck },
 ];
 
@@ -597,6 +600,18 @@ export default function SupplierProfilePage() {
             </>
           )}
         </div>
+      )}
+
+      {tab === "people" && (
+        <SupplierPeoplePlaces
+          supplierId={id}
+          contacts={profile.contacts || []}
+          addresses={profile.addresses || []}
+          canEdit={canEdit}
+          isDark={isDark}
+          headers={headers}
+          onChanged={loadProfile}
+        />
       )}
 
       {tab === "identity" && (
