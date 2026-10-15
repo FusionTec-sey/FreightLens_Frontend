@@ -6,6 +6,7 @@ import {
   Building,
   Check,
   CreditCard,
+  Eye,
   Globe,
   Loader2,
   Plus,
@@ -275,6 +276,13 @@ export default function SupplierFormPage() {
     navigate(isEdit ? `/master-data/suppliers/${id}` : "/master-data/suppliers");
   };
 
+  // The profile is where this vendor's products, orders and quotes live. Nothing
+  // on the form said so, so there was no way to find it but to edit the URL.
+  const viewProfile = () => {
+    if (dirty && !window.confirm("Leave without saving? The changes on this screen will be lost.")) return;
+    navigate(`/master-data/suppliers/${id}`);
+  };
+
   const addIdentifier = async () => {
     if (!newIdentifier.value.trim()) {
       toast.error("An identifier needs a number.");
@@ -372,6 +380,17 @@ export default function SupplierFormPage() {
             </div>
           </div>
           <div className="hidden sm:flex items-center gap-2 shrink-0">
+            {isEdit && (
+              <button
+                type="button"
+                onClick={viewProfile}
+                title="Products, purchase orders, quotes and identity for this vendor"
+                className="px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5"
+              >
+                <Eye size={13} />
+                View profile
+              </button>
+            )}
             <button
               type="button"
               onClick={leave}
@@ -685,6 +704,12 @@ export default function SupplierFormPage() {
       {/* On a phone the actions sit where the thumb is */}
       <div className={`sm:hidden fixed bottom-0 left-0 right-0 z-30 px-4 py-3 border-t flex items-center gap-2 ${isDark
         ? "bg-slate-950/95 border-slate-800" : "bg-white/95 border-slate-200"}`}>
+        {isEdit && (
+          <button type="button" onClick={viewProfile} title="View profile"
+            className="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700">
+            <Eye size={15} />
+          </button>
+        )}
         <button type="button" onClick={leave}
           className="flex-1 px-3 py-2.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700">
           Cancel

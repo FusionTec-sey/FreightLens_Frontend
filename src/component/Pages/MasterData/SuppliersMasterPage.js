@@ -6,6 +6,7 @@ import {
   Search,
   Plus,
   Edit2,
+  Eye,
   Trash2,
   Mail,
   Phone,
@@ -354,6 +355,14 @@ export default function SuppliersMasterPage() {
                     </td>
                     <td className="py-2 px-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/master-data/suppliers/${s.id || s.supplier_id}`)}
+                          className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                          title="Profile — products, purchase orders, quotes and identity"
+                        >
+                          <Eye size={13} />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleOpenEditModal(s)}
