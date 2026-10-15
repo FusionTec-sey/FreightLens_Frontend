@@ -9,7 +9,11 @@ import {
   ChevronRight,
   FileText,
   GitMerge,
+  History,
+  Landmark,
   Loader2,
+  Network,
+  Paperclip,
   Package,
   Quote as QuoteIcon,
   ShieldCheck,
@@ -40,7 +44,35 @@ const TABS = [
   { key: "quotes", label: "Quotes", icon: QuoteIcon },
   { key: "people", label: "Contacts & places", icon: Users },
   { key: "identity", label: "Identity", icon: ShieldCheck },
+  { key: "activity", label: "Activity", icon: History },
+  // Still to build. Shown rather than hidden, so the gap in the vendor record
+  // is visible here instead of living only in a plan nobody has open. Each one
+  // says what will go in it and what it is waiting on.
+  { key: "bank", label: "Bank accounts", icon: Landmark, soon: true },
+  { key: "documents", label: "Documents", icon: Paperclip, soon: true },
+  { key: "network", label: "Vendor network", icon: Network, soon: true },
 ];
+
+const COMING_SOON = {
+  bank: {
+    title: "Bank accounts",
+    blurb: "Several accounts per vendor, each with its holder, bank, IBAN or account number, SWIFT, currency and country, and one default per currency.",
+    guard: "Account numbers are masked in any list and revealed only to finance roles; a changed account returns to unverified, keeping its previous version in the audit history; and the person who verifies an account is never the person who edited it. Bank details already on an issued order or a recorded payment are never silently replaced.",
+    waiting: "Waiting on a decision: which roles may reveal, edit and verify an account, and who approves a change of payment destination.",
+  },
+  documents: {
+    title: "Documents",
+    blurb: "The vendor's own paperwork — trade licence, tax certificate, bank proof, contracts, compliance certificates — each with a type, an expiry date and an access scope.",
+    guard: "Order and quote documents stay attached to the order or the quote and are linked from here rather than copied, so one file never exists twice with two sets of permissions.",
+    waiting: "Not blocked; next after the activity feed.",
+  },
+  network: {
+    title: "Vendor network",
+    blurb: "When a vendor runs FreightLens themselves, linking the two tenants by consent lets a quote arrive as data instead of as a PDF to retype.",
+    guard: "Consent is mutual and revocable, and linking exposes nothing beyond the documents the two parties already exchange.",
+    waiting: "Designed and parked on purpose — see CONNECTED-VENDOR-NETWORK-FUTURE-SCOPE.md. The seam is already in the database as supplier.linked_org_id, unused.",
+  },
+};
 
 const IDENTIFIER_TYPES = ["TAX", "VAT", "REGISTRATION", "GLN", "DUNS", "LEI", "OTHER"];
 
@@ -57,7 +89,7 @@ export default function SupplierProfilePage() {
   // others or re-ask for rows already on screen.
   const [tabData, setTabData] = useState({});
   const [tabLoading, setTabLoading] = useState(false);
-  const [tabPage, setTabPage] = useState({ products: 1, orders: 1, quotes: 1 });
+  const [tabPage, setTabPage] = useState({ products: 1, orders: 1, quotes: 1, activity: 1 });
 
   const [showRetire, setShowRetire] = useState(false);
   const [retireReason, setRetireReason] = useState("");
@@ -102,7 +134,7 @@ export default function SupplierProfilePage() {
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
   const loadTab = useCallback(async (which) => {
-    if (!["products", "orders", "quotes"].includes(which)) return;
+    if (!["products", "orders", "quotes", "activity"].includes(which)) return;
     setTabLoading(true);
     try {
       const res = await axios.get(`${api}/master-data/suppliers/${id}/${which}`, {
@@ -378,19 +410,25 @@ export default function SupplierProfilePage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800">
-        {TABS.map(({ key, label, icon: Icon }) => (
+        {TABS.map(({ key, label, icon: Icon, soon }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-xs font-bold flex items-center gap-1.5 border-b-2 -mb-px transition ${
+            title={soon ? "Not built yet — open it to see what will go here" : undefined}
+            className={`px-3 py-2 text-xs font-bold flex items-center gap-1.5 border-b-2 -mb-px transition whitespace-nowrap ${
               tab === key
                 ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                : `border-transparent hover:text-slate-700 dark:hover:text-slate-300 ${soon ? "text-slate-400 dark:text-slate-500" : "text-slate-500"}`
             }`}
           >
             <Icon size={13} />
             {label}
+            {soon && (
+              <span className="px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                SOON
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -599,6 +637,72 @@ export default function SupplierProfilePage() {
               {pager("quotes")}
             </>
           )}
+        </div>
+      )}
+
+      {tab === "activity" && (
+        <div className={card}>
+          <h2 className="text-sm font-bold mb-1">Activity</h2>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
+            Every change to this vendor, with who made it. A shared vendor is edited by one
+            company and seen by all of them, so an edit has to be attributable afterwards —
+            and the reason given for a merge or a retirement is recorded here rather than
+            only at the moment it happened.
+          </p>
+
+          {tabLoading && (
+            <div className="py-8 text-center text-xs text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin inline-block mr-1.5 text-indigo-500" />
+              Loading…
+            </div>
+          )}
+
+          {!tabLoading && page.error && (
+            <p className="text-xs text-rose-600 dark:text-rose-400">{page.error}</p>
+          )}
+
+          {!tabLoading && !page.error && (page.items || []).length === 0 && (
+            <p className="text-xs text-slate-400">
+              Nothing recorded against this vendor yet. Changes made from now on appear here.
+            </p>
+          )}
+
+          {!tabLoading && !page.error && (page.items || []).length > 0 && (
+            <>
+              <ol className="relative border-l border-slate-200 dark:border-slate-800 ml-1.5 space-y-3">
+                {(page.items || []).map((event) => (
+                  <li key={event.id} className="ml-4">
+                    <span className="absolute -left-[5px] mt-1.5 w-2 h-2 rounded-full bg-indigo-500" />
+                    <p className="text-xs text-slate-800 dark:text-slate-100">{event.summary}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                      {event.changed_at ? new Date(event.changed_at).toLocaleString() : ""}
+                      {event.actor ? ` · ${event.actor}` : " · no recorded actor"}
+                      {event.is_shared_event ? " · shared record" : ""}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+              {pager("activity")}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Not built yet. The tab exists so the gap is visible where the work
+          would land, and says what it is waiting on. */}
+      {COMING_SOON[tab] && (
+        <div className={card}>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold">{COMING_SOON[tab].title}</h2>
+            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              NOT BUILT YET
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-slate-700 dark:text-slate-200">{COMING_SOON[tab].blurb}</p>
+          <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{COMING_SOON[tab].guard}</p>
+          <p className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+            {COMING_SOON[tab].waiting}
+          </p>
         </div>
       )}
 
