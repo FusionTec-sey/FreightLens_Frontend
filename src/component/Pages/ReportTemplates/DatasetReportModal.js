@@ -26,6 +26,8 @@ export default function DatasetReportModal({
   isOpen,
   onClose,
   onRunReport,
+  // A saved layout chosen on the register list, applied as the modal opens.
+  initialTemplateId = null,
 }) {
   const [running, setRunning] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -94,6 +96,16 @@ export default function DatasetReportModal({
       fetchSavedTemplates();
     }
   }, [isOpen, catalogItem?.key, fetchSavedTemplates]);
+
+  // Opened from a saved layout on the register list: select it and apply its
+  // filters and paper settings, so Run means what the layout says without the
+  // user having to find it again in the dropdown.
+  useEffect(() => {
+    if (!isOpen || !initialTemplateId || savedTemplates.length === 0) return;
+    if (!savedTemplates.some((t) => t.id === Number(initialTemplateId))) return;
+    handleSelectTemplate(String(initialTemplateId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialTemplateId, savedTemplates]);
 
   // Handle selecting a saved template
   const handleSelectTemplate = (templateId) => {
@@ -328,8 +340,17 @@ export default function DatasetReportModal({
       spacious: { top: "18mm", bottom: "18mm", left: "18mm", right: "18mm" },
     };
 
+    // "default" is the dropdown's own word for "no saved layout", not an id.
+    // Sent as it stood, the server rejected the whole spec with a 422 on
+    // template_id -- so running, printing or exporting a register did nothing
+    // at all unless a saved layout happened to be selected.
+    const savedTemplateId =
+      selectedSavedTemplateId && selectedSavedTemplateId !== "default"
+        ? Number(selectedSavedTemplateId)
+        : null;
+
     return {
-      template_id: selectedSavedTemplateId || null,
+      template_id: Number.isFinite(savedTemplateId) ? savedTemplateId : null,
       // Ask for a definite first page. Left out, the server applied its own
       // default of 50 while the viewer's pager assumed something else.
       page: 1,
