@@ -287,6 +287,7 @@ export default function OrderEntryPage({
   const [isReviseOpen, setIsReviseOpen] = useState(false);
   const [reviseReason, setReviseReason] = useState("");
   const [isRevising, setIsRevising] = useState(false);
+  const [isClosingRevision, setIsClosingRevision] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningLevel, setWarningLevel] = useState("NONE");
   const [showVarianceModal, setShowVarianceModal] = useState(false);
@@ -1436,6 +1437,77 @@ export default function OrderEntryPage({
     }
   };
 
+  /**
+   * Lock the document again, with the revision unspent.
+   *
+   * Reopening is a commitment to make a change and say why; leaving without one
+   * is not, so the window does not outlive the visit. The reason already given
+   * stays on the record -- what happened, happened -- and the next edit asks for
+   * its own.
+   */
+  const closeRevisionWindow = async ({ silent = false } = {}) => {
+    if (!orderId) return;
+    setIsClosingRevision(true);
+    try {
+      const res = await axios.post(
+        `${process.env.REACT_APP_NETWORK}/orders/${orderId}/revise/close`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            skip_zrok_interstitial: "true",
+          },
+        }
+      );
+      if (!silent) {
+        toast.info(res.data?.message || "Locked again. Revising needs a new reason.");
+        await fetchOrderDetails(orderId, true);
+      }
+    } catch (err) {
+      // Closing only ever removes the ability to edit, so a failure here is not
+      // worth interrupting someone who is already on their way out. The window
+      // expires on the server regardless.
+      if (!silent) toast.error("Could not close the revision.");
+    } finally {
+      setIsClosingRevision(false);
+    }
+  };
+
+  // Leaving the screen with the revision unspent closes it. Held in a ref so the
+  // cleanup reads the state at the moment of leaving, not the state it was
+  // created with, and so a save that already spent the window does not re-close it.
+  const openRevisionRef = useRef(false);
+  useEffect(() => {
+    openRevisionRef.current = Boolean(
+      orderId && formData.was_revised && (formData.lifecycle_stage || "").toUpperCase() === "CONFIRMED"
+    );
+  }, [orderId, formData.was_revised, formData.lifecycle_stage]);
+
+  useEffect(() => {
+    if (!orderId) return undefined;
+    const url = `${process.env.REACT_APP_NETWORK}/orders/${orderId}/revise/close`;
+    // A closed tab gets no unmount, so the same call goes out with keepalive.
+    const releaseOnUnload = () => {
+      if (!openRevisionRef.current) return;
+      try {
+        fetch(url, {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            skip_zrok_interstitial: "true",
+          },
+        });
+      } catch (e) {}
+    };
+    window.addEventListener("pagehide", releaseOnUnload);
+    return () => {
+      window.removeEventListener("pagehide", releaseOnUnload);
+      if (openRevisionRef.current) closeRevisionWindow({ silent: true });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
+
   // Financial synchronization helper (auto-calculates balance and synchronizes payment status)
   const handleFinancialChange = (field, val) => {
     setFormData((prev) => {
@@ -1958,7 +2030,7 @@ export default function OrderEntryPage({
               </div>
               <p className="text-[11px] text-amber-700 dark:text-amber-300">
                 {currentStage === "CONFIRMED" && wasRevised
-                  ? "Open for editing: change quantities, add lines or remove them. A saved line's product and description stay fixed — remove the line and add the right one instead. Send to vendors when the changes are made."
+                  ? "Open for editing: change quantities, add lines or remove them. A saved line's product and description stay fixed — remove the line and add the right one instead. Leaving this screen locks it again, and revising then needs a new reason."
                   : currentStage === "CONFIRMED"
                   ? "Confirmed, and closed to editing. To change a quantity, add a line or remove one, click Revise and say why — the reason goes on the record against this requisition."
                   : currentStage === "QUOTE_APPROVED"
@@ -1968,6 +2040,18 @@ export default function OrderEntryPage({
             </div>
           </div>
           <div className="flex items-center gap-2 flex-none">
+            {currentStage === "CONFIRMED" && wasRevised && mayRevise && (
+              <button
+                type="button"
+                disabled={isClosingRevision}
+                onClick={() => closeRevisionWindow()}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-xl transition shadow-sm bg-white/80 dark:bg-slate-900/70 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-white active:scale-95 disabled:opacity-60"
+                title="Lock this requisition again. The reason given stays on the record; revising it again asks for a new one."
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{isClosingRevision ? "Locking…" : "Close revision"}</span>
+              </button>
+            )}
             {showRevise && (
               <button
                 type="button"
