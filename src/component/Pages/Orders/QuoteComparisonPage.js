@@ -29,7 +29,8 @@ import {
   Send,
   Paperclip,
   Download,
-  Printer
+  Printer,
+  Lock,
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -271,6 +272,21 @@ export default function QuoteComparisonPage() {
   const vendors = comparisonData?.vendors || [];
   const lineItems = comparisonData?.line_items || [];
   const poInfo = comparisonData?.po || {};
+
+  /**
+   * Somebody has the requisition open for revision.
+   *
+   * The desk goes read-only for anything that commits: the lines being compared
+   * are the ones being rewritten, so an award here would be made against a
+   * version that is about to stop existing, and the quotes it picks between are
+   * already superseded. Reading, printing and refreshing stay open -- the lock
+   * is on committing, not on looking. The server refuses these regardless; this
+   * is so nobody is told no only after choosing a vendor.
+   */
+  const revisionOpen = Boolean(poInfo.revision_open);
+  const commitLockReason = revisionOpen
+    ? "This requisition is open for revision. Finish or close the revision before awarding."
+    : null;
 
   // Held steady across renders: the quote entry modal rebuilds its form when
   // this changes identity, which while a quote was being typed cleared the
@@ -651,7 +667,7 @@ export default function QuoteComparisonPage() {
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
             </button>
 
-            {canSendRFQ && (poInfo.lifecycle_stage === "CONFIRMED" || poInfo.status === "CONFIRMED") && (
+            {canSendRFQ && !revisionOpen && (poInfo.lifecycle_stage === "CONFIRMED" || poInfo.status === "CONFIRMED") && (
               <button
                 type="button"
                 onClick={handleSendRFQDirect}
@@ -710,12 +726,12 @@ export default function QuoteComparisonPage() {
               <button
                 type="button"
                 onClick={handleInitiateAward}
-                disabled={awarding || selectedTotal === 0}
+                disabled={awarding || selectedTotal === 0 || revisionOpen}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white disabled:opacity-50 transition shadow-md shadow-emerald-600/20"
-                title={selectedTotal === 0 ? "Select a vendor quote or award line items below first" : "Confirm selected quote and issue Purchase Order"}
+                title={commitLockReason || (selectedTotal === 0 ? "Select a vendor quote or award line items below first" : "Confirm selected quote and issue Purchase Order")}
               >
                 <Award size={15} />
-                <span>{selectedTotal === 0 ? "Select Quote to Confirm" : "Confirm & Award Quote"}</span>
+                <span>{revisionOpen ? "Locked — Under Revision" : selectedTotal === 0 ? "Select Quote to Confirm" : "Confirm & Award Quote"}</span>
               </button>
             ) : null}
 
@@ -737,6 +753,40 @@ export default function QuoteComparisonPage() {
           </div>
         </div>
       </div>
+
+      {/* ── UNDER REVISION LOCK ──────────────────────────────────────────
+          Said plainly and at the top: the quotes below answer a version of the
+          requisition that is being rewritten, so nothing here can be awarded
+          until the revision is finished or closed. The buttons are disabled
+          rather than hidden, so the desk does not look broken. */}
+      {revisionOpen && (
+        <div className="mx-4 sm:mx-6 mt-4 flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50/80 p-4 shadow-xs md:flex-row md:items-center md:justify-between dark:border-amber-800 dark:bg-amber-950/40">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+              <Lock size={19} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-amber-900 dark:text-amber-200">
+                Under revision — awarding is locked
+              </p>
+              <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                Someone reopened this requisition and said why. Its line items are
+                being changed, so these quotes answer a version that is on its way
+                out — awarding one now would commit to lines that no longer exist.
+                The quotes stay readable. Finish the revision, or close it, and the
+                desk unlocks.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`/orders/${orderId}/edit`)}
+            className="flex-none rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-700 active:scale-95"
+          >
+            Open the revision
+          </button>
+        </div>
+      )}
 
       {/* Notifications */}
       {successMsg && (
@@ -1016,11 +1066,11 @@ export default function QuoteComparisonPage() {
                   <button
                     type="button"
                     onClick={handleAutoPickLowest}
-                    disabled={hasExistingChildPOs}
+                    disabled={hasExistingChildPOs || revisionOpen}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition shadow-xs ${
-                      hasExistingChildPOs ? "opacity-40 cursor-not-allowed" : "hover:bg-emerald-500/20 active:scale-95"
+                      hasExistingChildPOs || revisionOpen ? "opacity-40 cursor-not-allowed" : "hover:bg-emerald-500/20 active:scale-95"
                     }`}
-                    title={hasExistingChildPOs ? "Cannot reallocate items while RFQ is awarded" : "Automatically allocate each line item to the supplier offering the lowest unit price"}
+                    title={commitLockReason || (hasExistingChildPOs ? "Cannot reallocate items while RFQ is awarded" : "Automatically allocate each line item to the supplier offering the lowest unit price")}
                   >
                     <Sparkles size={13} className="text-emerald-500" />
                     <span>Auto-Pick Lowest Bids</span>
@@ -1332,7 +1382,8 @@ export default function QuoteComparisonPage() {
                     <button
                       type="button"
                       onClick={handleInitiateAward}
-                      disabled={awarding || selectedTotal === 0}
+                      disabled={awarding || selectedTotal === 0 || revisionOpen}
+                      title={commitLockReason || undefined}
                       className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white transition shadow-md shadow-emerald-600/20 disabled:opacity-50"
                     >
                       {awarding ? (

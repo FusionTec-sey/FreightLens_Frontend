@@ -149,6 +149,18 @@ export default function OrderCardGrid({ orders, orderStatuses = [], activeTab = 
                       URGENT
                     </span>
                   )}
+                  {/* Somebody has this open for revision: it is locked to
+                      everyone else, and the workflow status cannot say so --
+                      a reopened requisition is still CONFIRMED. */}
+                  {order.revision_open && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-extrabold text-amber-700 dark:text-amber-400"
+                      title="Open for revision. Awarding and advancing are locked until it is finished or closed."
+                    >
+                      <Lock size={11} />
+                      UNDER REVISION
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
