@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, History, GitBranch, ArrowUpRight, ArrowDownLeft, Edit3, ShieldAlert, Sparkles, Calendar, User, Eye, Loader2, RefreshCw } from "lucide-react";
+import { X, History, GitBranch, ArrowUpRight, ArrowDownLeft, Edit3, ShieldAlert, Sparkles, Calendar, User, Eye, Loader2, RefreshCw, MessageSquareQuote } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import POSnapshotPreviewModal from "./POSnapshotPreviewModal";
@@ -53,6 +53,23 @@ export default function POVersionHistoryDrawer({
   if (!isOpen) return null;
 
   const versions = data?.versions || [];
+
+  /**
+   * The reason recorded with a version, wherever it was stored.
+   *
+   * Revise and Revoke write their own keys; a revision that runs through a
+   * stage rollback arrives as the transition `comment`. Snapshots taken before
+   * the reason reached `change_summary` still carry it in `diff_data`, so this
+   * reads the stored keys rather than parsing the summary line.
+   */
+  const reasonOf = (version) => {
+    const diff = version.diff_data || {};
+    const stored = diff.revision_reason || diff.revocation_reason || diff.comment;
+    if (!stored) return null;
+    // "Revision: fixed quantity" -> "fixed quantity": the label is already on
+    // the block, and repeating it reads like part of what the user typed.
+    return String(stored).replace(/^\s*(revision|reason)\s*:\s*/i, "").trim() || null;
+  };
 
   const getTransitionBadge = (type) => {
     switch (type) {
@@ -249,8 +266,27 @@ export default function POVersionHistoryDrawer({
                           <div className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1 my-1">
                             <GitBranch size={12} />
                             <span>
-                              Promoted from <strong>{diff.from_stage} v{diff.from_stage_version || 1}</strong>
+                              {v.transition_type === "STAGE_ROLLBACK" ? "Rolled back from" : "Promoted from"}{" "}
+                              <strong>{diff.from_stage} v{diff.from_stage_version || 1}</strong>
                             </span>
+                          </div>
+                        )}
+
+                        {/* The reason the user was required to type. Revise and
+                            Revoke each record it under their own key, and a
+                            revision routed through a stage rollback records it as
+                            the transition comment, so all three are read here. */}
+                        {reasonOf(v) && (
+                          <div className="mt-1.5 flex gap-1.5 rounded-lg border border-amber-200 bg-amber-50/70 p-2 dark:border-amber-900/50 dark:bg-amber-950/30">
+                            <MessageSquareQuote className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" size={12} />
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-500">
+                                Reason given
+                              </p>
+                              <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                                {reasonOf(v)}
+                              </p>
+                            </div>
                           </div>
                         )}
 

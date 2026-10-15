@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Eye, Calendar, User, Package, Loader2 } from "lucide-react";
+import { X, Eye, Calendar, User, Package, Loader2, MessageSquareQuote } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 
@@ -48,6 +48,15 @@ export default function POSnapshotPreviewModal({
   const snapData = snapshot?.snapshot_data || {};
   const items = snapData?.items || [];
   const diffData = snapshot?.diff_data || {};
+
+  // Revise and Revoke each record the reason under their own key; a revision
+  // routed through a stage rollback records it as the transition comment.
+  const storedReason = (() => {
+    const stored =
+      diffData.revision_reason || diffData.revocation_reason || diffData.comment;
+    if (!stored) return null;
+    return String(stored).replace(/^\s*(revision|reason)\s*:\s*/i, "").trim() || null;
+  })();
 
   const stageBadgeColor = {
     DRAFT: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700",
@@ -137,11 +146,28 @@ export default function POSnapshotPreviewModal({
             </div>
           ) : (
             <>
+              {/* The reason the user typed when revising or revoking. Kept
+                  separate from the summary line, which is machine-written
+                  lineage, so the human answer is not read as part of it. */}
+              {storedReason && (
+                <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/30">
+                  <MessageSquareQuote className="mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" size={14} />
+                  <div className="min-w-0">
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-500">
+                      Reason given
+                    </span>
+                    <p className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                      {storedReason}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Change Summary Card */}
               {snapshot?.change_summary && (
                 <div className={`p-3.5 rounded-xl border ${isDark ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Snapshot Change Reason / Summary
+                    Change summary
                   </span>
                   <p className="text-xs font-medium text-slate-700 dark:text-slate-200">
                     {snapshot.change_summary}
