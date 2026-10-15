@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import StockGaugeBar from "./components/StockGaugeBar";
 import StockAdjustModal from "./components/StockAdjustModal";
+import ProductVendorsDrawer from "./components/ProductVendorsDrawer";
 import ProductQuickView from "./components/ProductQuickView";
 import BulkActionToolbar from "./components/BulkActionToolbar";
 import { useTheme } from "../../../context/ThemeContext";
@@ -224,6 +225,9 @@ export default function ProductMasterPage() {
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [stockAdjustProduct, setStockAdjustProduct] = useState(null);
+  // Who can supply this product, and on what terms. Read-only, so it is open to
+  // anyone allowed to see vendors at all.
+  const [vendorsProduct, setVendorsProduct] = useState(null);
   const [openRowMenuId, setOpenRowMenuId] = useState(null);
 
   // ── Screen Navigation Mode: "products" | "categories" | "product_detail" ─────
@@ -5269,6 +5273,18 @@ export default function ProductMasterPage() {
                           <Eye size={15} />
                         </button>
 
+                        {/* Vendors for this product */}
+                        {canViewVendor && (
+                          <button
+                            type="button"
+                            onClick={() => setVendorsProduct(p)}
+                            title="Vendors who supply this product: their code, cost, minimum and lead time"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          >
+                            <Truck size={15} />
+                          </button>
+                        )}
+
                         {/* Quick Stock Adjust Button */}
                         {canAdjustStock && (
                           <button
@@ -5610,6 +5626,15 @@ export default function ProductMasterPage() {
           isDark={isDark}
           onClose={() => setStockAdjustProduct(null)}
           onSuccess={() => fetchProducts()}
+        />
+      )}
+
+      {/* Vendors for one product: the mirror of the vendor profile's Products tab */}
+      {vendorsProduct && (
+        <ProductVendorsDrawer
+          product={vendorsProduct}
+          isDark={isDark}
+          onClose={() => setVendorsProduct(null)}
         />
       )}
 
