@@ -30,7 +30,9 @@ const headers = () => ({
 const api = process.env.REACT_APP_NETWORK;
 const num = (v) => (v === "" || v == null ? 0 : Number(v) || 0);
 
-export default function PackingListBuilderModal({ open, onClose, onSaved, container: presetContainer }) {
+export default function PackingListBuilderModal({
+  open, onClose, onSaved, container: presetContainer, packingListId = null,
+}) {
   const [container, setContainer] = useState(presetContainer || null);
   const [containerQuery, setContainerQuery] = useState("");
   const [containerResults, setContainerResults] = useState([]);
@@ -95,25 +97,52 @@ export default function PackingListBuilderModal({ open, onClose, onSaved, contai
   }, [containerQuery, container, open]);
 
   // ── Seeding ───────────────────────────────────────────────────────────────
-  const seed = useCallback(async (containerId) => {
+  /**
+   * Editing a draft asks the seeder the same question, passing the draft's own
+   * id so its lines are excluded from what other drafts hold -- otherwise the
+   * draft would be counted against itself and show less room than it has. The
+   * saved lines win on quantity; the seed supplies the ordered and remaining
+   * context the grid shows beside them.
+   */
+  const seed = useCallback(async (containerId, existing = null) => {
     setSeeding(true);
     try {
       const res = await axios.post(
         `${api}/packing-lists/draft-from-container`,
-        { container_id: containerId },
+        { container_id: containerId, packing_list_id: existing?.id || undefined },
         { headers: headers() }
       );
       const data = res.data || {};
-      setLines(
-        (data.items || []).map((it, idx) => ({
-          ...it,
-          key: `${it.po_item_id || "new"}-${idx}`,
-        }))
+      const context = new Map(
+        (data.items || []).filter((i) => i.po_item_id).map((i) => [i.po_item_id, i])
       );
+
+      if (existing) {
+        setLines(
+          (existing.items || []).map((it, idx) => {
+            const ctx = it.po_item_id ? context.get(it.po_item_id) : null;
+            return {
+              ...(ctx || {}),
+              ...it,
+              // The saved quantity, plus whatever this line already holds --
+              // that much is still available to it.
+              remaining: ctx ? ctx.remaining + Number(it.quantity_packed || 0) : null,
+              key: `${it.id || it.po_item_id || "new"}-${idx}`,
+            };
+          })
+        );
+      } else {
+        setLines(
+          (data.items || []).map((it, idx) => ({ ...it, key: `${it.po_item_id || "new"}-${idx}` }))
+        );
+      }
+
       setWarnings(data.warnings || []);
       setLinkedOrders(data.purchase_orders || []);
       setPoIds((data.purchase_orders || []).map((po) => po.id));
-      setHeader((h) => ({ ...h, packing_list_number: data.packing_list_number || h.packing_list_number }));
+      if (!existing) {
+        setHeader((h) => ({ ...h, packing_list_number: data.packing_list_number || h.packing_list_number }));
+      }
     } catch (err) {
       toast.error(err.response?.data?.detail || "Could not load this container's orders");
     } finally {
@@ -121,9 +150,47 @@ export default function PackingListBuilderModal({ open, onClose, onSaved, contai
     }
   }, []);
 
+  /** Open on an existing draft: load it, then seed around it. */
+  const loadExisting = useCallback(async (listId) => {
+    setSeeding(true);
+    try {
+      const res = await axios.get(`${api}/packing-lists/${listId}`, { headers: headers() });
+      const data = res.data || {};
+      if ((data.status || "").toUpperCase() !== "DRAFT") {
+        toast.info(`${data.packing_list_number} is ${String(data.status).toLowerCase()} and cannot be edited.`);
+        onClose();
+        return;
+      }
+      setContainer({
+        Container_ID: data.container_id,
+        container_no: data.container_no,
+        BillOfLanding: null,
+      });
+      setHeader({
+        packing_list_number: data.packing_list_number || "",
+        supplier_invoice_ref: data.supplier_invoice_ref || "",
+        date_issued: data.date_issued || new Date().toISOString().slice(0, 10),
+        package_count: data.package_count ?? "",
+        total_gross_weight: data.total_gross_weight || "",
+        total_cbm: data.total_cbm || "",
+        notes: data.notes || "",
+      });
+      if (data.container_id) await seed(data.container_id, data);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not open that draft");
+      onClose();
+    } finally {
+      setSeeding(false);
+    }
+  }, [seed, onClose]);
+
   useEffect(() => {
-    if (open && container?.Container_ID) seed(container.Container_ID);
-  }, [open, container, seed]);
+    if (!open) return;
+    if (packingListId) loadExisting(packingListId);
+    else if (container?.Container_ID) seed(container.Container_ID);
+    // container identity changes when it is picked; packingListId is fixed per open
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, packingListId, container?.Container_ID]);
 
   const linkAndContinue = async () => {
     if (!container) return;
@@ -189,28 +256,30 @@ export default function PackingListBuilderModal({ open, onClose, onSaved, contai
 
     setSaving(true);
     try {
-      await axios.post(
-        `${api}/packing-lists`,
-        {
-          container_id: container.Container_ID,
-          status,
-          ...header,
-          package_count: header.package_count === "" ? null : Number(header.package_count),
-          total_gross_weight: header.total_gross_weight === "" ? null : Number(header.total_gross_weight),
-          total_cbm: header.total_cbm === "" ? null : Number(header.total_cbm),
-          items: packable.map((l) => ({
-            po_id: l.po_id,
-            po_item_id: l.po_item_id,
-            item_code: l.item_code,
-            description: l.description,
-            quantity_packed: num(l.quantity_packed),
-            unit: l.unit,
-            carton_numbers: l.carton_numbers,
-            notes: l.notes,
-          })),
-        },
-        { headers: headers() }
-      );
+      const body = {
+        container_id: container.Container_ID,
+        status,
+        ...header,
+        package_count: header.package_count === "" ? null : Number(header.package_count),
+        total_gross_weight: header.total_gross_weight === "" ? null : Number(header.total_gross_weight),
+        total_cbm: header.total_cbm === "" ? null : Number(header.total_cbm),
+        items: packable.map((l) => ({
+          po_id: l.po_id,
+          po_item_id: l.po_item_id,
+          item_code: l.item_code,
+          description: l.description,
+          quantity_packed: num(l.quantity_packed),
+          unit: l.unit,
+          carton_numbers: l.carton_numbers,
+          notes: l.notes,
+        })),
+      };
+
+      if (packingListId) {
+        await axios.put(`${api}/packing-lists/${packingListId}`, body, { headers: headers() });
+      } else {
+        await axios.post(`${api}/packing-lists`, body, { headers: headers() });
+      }
       toast.success(status === "DRAFT" ? "Draft saved" : "Packing list confirmed");
       onSaved?.();
       onClose();
@@ -240,10 +309,13 @@ export default function PackingListBuilderModal({ open, onClose, onSaved, contai
         <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
-              <PackageCheck className="text-blue-500" size={20} /> New Packing List
+              <PackageCheck className="text-blue-500" size={20} />
+              {packingListId ? "Edit Draft Packing List" : "New Packing List"}
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Built from a container and the orders it carries.
+              {packingListId
+                ? "Only drafts can be edited. Confirming moves these quantities onto the orders."
+                : "Built from a container and the orders it carries."}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -289,7 +361,7 @@ export default function PackingListBuilderModal({ open, onClose, onSaved, contai
                 <span className="font-mono font-bold text-sm">{container.container_no}</span>
                 <span className="text-xs text-gray-500">{container.BillOfLanding || "no B/L"}</span>
               </div>
-              {!presetContainer && (
+              {!presetContainer && !packingListId && (
                 <button onClick={reset} className="text-xs text-blue-600 hover:underline">
                   Change
                 </button>

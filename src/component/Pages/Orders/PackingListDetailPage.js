@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Printer, Pencil, Container as ContainerIcon, FileSpreadsheet,
+  ArrowLeft, Printer, Pencil, Trash2, Container as ContainerIcon, FileSpreadsheet,
   Loader2, AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
@@ -69,6 +69,28 @@ export default function PackingListDetailPage() {
     if (offPo.length) out.push({ label: "Not on any purchase order", lines: offPo, offPo: true });
     return out;
   }, [pl]);
+
+  const removeList = async () => {
+    const confirmedList = (pl?.status || "").toUpperCase() === "CONFIRMED";
+    const ok = window.confirm(
+      confirmedList
+        ? `Void ${pl.packing_list_number}?
+
+Its quantities go back to the purchase orders, which will show as unpacked again.`
+        : `Delete draft ${pl.packing_list_number}?`
+    );
+    if (!ok) return;
+    try {
+      const res = await axios.delete(
+        `${process.env.REACT_APP_NETWORK}/packing-lists/${id}`,
+        { headers: headers() }
+      );
+      toast.success(res.data?.message || "Removed");
+      navigate("/packing-lists");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not remove this packing list");
+    }
+  };
 
   const openPdf = () => {
     window.open(
@@ -148,6 +170,13 @@ export default function PackingListDetailPage() {
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium inline-flex items-center gap-2"
           >
             <Printer size={14} /> Print
+          </button>
+          <button
+            onClick={removeList}
+            title={isDraft ? "Delete this draft" : "Void this packing list and give its quantities back"}
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-300 inline-flex items-center gap-2 transition"
+          >
+            <Trash2 size={14} /> {isDraft ? "Delete" : "Void"}
           </button>
         </div>
       </div>

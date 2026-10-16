@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
-  FileSpreadsheet, Plus, Search, Eye, X, Printer, Container as ContainerIcon,
+  FileSpreadsheet, Plus, Search, Eye, X, Printer, Pencil, Trash2,
+  Container as ContainerIcon,
 } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import PackingListBuilderModal from "./PackingListBuilderModal";
 
@@ -25,6 +26,10 @@ const draftAge = (pl) => {
 export default function PackingListsPage() {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // /packing-lists?edit=<id> opens the builder on that draft, so the detail
+  // page and anything else can link straight to editing it.
+  const editingId = searchParams.get("edit");
 
   const [packingLists, setPackingLists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +60,26 @@ export default function PackingListsPage() {
   }, [statusFilter]);
 
 
+
+  const removeList = async (pl) => {
+    const confirmed = (pl.status || "").toUpperCase() === "CONFIRMED";
+    const ok = window.confirm(
+      confirmed
+        ? `Void ${pl.packing_list_number}?\n\nIts quantities go back to the purchase orders, which will show as unpacked again.`
+        : `Delete draft ${pl.packing_list_number}?`
+    );
+    if (!ok) return;
+    try {
+      const res = await axios.delete(
+        `${process.env.REACT_APP_NETWORK}/packing-lists/${pl.id}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      toast.success(res.data?.message || "Removed");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Could not remove this packing list");
+    }
+  };
 
   const filteredLists = packingLists.filter(pl => {
     const s = searchQuery.toLowerCase();
@@ -215,6 +240,15 @@ export default function PackingListsPage() {
                       >
                         <Eye size={14} /> View
                       </button>
+                      {(pl.status || "").toUpperCase() === "DRAFT" && (
+                        <button
+                          onClick={() => setSearchParams({ edit: String(pl.id) })}
+                          title="Edit this draft"
+                          className="px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      )}
                       <button
                         onClick={() =>
                           window.open(
@@ -232,6 +266,17 @@ export default function PackingListsPage() {
                       >
                         <Printer size={14} />
                       </button>
+                      <button
+                        onClick={() => removeList(pl)}
+                        title={
+                          (pl.status || "").toUpperCase() === "CONFIRMED"
+                            ? "Void this packing list and give its quantities back"
+                            : "Delete this draft"
+                        }
+                        className="px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-300 hover:text-rose-600 text-xs transition"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -242,8 +287,12 @@ export default function PackingListsPage() {
       )}
 
       <PackingListBuilderModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
+        open={showModal || Boolean(editingId)}
+        packingListId={editingId}
+        onClose={() => {
+          setShowModal(false);
+          if (editingId) setSearchParams({});
+        }}
         onSaved={fetchData}
       />
 
