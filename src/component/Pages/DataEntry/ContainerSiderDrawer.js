@@ -33,6 +33,7 @@ import { useConfirm } from "../../../context/ConfirmContext";
 import { useOptions } from "../../../hooks/useOptions";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput";
+import POTagSelector from "../../UI/UXComponent/POTagSelector";
 import ContainerContextPanel from "./ContainerContextPanel";
 import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { calculateDemurrage } from "../../../utils/DemurrageUtil";
@@ -78,6 +79,7 @@ export default function ContainerSiderDrawer({
     empty_date: "",
     emptied_at: null,
     material: [],
+    po_ids: [],
     freeDays: null,
     note: "",
     tax: 0,
@@ -230,6 +232,8 @@ export default function ContainerSiderDrawer({
         empty_date: raw.empty_date ? raw.empty_date.slice(0, 10) : "",
         emptied_at: matchedEmptyLocation?.id || raw.emptied_at || null,
         material: raw.materials ? raw.materials.map(m => m.Id || m.id || m) : [],
+        po_ids: (raw.purchase_orders || []).map(po => po.id),
+        linkedOrders: raw.purchase_orders || [],
         freeDays: raw.FreeDays ?? null,
         note: raw.note || "",
         tax: raw.tax || 0,
@@ -530,6 +534,13 @@ export default function ContainerSiderDrawer({
     // Materials
     (formData.material || []).forEach(matId => {
       payload.append("materials", matId);
+    });
+
+    // Linked purchase orders. Always sent, even when empty, so clearing the
+    // last chip reads as "no orders" rather than "field untouched".
+    payload.append("po_ids", "");
+    (formData.po_ids || []).forEach(poId => {
+      payload.append("po_ids", poId);
     });
 
     // File Attachments
@@ -966,18 +977,22 @@ export default function ContainerSiderDrawer({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">PO Reference Number</label>
-                    <input
-                      type="text"
-                      name="PONo"
-                      value={formData.PONo}
-                      onChange={handleInputChange}
-                      placeholder="e.g. PO-2026-081"
-                      className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold mb-1">Linked Purchase Orders</label>
+                    <POTagSelector
+                      value={formData.po_ids}
+                      containerId={isEditMode ? formData.container_id : null}
+                      initialOrders={formData.linkedOrders || []}
+                      onChange={(ids) => setFormData(prev => ({ ...prev, po_ids: ids }))}
                     />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Only issued POs with unpacked items appear here. Packing lists for this container are built from these orders.
+                    </p>
+                    {formData.PONo && (
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Legacy reference: <span className="font-mono">{formData.PONo}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div>

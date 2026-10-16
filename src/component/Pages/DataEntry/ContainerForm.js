@@ -7,6 +7,7 @@ import { useOptions } from "../../../hooks/useOptions";
 
 // import VesselSelector from "../../UI/AddSelect.js";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput.js";
+import POTagSelector from "../../UI/UXComponent/POTagSelector.js";
 import GenericSelector from    "../../UI/UXComponent/GenericSelector.js";
 import { useTheme } from "../../../context/ThemeContext.js";
 function ContainerEntryForm({
@@ -21,6 +22,7 @@ function ContainerEntryForm({
     container_id: null,
     consignee: null,
     PONo: null,
+    po_ids: [],
     supplier: null,
     shippingType: null,
     material: [],
@@ -82,6 +84,8 @@ function ContainerEntryForm({
         container_id: editData.Container_ID,
         containerNo: editData.container_no || null,
         PONo: editData.PONo || null,
+        po_ids: (editData.purchase_orders || []).map(po => po.id),
+        linkedOrders: editData.purchase_orders || [],
         note: editData.note || null,
         consignee: consignees.find((opt) => opt.name === bill?.consignee_name)?.id || null,
         supplier: suppliers.find((opt) => opt.name ===  bill?.supplier_name)?.id || null,
@@ -347,6 +351,13 @@ function ContainerEntryForm({
     formData.material?.forEach(mat => {
       payload.append("materials", mat)
     })
+
+    // Always sent, even when empty, so clearing the last chip reads as
+    // "no orders" rather than "field untouched".
+    payload.append("po_ids", "");
+    formData.po_ids?.forEach(poId => {
+      payload.append("po_ids", poId)
+    })
     // ✅ New Documents
     documents.forEach(doc => {
       if (doc.file) {
@@ -419,7 +430,7 @@ function ContainerEntryForm({
     { label: "Container No", name: "containerNo", type: "text", permission: "ContainerNo", required: true },
     { label: "Type", name: "type", type: "addSelect", options: type, permission: "ContainerType", api: "setContainerType", refreshVal:"type"},
     { label: "Arrival Date", name: "arrival_on_port", type: "datetime-local", permission: "ArrivalDate" },
-    { label: "PO No", name: "PONo", type: "text", permission: "PoNo" },
+    { label: "Linked Purchase Orders", name: "po_ids", type: "poselect", permission: "PoNo" },
 
     { label: "Supplier", name: "supplier", type: "addSelect", options: suppliers, permission: "Supplier", refreshVal: "suppliers", api: "setSupplier"},
     { label: "Consignee", name: "consignee", type: "addSelect", options: consignees, permission: "Consignee", api:"setConsignee", refreshVal:"consignees"},
@@ -504,6 +515,26 @@ function ContainerEntryForm({
                             onAddNew={() => refresh(refreshVal)}
                             addApi={api}
                             />
+
+              ) : type === "poselect" ? (
+                  <>
+                    <POTagSelector
+                      value={formData[name] || []}
+                      containerId={formData.container_id || null}
+                      initialOrders={formData.linkedOrders || []}
+                      onChange={(val) => {
+                        if (hasEditPermission(permission)) {
+                          setFormData((prev) => ({ ...prev, [name]: val }));
+                        }
+                      }}
+                      disabled={!hasEditPermission(permission)}
+                    />
+                    {formData.PONo && (
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Legacy reference: <span className="font-mono">{formData.PONo}</span>
+                      </p>
+                    )}
+                  </>
 
               ) : type === "tagselect" ? (
                   <>

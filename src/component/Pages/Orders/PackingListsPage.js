@@ -1,47 +1,45 @@
 import React, { useState, useEffect } from "react";
-import { 
-  FileSpreadsheet, Plus, Search, Eye, X, CheckCircle2 
+import {
+  FileSpreadsheet, Plus, Search, Eye, X, Container as ContainerIcon,
 } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
 import { toast } from "react-toastify";
+import PackingListBuilderModal from "./PackingListBuilderModal";
+
+const STATUS_PILL = {
+  DRAFT: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+  CONFIRMED: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  SHIPPED: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  RECEIVED: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+};
+
+/** Days a draft has been sitting. A draft reserves nothing, so a forgotten one
+ *  is invisibly wrong -- the register is the only place it can surface. */
+const draftAge = (pl) => {
+  if ((pl.status || "").toUpperCase() !== "DRAFT" || !pl.created_at) return 0;
+  return Math.floor((Date.now() - new Date(pl.created_at).getTime()) / 86400000);
+};
 
 export default function PackingListsPage() {
   const { theme } = useTheme();
 
   const [packingLists, setPackingLists] = useState([]);
-  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewingList, setViewingList] = useState(null);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    po_id: "",
-    packing_list_number: "",
-    supplier_invoice_ref: "",
-    package_count: 1,
-    total_gross_weight: "",
-    total_cbm: "",
-    date_issued: new Date().toISOString().split("T")[0],
-    notes: "",
-    items: [{ description: "", quantity_packed: 1, unit: "PCS", carton_numbers: "" }]
-  });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [plRes, ordRes] = await Promise.all([
-        axios.get(`${process.env.REACT_APP_NETWORK}/packing-lists`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }),
-        axios.get(`${process.env.REACT_APP_NETWORK}/orders`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        })
-      ]);
+      const plRes = await axios.get(`${process.env.REACT_APP_NETWORK}/packing-lists`, {
+        params: { status: statusFilter === "ALL" ? undefined : statusFilter },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       setPackingLists(plRes.data || []);
-      setOrders(ordRes.data || []);
     } catch (err) {
       toast.error("Failed to load packing lists");
     } finally {
@@ -51,50 +49,18 @@ export default function PackingListsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
-  const handleSelectPO = (poId) => {
-    const po = orders.find(o => o.id === parseInt(poId));
-    if (po) {
-      const initialItems = (po.items || []).map(it => ({
-        po_item_id: it.id,
-        description: it.description,
-        quantity_packed: it.quantity_ordered,
-        unit: it.unit || "PCS",
-        carton_numbers: "Carton 1"
-      }));
-      setFormData({
-        ...formData,
-        po_id: po.id,
-        packing_list_number: `PL-${po.po_number}`,
-        items: initialItems.length ? initialItems : [{ description: po.goods_description || "General Goods", quantity_packed: 1, unit: "PCS", carton_numbers: "Carton 1" }]
-      });
-    }
-  };
 
-  const handleSavePL = async (e) => {
-    e.preventDefault();
-    if (!formData.po_id) {
-      toast.warning("Please select a Purchase Order");
-      return;
-    }
-    try {
-      await axios.post(`${process.env.REACT_APP_NETWORK}/packing-lists`, formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      toast.success("Packing List registered successfully!");
-      setShowModal(false);
-      fetchData();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to save packing list");
-    }
-  };
 
   const filteredLists = packingLists.filter(pl => {
     const s = searchQuery.toLowerCase();
     return (
       (pl.packing_list_number || "").toLowerCase().includes(s) ||
       (pl.po_number || "").toLowerCase().includes(s) ||
+      (pl.container_no || "").toLowerCase().includes(s) ||
+      (pl.purchase_orders || []).some((po) => (po.po_number || "").toLowerCase().includes(s)) ||
       (pl.supplier_invoice_ref || "").toLowerCase().includes(s)
     );
   });
@@ -115,7 +81,7 @@ export default function PackingListsPage() {
           onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition"
         >
-          <Plus size={18} /> Register Packing List
+          <Plus size={18} /> New Packing List
         </button>
       </div>
 
@@ -130,6 +96,21 @@ export default function PackingListsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-700 p-0.5">
+          {["ALL", "DRAFT", "CONFIRMED", "SHIPPED", "RECEIVED"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${
+                statusFilter === s
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`}
+            >
+              {s === "ALL" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -148,10 +129,13 @@ export default function PackingListsPage() {
             <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-500 uppercase">
               <tr>
                 <th className="p-3.5">Packing List #</th>
-                <th className="p-3.5">PO Number</th>
+                <th className="p-3.5">Container</th>
+                <th className="p-3.5">Purchase Orders</th>
+                <th className="p-3.5">Lines</th>
                 <th className="p-3.5">Invoice Ref</th>
                 <th className="p-3.5">Packages / Weight</th>
                 <th className="p-3.5">Date Issued</th>
+                <th className="p-3.5">Status</th>
                 <th className="p-3.5 text-right">Actions</th>
               </tr>
             </thead>
@@ -159,14 +143,68 @@ export default function PackingListsPage() {
               {filteredLists.map((pl) => (
                 <tr key={pl.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition">
                   <td className="p-3.5 font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
-                    {pl.packing_list_number}
+                    <div className="flex items-center gap-1.5">
+                      {pl.packing_list_number}
+                      {draftAge(pl) > 7 && (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-amber-500"
+                          title={`Draft for ${draftAge(pl)} days. Nothing is reserved until it is confirmed.`}
+                        />
+                      )}
+                    </div>
                   </td>
-                  <td className="p-3.5 font-medium">{pl.po_number || `PO #${pl.po_id}`}</td>
+                  <td className="p-3.5">
+                    {pl.container_no ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-xs">
+                        <ContainerIcon size={12} className="text-gray-400" />
+                        {pl.container_no}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="p-3.5">
+                    <div className="flex flex-wrap gap-1">
+                      {(pl.purchase_orders || []).slice(0, 2).map((po) => (
+                        <span
+                          key={po.id}
+                          className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-[10px] font-mono"
+                        >
+                          {po.po_number}
+                        </span>
+                      ))}
+                      {(pl.purchase_orders || []).length > 2 && (
+                        <span className="text-[10px] text-gray-500">
+                          +{pl.purchase_orders.length - 2} more
+                        </span>
+                      )}
+                      {!(pl.purchase_orders || []).length && (
+                        <span className="text-gray-400 text-xs">{pl.po_number || "—"}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-3.5 text-xs text-gray-600 dark:text-gray-300">
+                    {pl.line_count} lines
+                    {pl.off_po_line_count > 0 && (
+                      <span className="block text-[10px] text-gray-400">
+                        {pl.off_po_line_count} off-PO
+                      </span>
+                    )}
+                  </td>
                   <td className="p-3.5 text-gray-500 text-xs">{pl.supplier_invoice_ref || "-"}</td>
                   <td className="p-3.5 text-xs text-gray-600 dark:text-gray-300">
                     {pl.package_count ? `${pl.package_count} pkgs` : "-"} • {pl.total_gross_weight ? `${pl.total_gross_weight} kg` : "-"}
                   </td>
                   <td className="p-3.5 text-gray-500 text-xs">{pl.date_issued}</td>
+                  <td className="p-3.5">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        STATUS_PILL[(pl.status || "").toUpperCase()] || STATUS_PILL.RECEIVED
+                      }`}
+                    >
+                      {pl.status}
+                    </span>
+                  </td>
                   <td className="p-3.5 text-right">
                     <button
                       onClick={() => setViewingList(pl)}
@@ -182,87 +220,11 @@ export default function PackingListsPage() {
         </div>
       )}
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-800 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
-              <h2 className="text-lg font-bold">Register Supplier Packing List</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSavePL} className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Select Purchase Order *</label>
-                  <select
-                    required
-                    value={formData.po_id}
-                    onChange={(e) => handleSelectPO(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none"
-                  >
-                    <option value="">-- Choose PO --</option>
-                    {orders.map((o) => (
-                      <option key={o.id} value={o.id}>{o.po_number} ({o.goods_description || o.company})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Packing List Number *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. PL-NCE-26102"
-                    value={formData.packing_list_number}
-                    onChange={(e) => setFormData({ ...formData, packing_list_number: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Supplier Invoice Ref</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. INV-2026-99"
-                    value={formData.supplier_invoice_ref}
-                    onChange={(e) => setFormData({ ...formData, supplier_invoice_ref: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-500 mb-1">Date Issued</label>
-                  <input
-                    type="date"
-                    value={formData.date_issued}
-                    onChange={(e) => setFormData({ ...formData, date_issued: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition"
-                >
-                  Save Packing List
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <PackingListBuilderModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onSaved={fetchData}
+      />
 
       {/* View Detail Modal */}
       {viewingList && (
