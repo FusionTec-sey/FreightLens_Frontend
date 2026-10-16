@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Printer, Pencil, Trash2, Container as ContainerIcon, FileSpreadsheet,
-  Loader2, AlertTriangle,
+  ArrowLeft, Printer, Pencil, Trash2, RotateCcw, MessageSquareQuote,
+  Container as ContainerIcon, FileSpreadsheet, Loader2, AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
 import openPackingListPdf from "./openPackingListPdf";
+import RevisePackingListModal from "./RevisePackingListModal";
 
 /**
  * One packing list, read in full.
@@ -35,6 +36,7 @@ export default function PackingListDetailPage() {
 
   const [pl, setPl] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [revising, setRevising] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -152,6 +154,14 @@ Its quantities go back to the purchase orders, which will show as unpacked again
         </div>
 
         <div className="flex gap-2">
+          {!isDraft && (pl.status || "").toUpperCase() === "CONFIRMED" && (
+            <button
+              onClick={() => setRevising(true)}
+              className="px-4 py-2 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm font-medium inline-flex items-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+            >
+              <RotateCcw size={14} /> Revise
+            </button>
+          )}
           {isDraft && (
             <button
               onClick={() => navigate(`/packing-lists?edit=${pl.id}`)}
@@ -251,12 +261,46 @@ Its quantities go back to the purchase orders, which will show as unpacked again
         </table>
       </div>
 
+      {(pl.revisions || []).length > 0 && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-900/10 overflow-hidden">
+          <div className="px-4 py-2 border-b border-amber-200 dark:border-amber-900/40 flex items-center gap-2">
+            <MessageSquareQuote size={14} className="text-amber-600 dark:text-amber-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+              Revision history
+            </h3>
+            <span className="text-[10px] text-amber-600/70">
+              reopened {pl.revision_count} time{pl.revision_count === 1 ? "" : "s"}
+            </span>
+          </div>
+          <ul className="divide-y divide-amber-200/60 dark:divide-amber-900/30">
+            {[...(pl.revisions || [])].reverse().map((r, idx) => (
+              <li key={idx} className="px-4 py-2.5">
+                <p className="text-sm text-gray-800 dark:text-gray-200">{r.reason}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  {r.by_name || "someone"} · {String(r.at || "").replace("T", " ")}
+                  {r.quantity_returned > 0 && ` · ${r.quantity_returned} returned to the orders`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {pl.notes && (
         <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
           <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Notes</div>
           <p className="text-sm">{pl.notes}</p>
         </div>
       )}
+      <RevisePackingListModal
+        open={revising}
+        packingList={pl}
+        onClose={() => setRevising(false)}
+        onRevised={(updated) => {
+          if (updated?.id) navigate(`/packing-lists?edit=${updated.id}`);
+          else load();
+        }}
+      />
     </div>
   );
 }

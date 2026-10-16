@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-  FileSpreadsheet, Plus, Search, Eye, X, Printer, Pencil, Trash2,
+  FileSpreadsheet, Plus, Search, Eye, X, Printer, Pencil, Trash2, RotateCcw,
   Container as ContainerIcon,
 } from "lucide-react";
 import axios from "axios";
@@ -9,6 +9,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import PackingListBuilderModal from "./PackingListBuilderModal";
 import openPackingListPdf from "./openPackingListPdf";
+import RevisePackingListModal from "./RevisePackingListModal";
 
 const STATUS_PILL = {
   DRAFT: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
@@ -38,6 +39,7 @@ export default function PackingListsPage() {
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewingList, setViewingList] = useState(null);
+  const [revising, setRevising] = useState(null);
 
 
   const fetchData = async () => {
@@ -169,7 +171,11 @@ export default function PackingListsPage() {
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {filteredLists.map((pl) => (
-                <tr key={pl.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition">
+                <tr
+                  key={pl.id}
+                  onClick={() => navigate(`/packing-lists/${pl.id}`)}
+                  className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition cursor-pointer"
+                >
                   <td className="p-3.5 font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
                     <div className="flex items-center gap-1.5">
                       {pl.packing_list_number}
@@ -233,7 +239,7 @@ export default function PackingListsPage() {
                       {pl.status}
                     </span>
                   </td>
-                  <td className="p-3.5 text-right">
+                  <td className="p-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="inline-flex gap-1.5">
                       <button
                         onClick={() => navigate(`/packing-lists/${pl.id}`)}
@@ -241,7 +247,7 @@ export default function PackingListsPage() {
                       >
                         <Eye size={14} /> View
                       </button>
-                      {(pl.status || "").toUpperCase() === "DRAFT" && (
+                      {(pl.status || "").toUpperCase() === "DRAFT" ? (
                         <button
                           onClick={() => setSearchParams({ edit: String(pl.id) })}
                           title="Edit this draft"
@@ -249,7 +255,15 @@ export default function PackingListsPage() {
                         >
                           <Pencil size={14} />
                         </button>
-                      )}
+                      ) : (pl.status || "").toUpperCase() === "CONFIRMED" ? (
+                        <button
+                          onClick={() => setRevising(pl)}
+                          title="Reopen this list for editing, with a reason"
+                          className="px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 hover:text-amber-600 text-xs transition"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => openPackingListPdf(pl.id, pl.packing_list_number)}
                         title={
@@ -289,6 +303,17 @@ export default function PackingListsPage() {
           if (editingId) setSearchParams({});
         }}
         onSaved={fetchData}
+      />
+
+      <RevisePackingListModal
+        open={Boolean(revising)}
+        packingList={revising}
+        onClose={() => setRevising(null)}
+        onRevised={(pl) => {
+          fetchData();
+          // Straight into the editor: reopening is only ever a prelude to one.
+          if (pl?.id) setSearchParams({ edit: String(pl.id) });
+        }}
       />
 
       {/* View Detail Modal */}
