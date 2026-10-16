@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   RefreshCw,
   Check,
+  History,
+  RotateCcw,
 } from "lucide-react";
 
 export default function ReportTemplateEditorPage() {
@@ -40,6 +42,8 @@ export default function ReportTemplateEditorPage() {
   const [draftVersionId, setDraftVersionId] = useState(null);
   const [lastSavedContent, setLastSavedContent] = useState(null);
   const [changelog, setChangelog] = useState("");
+  const [versions, setVersions] = useState([]);
+  const [showVersions, setShowVersions] = useState(false);
 
   // Code contents
   const [activeCodeTab, setActiveCodeTab] = useState("html"); // 'html' | 'css' | 'header' | 'footer' | 'vars'
@@ -173,6 +177,7 @@ export default function ReportTemplateEditorPage() {
         setOrientation(tmpl.orientation || "portrait");
         setIsSystem(tmpl.is_system);
         setActiveVersionNumber(tmpl.active_version_number || null);
+        setVersions(tmpl.versions || []);
 
         const ver = tmpl.active_version_data;
         if (ver) {
@@ -334,6 +339,7 @@ export default function ReportTemplateEditorPage() {
         toast.success("Custom template created successfully!");
         navigate(`/reports/editor/${res.data.id}`);
       } else {
+        await saveTemplateMetadata();
         // Save new draft version for existing template
         const payload = {
           html_content: htmlContent,
@@ -349,6 +355,7 @@ export default function ReportTemplateEditorPage() {
         );
         setDraftVersionId(res.data.id);
         setActiveVersionNumber(res.data.version_number);
+        setVersions((current) => [res.data, ...current]);
         setLastSavedContent(serializeContent());
         toast.success(`Draft saved as version v${res.data.version_number}`);
       }
@@ -360,6 +367,32 @@ export default function ReportTemplateEditorPage() {
     }
   };
 
+  const saveTemplateMetadata = () => axios.put(
+    `${process.env.REACT_APP_NETWORK}/reports/templates/${id}`,
+    {
+      name: templateName,
+      page_size: pageSize,
+      orientation,
+      paper_settings: {
+        page_size: pageSize.toUpperCase(),
+        orientation,
+      },
+    },
+    { headers: getHeaders() }
+  );
+
+  const handleRestoreVersion = (version) => {
+    setHtmlContent(version.html_content || "");
+    setCssContent(version.css_content || "");
+    setHeaderHtml(version.header_html || "");
+    setFooterHtml(version.footer_html || "");
+    setDraftVersionId(null);
+    setLastSavedContent(null);
+    setChangelog(`Restored from v${version.version_number}`);
+    setShowVersions(false);
+    toast.info(`Version v${version.version_number} loaded. Save it as a new draft to keep the change.`);
+  };
+
   // 8. Publish Active Version
   const handlePublish = async () => {
     if (isNew) {
@@ -368,6 +401,7 @@ export default function ReportTemplateEditorPage() {
     }
     setPublishing(true);
     try {
+      await saveTemplateMetadata();
       let version = draftVersionId && lastSavedContent === serializeContent()
         ? { id: draftVersionId, version_number: activeVersionNumber }
         : null;
@@ -395,6 +429,12 @@ export default function ReportTemplateEditorPage() {
       setActiveVersionNumber(version.version_number);
       setDraftVersionId(null);
       setLastSavedContent(serializeContent());
+      setVersions((current) => current.map((item) => ({
+        ...item,
+        status: item.id === version.id
+          ? "PUBLISHED"
+          : item.status === "PUBLISHED" ? "ARCHIVED" : item.status,
+      })));
       toast.success(`Version v${version.version_number} is now LIVE and published!`);
     } catch (err) {
       console.error("Publish failed:", err);
@@ -483,6 +523,15 @@ export default function ReportTemplateEditorPage() {
 
         {/* Right: Actions (AI Context, Validate, Save, Publish) */}
         <div className="flex items-center gap-2">
+          {!isNew && (
+            <button
+              onClick={() => setShowVersions(true)}
+              title="Version history"
+              className="p-1.5 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition"
+            >
+              <History size={15} />
+            </button>
+          )}
           {/* Download AI Context */}
           <button
             onClick={handleDownloadAiContext}
@@ -528,6 +577,56 @@ export default function ReportTemplateEditorPage() {
           )}
         </div>
       </div>
+
+      {showVersions && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={() => setShowVersions(false)}>
+          <aside
+            className="h-full w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Version history</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{versions.length} saved versions</p>
+              </div>
+              <button
+                onClick={() => setShowVersions(false)}
+                className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                aria-label="Close version history"
+              >
+                <ArrowLeft size={17} className="rotate-180" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+              {versions.map((version) => (
+                <div key={version.id} className="px-5 py-4 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">v{version.version_number}</span>
+                      <span className={`text-[10px] font-semibold uppercase ${version.status === "PUBLISHED" ? "text-emerald-600" : "text-slate-500"}`}>
+                        {version.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 break-words">
+                      {version.changelog || "No change note"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {version.created_at ? new Date(version.created_at).toLocaleString() : ""}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleRestoreVersion(version)}
+                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg"
+                    title={`Restore version ${version.version_number}`}
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* ── Sub Header / Template Settings ─────────────────────────────── */}
       <div className="px-6 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex flex-wrap items-center justify-between text-xs gap-3">

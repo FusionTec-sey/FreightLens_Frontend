@@ -20,6 +20,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../context/AuthContext";
 import { notifyOrderError, ordersApi } from "../../../services/ordersApi";
 import DocumentPanel from "./DocumentPanel";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import {
   PageHeader,
   SearchableSelect,
@@ -96,6 +97,7 @@ export default function DamageDefectsPage() {
   const [viewMode, setViewMode] = useState(() => (searchParams.get("new") === "1" ? "form" : "list"));
   const [editingId, setEditingId] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [printIssue, setPrintIssue] = useState(null);
   const [evidence, setEvidence] = useState([]);
   const [busy, setBusy] = useState(false);
 
@@ -440,11 +442,12 @@ export default function DamageDefectsPage() {
 
   // ── PDF download ──────────────────────────────────────────────────────────
   const downloadPdf = async (row) => {
+    if (row.source !== "legacy") {
+      setPrintIssue(row);
+      return;
+    }
     try {
-      const blob =
-        row.source === "legacy"
-          ? await ordersApi.legacyDamagePdf(row.legacy_id)
-          : await ordersApi.issuePdf(row.id);
+      const blob = await ordersApi.legacyDamagePdf(row.legacy_id);
       downloadBlob(blob, `${row.reference}.pdf`);
     } catch (error) {
       notifyOrderError(error);
@@ -1065,6 +1068,16 @@ export default function DamageDefectsPage() {
             Download Formal PDF
           </button>
         </div>
+        {printIssue && (
+          <EntityPrintModal
+            isOpen
+            onClose={() => setPrintIssue(null)}
+            entityType="DefectReport"
+            entityId={printIssue.id}
+            entityIdentifier={printIssue.reference}
+            title={`Print Defect Report — ${printIssue.reference}`}
+          />
+        )}
       </div>
     );
   }
@@ -1274,6 +1287,16 @@ export default function DamageDefectsPage() {
           )}
         </div>
       </section>
+      {printIssue && (
+        <EntityPrintModal
+          isOpen
+          onClose={() => setPrintIssue(null)}
+          entityType="DefectReport"
+          entityId={printIssue.id}
+          entityIdentifier={printIssue.reference}
+          title={`Print Defect Report — ${printIssue.reference}`}
+        />
+      )}
     </div>
   );
 }

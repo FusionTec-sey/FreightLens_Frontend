@@ -190,6 +190,14 @@ export default function WidgetCard({
         </div>
       )}
 
+      {widgetData?.status === "error" && (
+        <div className="absolute inset-0 z-10 bg-white dark:bg-slate-900 flex flex-col items-center justify-center gap-2 p-5 text-center">
+          <AlertTriangle size={22} className="text-rose-500" />
+          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Could not load</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">{widget.title}</p>
+        </div>
+      )}
+
       {/* Widget Content based on Type */}
       {widget.type === "kpi_stat" && (
         <div className="p-5 flex flex-col justify-between h-full">
