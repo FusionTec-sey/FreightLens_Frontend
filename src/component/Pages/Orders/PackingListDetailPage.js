@@ -7,6 +7,7 @@ import {
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
+import openPackingListPdf from "./openPackingListPdf";
 
 /**
  * One packing list, read in full.
@@ -92,13 +93,7 @@ Its quantities go back to the purchase orders, which will show as unpacked again
     }
   };
 
-  const openPdf = () => {
-    window.open(
-      `${process.env.REACT_APP_NETWORK}/packing-lists/${id}/pdf`,
-      "_blank",
-      "noopener"
-    );
-  };
+  const openPdf = () => openPackingListPdf(id, pl?.packing_list_number);
 
   if (loading) {
     return (

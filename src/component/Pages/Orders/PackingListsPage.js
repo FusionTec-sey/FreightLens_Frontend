@@ -8,6 +8,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import PackingListBuilderModal from "./PackingListBuilderModal";
+import openPackingListPdf from "./openPackingListPdf";
 
 const STATUS_PILL = {
   DRAFT: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
@@ -250,13 +251,7 @@ export default function PackingListsPage() {
                         </button>
                       )}
                       <button
-                        onClick={() =>
-                          window.open(
-                            `${process.env.REACT_APP_NETWORK}/packing-lists/${pl.id}/pdf`,
-                            "_blank",
-                            "noopener"
-                          )
-                        }
+                        onClick={() => openPackingListPdf(pl.id, pl.packing_list_number)}
                         title={
                           (pl.status || "").toUpperCase() === "DRAFT"
                             ? "Prints with a DRAFT watermark"
