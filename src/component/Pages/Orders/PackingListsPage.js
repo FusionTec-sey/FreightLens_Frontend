@@ -8,7 +8,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import PackingListBuilderModal from "./PackingListBuilderModal";
-import openPackingListPdf from "./openPackingListPdf";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import RevisePackingListModal from "./RevisePackingListModal";
 
 const STATUS_PILL = {
@@ -40,6 +40,7 @@ export default function PackingListsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewingList, setViewingList] = useState(null);
   const [revising, setRevising] = useState(null);
+  const [printing, setPrinting] = useState(null);
 
 
   const fetchData = async () => {
@@ -265,7 +266,7 @@ export default function PackingListsPage() {
                         </button>
                       ) : null}
                       <button
-                        onClick={() => openPackingListPdf(pl.id, pl.packing_list_number)}
+                        onClick={() => setPrinting(pl)}
                         title={
                           (pl.status || "").toUpperCase() === "DRAFT"
                             ? "Prints with a DRAFT watermark"
@@ -304,6 +305,17 @@ export default function PackingListsPage() {
         }}
         onSaved={fetchData}
       />
+
+      {printing && (
+        <EntityPrintModal
+          isOpen
+          onClose={() => setPrinting(null)}
+          entityType="PackingList"
+          entityId={printing.id}
+          entityIdentifier={printing.packing_list_number}
+          title={`Print Packing List — ${printing.packing_list_number}`}
+        />
+      )}
 
       <RevisePackingListModal
         open={Boolean(revising)}

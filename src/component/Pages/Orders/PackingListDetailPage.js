@@ -7,7 +7,7 @@ import {
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useTheme } from "../../../context/ThemeContext";
-import openPackingListPdf from "./openPackingListPdf";
+import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import RevisePackingListModal from "./RevisePackingListModal";
 
 /**
@@ -37,6 +37,7 @@ export default function PackingListDetailPage() {
   const [pl, setPl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [revising, setRevising] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,7 +96,7 @@ Its quantities go back to the purchase orders, which will show as unpacked again
     }
   };
 
-  const openPdf = () => openPackingListPdf(id, pl?.packing_list_number);
+  const openPdf = () => setPrinting(true);
 
   if (loading) {
     return (
@@ -292,6 +293,17 @@ Its quantities go back to the purchase orders, which will show as unpacked again
           <p className="text-sm">{pl.notes}</p>
         </div>
       )}
+      {printing && (
+        <EntityPrintModal
+          isOpen
+          onClose={() => setPrinting(false)}
+          entityType="PackingList"
+          entityId={pl.id}
+          entityIdentifier={pl.packing_list_number}
+          title={`Print Packing List — ${pl.packing_list_number}`}
+        />
+      )}
+
       <RevisePackingListModal
         open={revising}
         packingList={pl}
