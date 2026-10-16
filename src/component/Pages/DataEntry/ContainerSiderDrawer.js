@@ -48,7 +48,7 @@ export default function ContainerSiderDrawer({
   onDelete = null
 }) {
   const { isDark } = useTheme();
-  const { permissions, isRoot } = useAuth();
+  const { permissions, isRoot, hasModule } = useAuth();
   const { confirm } = useConfirm();
 
   const {
@@ -64,6 +64,8 @@ export default function ContainerSiderDrawer({
   } = useOptions();
 
   // Active Tab: "container" | "bl" | "documents" | "context"
+  const hasOrders = Boolean(hasModule?.("ORDERS"));
+
   const [activeTab, setActiveTab] = useState("container");
   const [buildingPackingList, setBuildingPackingList] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -981,20 +983,42 @@ export default function ContainerSiderDrawer({
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold mb-1">Linked Purchase Orders</label>
-                    <POTagSelector
-                      value={formData.po_ids}
-                      containerId={isEditMode ? formData.container_id : null}
-                      initialOrders={formData.linkedOrders || []}
-                      onChange={(ids) => setFormData(prev => ({ ...prev, po_ids: ids }))}
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      Only issued POs with unpacked items appear here. Packing lists for this container are built from these orders.
-                    </p>
-                    {formData.PONo && (
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        Legacy reference: <span className="font-mono">{formData.PONo}</span>
-                      </p>
+                    <label className="block text-xs font-semibold mb-1">
+                      {hasOrders ? "Linked Purchase Orders" : "PO Reference Number"}
+                    </label>
+                    {hasOrders ? (
+                      <>
+                        <POTagSelector
+                          value={formData.po_ids}
+                          containerId={isEditMode ? formData.container_id : null}
+                          initialOrders={formData.linkedOrders || []}
+                          onChange={(ids) => setFormData(prev => ({ ...prev, po_ids: ids }))}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Only issued POs with unpacked items appear here. Packing lists for this container are built from these orders.
+                        </p>
+                        {formData.PONo && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Legacy reference: <span className="font-mono">{formData.PONo}</span>
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          name="PONo"
+                          value={formData.PONo}
+                          onChange={handleInputChange}
+                          placeholder="e.g. PO-2026-081"
+                          className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }`}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Typed, not linked. Subscribe to Procurement to pick real purchase orders and build packing lists from them.
+                        </p>
+                      </>
                     )}
                   </div>
 

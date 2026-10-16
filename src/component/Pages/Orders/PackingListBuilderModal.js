@@ -7,6 +7,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import POTagSelector from "../../UI/UXComponent/POTagSelector";
 import ProductPickerModal from "./ProductPickerModal";
+import { useAuth } from "../../../context/AuthContext";
 
 /**
  * Build a packing list from a container.
@@ -33,6 +34,11 @@ const num = (v) => (v === "" || v == null ? 0 : Number(v) || 0);
 export default function PackingListBuilderModal({
   open, onClose, onSaved, container: presetContainer, packingListId = null,
 }) {
+  const { hasModule } = useAuth();
+  // The container picker needs Logistics. Without it the number is typed:
+  // the shipment is real even when this tenant holds no container record.
+  const hasLogistics = Boolean(hasModule?.("LOGISTICS"));
+
   const [container, setContainer] = useState(presetContainer || null);
   const [containerQuery, setContainerQuery] = useState("");
   const [containerResults, setContainerResults] = useState([]);
@@ -57,6 +63,8 @@ export default function PackingListBuilderModal({
   const [seeding, setSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [outsidePo, setOutsidePo] = useState("");
+  const [addingOutside, setAddingOutside] = useState(false);
 
   const reset = useCallback(() => {
     setContainer(presetContainer || null);
@@ -75,7 +83,7 @@ export default function PackingListBuilderModal({
 
   // ── Container search ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!open || container || !containerQuery.trim()) {
+    if (!open || container || !hasLogistics || !containerQuery.trim()) {
       setContainerResults([]);
       return undefined;
     }
@@ -94,7 +102,7 @@ export default function PackingListBuilderModal({
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [containerQuery, container, open]);
+  }, [containerQuery, container, open, hasLogistics]);
 
   // ── Seeding ───────────────────────────────────────────────────────────────
   /**
@@ -247,7 +255,9 @@ export default function PackingListBuilderModal({
   }, [lines]);
 
   const overPacked = lines.filter((l) => l.remaining != null && num(l.quantity_packed) > l.remaining);
-  const packable = lines.filter((l) => num(l.quantity_packed) > 0);
+  const packable = lines.filter(
+    (l) => num(l.quantity_packed) > 0 && String(l.description || "").trim()
+  );
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const save = async (status) => {
@@ -257,7 +267,8 @@ export default function PackingListBuilderModal({
     setSaving(true);
     try {
       const body = {
-        container_id: container.Container_ID,
+        container_id: container.typed ? null : container.Container_ID,
+        container_no_text: container.typed ? container.container_no : null,
         status,
         ...header,
         package_count: header.package_count === "" ? null : Number(header.package_count),
@@ -265,6 +276,7 @@ export default function PackingListBuilderModal({
         total_cbm: header.total_cbm === "" ? null : Number(header.total_cbm),
         items: packable.map((l) => ({
           po_id: l.po_id,
+          po_number_text: l.po_number_text || null,
           po_item_id: l.po_item_id,
           item_code: l.item_code,
           description: l.description,
@@ -353,13 +365,40 @@ export default function PackingListBuilderModal({
                   </button>
                 ))}
               </div>
+
+              {/* Only once the search has come back empty: a free-text box
+                  offered beside a picker invites a typo where a real link was
+                  available. */}
+              {containerQuery.trim() && !searching && containerResults.length === 0 && (
+                <div className="mt-2 p-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 space-y-2">
+                  <p className="text-xs text-gray-500">
+                    {hasLogistics
+                      ? `No container matches "${containerQuery.trim()}".`
+                      : "Container records come with the Logistics module."}
+                  </p>
+                  <button
+                    onClick={() =>
+                      setContainer({ typed: true, container_no: containerQuery.trim().toUpperCase() })
+                    }
+                    className="px-3 py-1.5 rounded-lg bg-gray-800 dark:bg-gray-200 dark:text-gray-900 text-white text-xs font-semibold"
+                  >
+                    Use "{containerQuery.trim().toUpperCase()}" as typed
+                  </button>
+                  <p className="text-[10px] text-gray-400">
+                    A typed container is recorded as text. It cannot seed lines from purchase
+                    orders, because there is nothing linked to read them from.
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40">
               <div className="flex items-center gap-2">
                 <ContainerIcon size={16} className="text-blue-500" />
                 <span className="font-mono font-bold text-sm">{container.container_no}</span>
-                <span className="text-xs text-gray-500">{container.BillOfLanding || "no B/L"}</span>
+                <span className="text-xs text-gray-500">
+                  {container.typed ? "typed, not linked" : container.BillOfLanding || "no B/L"}
+                </span>
               </div>
               {!presetContainer && !packingListId && (
                 <button onClick={reset} className="text-xs text-blue-600 hover:underline">
@@ -370,7 +409,7 @@ export default function PackingListBuilderModal({
           )}
 
           {/* Step 2 — no orders linked */}
-          {container && !seeding && linkedOrders.length === 0 && (
+          {container && !container.typed && !seeding && linkedOrders.length === 0 && (
             <div className="p-4 rounded-xl border border-dashed border-amber-400/60 bg-amber-50/50 dark:bg-amber-900/10 space-y-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle size={16} className="text-amber-500 mt-0.5" />
@@ -410,7 +449,7 @@ export default function PackingListBuilderModal({
           ))}
 
           {/* Step 3 — the grid */}
-          {!seeding && lines.length > 0 && (
+          {!seeding && container && (lines.length > 0 || container.typed) && (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
@@ -461,7 +500,18 @@ export default function PackingListBuilderModal({
                           return (
                             <tr key={l.key} className={over ? "bg-amber-50/60 dark:bg-amber-900/10" : ""}>
                               <td className="p-2.5">
-                                <div className="font-medium">{l.description}</div>
+                                {l.po_item_id ? (
+                                  <div className="font-medium">{l.description}</div>
+                                ) : (
+                                  /* Nothing to inherit a description from, so it
+                                     is typed here; a blank one is dropped on save. */
+                                  <input
+                                    value={l.description}
+                                    onChange={(e) => setLine(l.key, { description: e.target.value })}
+                                    placeholder="Describe this line"
+                                    className="w-full px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs outline-none"
+                                  />
+                                )}
                                 {l.item_code && (
                                   <div className="text-[10px] text-gray-400 font-mono">{l.item_code}</div>
                                 )}
@@ -546,12 +596,63 @@ export default function PackingListBuilderModal({
                 </div>
               </div>
 
-              <button
-                onClick={() => setPickerOpen(true)}
-                className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
-              >
-                <Plus size={13} /> Add a product that is not on any PO
-              </button>
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  onClick={() => setPickerOpen(true)}
+                  className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                >
+                  <Plus size={13} /> Add a product that is not on any PO
+                </button>
+                {!addingOutside ? (
+                  <button
+                    onClick={() => setAddingOutside(true)}
+                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                  >
+                    <Plus size={13} /> Add a line for a PO not in the system
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      value={outsidePo}
+                      onChange={(e) => setOutsidePo(e.target.value)}
+                      placeholder="PO number as written"
+                      className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs outline-none w-48"
+                    />
+                    <button
+                      onClick={() => {
+                        const number = outsidePo.trim();
+                        if (!number) return;
+                        setLines((prev) => [...prev, {
+                          key: `outside-${Date.now()}`,
+                          po_id: null,
+                          po_number: number,
+                          po_number_text: number,
+                          po_item_id: null,
+                          item_code: null,
+                          description: "",
+                          unit: "PCS",
+                          quantity_packed: 1,
+                          remaining: null,
+                          carton_numbers: "",
+                          notes: null,
+                        }]);
+                        setOutsidePo("");
+                        setAddingOutside(false);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => { setOutsidePo(""); setAddingOutside(false); }}
+                      className="text-xs text-gray-400"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                )}
+              </div>
 
               {overPacked.length > 0 && (
                 <p className="text-xs text-amber-600 flex items-center gap-1">
