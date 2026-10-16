@@ -993,14 +993,38 @@ export default function ContainerSiderDrawer({
                           containerId={isEditMode ? formData.container_id : null}
                           initialOrders={formData.linkedOrders || []}
                           onChange={(ids) => setFormData(prev => ({ ...prev, po_ids: ids }))}
+                          onTyped={(text) => setFormData(prev => ({
+                            ...prev,
+                            // One field, so a second typed reference joins the
+                            // first rather than quietly replacing it.
+                            PONo: prev.PONo
+                              ? `${prev.PONo}, ${text}`.slice(0, 45)
+                              : text,
+                          }))}
                         />
                         <p className="text-[10px] text-slate-400 mt-1">
                           Only issued POs with unpacked items appear here. Packing lists for this container are built from these orders.
                         </p>
                         {formData.PONo && (
-                          <p className="text-[10px] text-slate-400 mt-1">
-                            Legacy reference: <span className="font-mono">{formData.PONo}</span>
-                          </p>
+                          <div className="mt-1.5 flex items-start gap-2">
+                            <span className="text-[10px] text-slate-400 shrink-0 pt-1.5">Typed:</span>
+                            <input
+                              type="text"
+                              name="PONo"
+                              value={formData.PONo}
+                              onChange={handleInputChange}
+                              className={`flex-1 px-2 py-1 text-[11px] font-mono rounded-lg border focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                                isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                              }`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, PONo: "" }))}
+                              className="text-[10px] text-slate-400 hover:text-rose-500 pt-1.5"
+                            >
+                              clear
+                            </button>
+                          </div>
                         )}
                       </>
                     ) : (

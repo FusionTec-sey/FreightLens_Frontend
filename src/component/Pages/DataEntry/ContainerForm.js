@@ -528,10 +528,17 @@ function ContainerEntryForm({
                         }
                       }}
                       disabled={!hasEditPermission(permission)}
+                      onTyped={(text) => {
+                        if (!hasEditPermission(permission)) return;
+                        setFormData((prev) => ({
+                          ...prev,
+                          PONo: prev.PONo ? `${prev.PONo}, ${text}`.slice(0, 45) : text,
+                        }));
+                      }}
                     />
                     {formData.PONo && (
                       <p className="text-[10px] text-slate-400 mt-1">
-                        Legacy reference: <span className="font-mono">{formData.PONo}</span>
+                        Typed reference: <span className="font-mono">{formData.PONo}</span>
                       </p>
                     )}
                   </>

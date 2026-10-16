@@ -32,6 +32,9 @@ const POTagSelector = ({
   onChange,
   containerId = null,
   disabled = false,
+  /** Called with the typed text when the search found nothing and the user
+   *  chooses to record it as written. Omit it and no such offer is made. */
+  onTyped = null,
   /** [{id, po_number, company}] from the container payload, so chips have
    *  labels on first paint -- an async select cannot resolve one from an id. */
   initialOrders = [],
@@ -96,10 +99,33 @@ const POTagSelector = ({
     onChange(next.map((o) => o.value));
   };
 
-  const noOptionsMessage = () =>
-    failed
-      ? "Could not reach the order list. Try again."
-      : "No open POs match. Only issued POs with unpacked items appear here.";
+  const noOptionsMessage = ({ inputValue }) => {
+    if (failed) return "Could not reach the order list. Try again.";
+    const typed = (inputValue || "").trim();
+    // Offered only here, once the search has come back empty: a free-text box
+    // beside the picker would invite a typo where a real order was available.
+    if (onTyped && typed) {
+      return (
+        <span className="flex flex-col gap-1.5 items-start text-left">
+          <span>No open PO matches "{typed}".</span>
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onTyped(typed.toUpperCase());
+            }}
+            className="px-2 py-1 rounded-md bg-slate-800 dark:bg-slate-200 dark:text-slate-900 text-white text-[11px] font-semibold"
+          >
+            Use "{typed.toUpperCase()}" as a typed reference
+          </button>
+          <span className="text-[10px] text-slate-400">
+            Recorded as written. It links to nothing and cannot seed a packing list.
+          </span>
+        </span>
+      );
+    }
+    return "No open POs match. Only issued POs with unpacked items appear here.";
+  };
 
   const formatOptionLabel = (option, meta) => {
     const po = option.po || {};
