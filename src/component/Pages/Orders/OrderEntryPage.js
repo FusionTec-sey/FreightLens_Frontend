@@ -47,6 +47,7 @@ import CurrencyInput, { CurrencyDisplay, formatCurrency } from "../../UI/UXCompo
 import TemplatePickerModal from "./TemplatePickerModal";
 import POItemHistoryDrawer from "./POItemHistoryDrawer";
 import POVersionHistoryDrawer from "./POVersionHistoryDrawer";
+import OrderPackingPanel from "./OrderPackingPanel";
 import StageWarningModal from "./StageWarningModal";
 import PriceVarianceModal from "./PriceVarianceModal";
 import POMilestoneModal from "./POMilestoneModal";
@@ -2989,6 +2990,13 @@ export default function OrderEntryPage({
         </div>
 
       </form>
+
+      {/* ── PACKING: WHAT HAS SHIPPED, AND IN WHICH CONTAINERS ─────── */}
+      {isEdit && !isRFQ && (
+        <div className="mt-4">
+          <OrderPackingPanel orderId={orderId} />
+        </div>
+      )}
 
       {/* ── TEMPLATE PICKER MODAL ──────────────────────────────────── */}
       <TemplatePickerModal

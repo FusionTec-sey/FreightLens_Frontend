@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import {
-  FileSpreadsheet, Plus, Search, Eye, X, Container as ContainerIcon,
+  FileSpreadsheet, Plus, Search, Eye, X, Printer, Container as ContainerIcon,
 } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../../../context/ThemeContext";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import PackingListBuilderModal from "./PackingListBuilderModal";
 
@@ -23,6 +24,7 @@ const draftAge = (pl) => {
 
 export default function PackingListsPage() {
   const { theme } = useTheme();
+  const navigate = useNavigate();
 
   const [packingLists, setPackingLists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -206,12 +208,31 @@ export default function PackingListsPage() {
                     </span>
                   </td>
                   <td className="p-3.5 text-right">
-                    <button
-                      onClick={() => setViewingList(pl)}
-                      className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-medium inline-flex items-center gap-1"
-                    >
-                      <Eye size={14} /> View
-                    </button>
+                    <div className="inline-flex gap-1.5">
+                      <button
+                        onClick={() => navigate(`/packing-lists/${pl.id}`)}
+                        className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-medium inline-flex items-center gap-1"
+                      >
+                        <Eye size={14} /> View
+                      </button>
+                      <button
+                        onClick={() =>
+                          window.open(
+                            `${process.env.REACT_APP_NETWORK}/packing-lists/${pl.id}/pdf`,
+                            "_blank",
+                            "noopener"
+                          )
+                        }
+                        title={
+                          (pl.status || "").toUpperCase() === "DRAFT"
+                            ? "Prints with a DRAFT watermark"
+                            : "Print this packing list"
+                        }
+                        className="px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs"
+                      >
+                        <Printer size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

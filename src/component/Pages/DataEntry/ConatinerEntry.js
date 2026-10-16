@@ -100,6 +100,7 @@ export default function ContainerEntry() {
         EmptyAt: c.location || "",
         Status: c.state || "In Transit",
         Material: getMaterialNames(c.materials, materialOptions),
+        PurchaseOrders: c.purchase_orders || [],
         rawData: c
       };
     });
@@ -566,6 +567,14 @@ export default function ContainerEntry() {
                           </span>
                         ) : (
                           <span className="text-slate-400 text-[11px]">-</span>
+                        )}
+                        {row.PurchaseOrders?.length > 0 && (
+                          <span
+                            className="ml-1.5 inline-block px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold"
+                            title={row.PurchaseOrders.map((po) => po.po_number).join(", ")}
+                          >
+                            {row.PurchaseOrders.length} PO{row.PurchaseOrders.length === 1 ? "" : "s"}
+                          </span>
                         )}
                       </td>
 

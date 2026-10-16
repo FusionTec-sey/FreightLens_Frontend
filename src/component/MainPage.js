@@ -32,6 +32,7 @@ import OrderEntryPage from "./Pages/Orders/OrderEntryPage.js";
 import QuoteComparisonPage from "./Pages/Orders/QuoteComparisonPage.js";
 import StoreRequestsPage from "./Pages/Orders/StoreRequestsPage.js";
 import PackingListsPage from "./Pages/Orders/PackingListsPage.js";
+import PackingListDetailPage from "./Pages/Orders/PackingListDetailPage.js";
 import GoodsReceivingPage from "./Pages/Orders/GoodsReceivingPage.js";
 import DamageDefectsPage from "./Pages/Orders/DamageDefectsPage.js";
 import DailyOperationsPage from "./Pages/Orders/DailyOperationsPage.js";
@@ -175,6 +176,7 @@ export default function MainPage() {
             <Route path="/orders/:id/quotes" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["Compare_Quote", "View_VendorQuote", "Administrator"]}><QuoteComparisonPage /></PrivateRoute>} />
             <Route path="/store-requests" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_StoreRequest", "View_Order", "Order"]}><StoreRequestsPage /></PrivateRoute>} />
             <Route path="/packing-lists" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_PackingList", "View_Order", "Order"]}><PackingListsPage /></PrivateRoute>} />
+            <Route path="/packing-lists/:id" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_PackingList", "View_Order", "Order"]}><PackingListDetailPage /></PrivateRoute>} />
             <Route path="/goods-receiving" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_GoodsReceipt", "View_Order", "Order", "Verify_Receipt"]}><GoodsReceivingPage /></PrivateRoute>} />
             <Route path="/damage-defects" element={<PrivateRoute requiredModules={["LOGISTICS", "ORDERS"]} requiredPermissions={["View_Defect", "View_Report", "Report", "View_Order"]}><DamageDefectsPage /></PrivateRoute>} />
             <Route path="/daily-operations" element={<PrivateRoute requiredModules={["ORDERS"]} requiredPermissions={["View_DailyWork", "View_Order", "Order", "Administrator"]}><DailyOperationsPage /></PrivateRoute>} />

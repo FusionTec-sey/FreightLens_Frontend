@@ -34,6 +34,8 @@ import { useOptions } from "../../../hooks/useOptions";
 import GenericSelector from "../../UI/UXComponent/GenericSelector";
 import MaterialTagSelector from "../../UI/UXComponent/TagInput";
 import POTagSelector from "../../UI/UXComponent/POTagSelector";
+import ContainerPackingPanel from "./ContainerPackingPanel";
+import PackingListBuilderModal from "../Orders/PackingListBuilderModal";
 import ContainerContextPanel from "./ContainerContextPanel";
 import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { calculateDemurrage } from "../../../utils/DemurrageUtil";
@@ -63,6 +65,7 @@ export default function ContainerSiderDrawer({
 
   // Active Tab: "container" | "bl" | "documents" | "context"
   const [activeTab, setActiveTab] = useState("container");
+  const [buildingPackingList, setBuildingPackingList] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -1382,6 +1385,10 @@ export default function ContainerSiderDrawer({
           {/* TAB 4: OPERATIONS CONTEXT & PO LINKAGE */}
           {activeTab === "context" && isEditMode && canViewOperations && (
             <div className="space-y-4">
+              <ContainerPackingPanel
+                containerId={formData.container_id}
+                onBuildPackingList={() => setBuildingPackingList(true)}
+              />
               <ContainerContextPanel
                 containerId={formData.container_id}
                 containerNo={formData.containerNo}
@@ -1389,6 +1396,21 @@ export default function ContainerSiderDrawer({
             </div>
           )}
         </div>
+
+        <PackingListBuilderModal
+          open={buildingPackingList}
+          onClose={() => setBuildingPackingList(false)}
+          onSaved={() => setBuildingPackingList(false)}
+          container={
+            formData.container_id
+              ? {
+                  Container_ID: formData.container_id,
+                  container_no: formData.containerNo,
+                  BillOfLanding: formData.BillOfLanding,
+                }
+              : null
+          }
+        />
 
         {/* ── Sticky Sider Footer ───────────────────────────────────────────── */}
         <div className={`shrink-0 flex items-center justify-between px-6 py-4 border-t ${
