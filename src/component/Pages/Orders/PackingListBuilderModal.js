@@ -38,6 +38,7 @@ export default function PackingListBuilderModal({
   // The container picker needs Logistics. Without it the number is typed:
   // the shipment is real even when this tenant holds no container record.
   const hasLogistics = Boolean(hasModule?.("LOGISTICS"));
+  const hasOrders = Boolean(hasModule?.("ORDERS"));
 
   const [container, setContainer] = useState(presetContainer || null);
   const [containerQuery, setContainerQuery] = useState("");
@@ -112,12 +113,17 @@ export default function PackingListBuilderModal({
    * saved lines win on quantity; the seed supplies the ordered and remaining
    * context the grid shows beside them.
    */
-  const seed = useCallback(async (containerId, existing = null) => {
+  const seed = useCallback(async (target, existing = null, poIds = null) => {
     setSeeding(true);
     try {
       const res = await axios.post(
         `${api}/packing-lists/draft-from-container`,
-        { container_id: containerId, packing_list_id: existing?.id || undefined },
+        {
+          container_id: target?.typed ? null : target?.Container_ID,
+          container_no_text: target?.typed ? target.container_no : null,
+          po_ids: poIds || undefined,
+          packing_list_id: existing?.id || undefined,
+        },
         { headers: headers() }
       );
       const data = res.data || {};
@@ -147,7 +153,7 @@ export default function PackingListBuilderModal({
 
       setWarnings(data.warnings || []);
       setLinkedOrders(data.purchase_orders || []);
-      setPoIds((data.purchase_orders || []).map((po) => po.id));
+      if (!poIds) setPoIds((data.purchase_orders || []).map((po) => po.id));
       if (!existing) {
         setHeader((h) => ({ ...h, packing_list_number: data.packing_list_number || h.packing_list_number }));
       }
@@ -183,7 +189,7 @@ export default function PackingListBuilderModal({
         total_cbm: data.total_cbm || "",
         notes: data.notes || "",
       });
-      if (data.container_id) await seed(data.container_id, data);
+      if (data.container_id) await seed({ Container_ID: data.container_id }, data);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Could not open that draft");
       onClose();
@@ -195,22 +201,29 @@ export default function PackingListBuilderModal({
   useEffect(() => {
     if (!open) return;
     if (packingListId) loadExisting(packingListId);
-    else if (container?.Container_ID) seed(container.Container_ID);
+    else if (container?.Container_ID) seed(container);
+    // A typed container seeds nothing yet, but still needs its number and a
+    // clean slate -- otherwise the previous container's number and warning stay.
+    else if (container?.typed) seed(container);
     // container identity changes when it is picked; packingListId is fixed per open
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, packingListId, container?.Container_ID]);
+  }, [open, packingListId, container?.Container_ID, container?.typed]);
 
   const linkAndContinue = async () => {
     if (!container) return;
     setLinking(true);
     try {
-      await axios.put(
-        `${api}/containers/${container.Container_ID}/purchase-orders`,
-        { po_ids: poIds },
-        { headers: headers() }
-      );
-      await seed(container.Container_ID);
-      toast.success("Purchase orders linked");
+      if (!container.typed) {
+        await axios.put(
+          `${api}/containers/${container.Container_ID}/purchase-orders`,
+          { po_ids: poIds },
+          { headers: headers() }
+        );
+      }
+      // A typed container has no record to link through, so the chosen orders
+      // are carried straight into the seed instead.
+      await seed(container, null, container.typed ? poIds : null);
+      toast.success(container.typed ? "Orders added" : "Purchase orders linked");
     } catch (err) {
       toast.error(err.response?.data?.detail || "Could not link those orders");
     } finally {
@@ -409,20 +422,27 @@ export default function PackingListBuilderModal({
           )}
 
           {/* Step 2 — no orders linked */}
-          {container && !container.typed && !seeding && linkedOrders.length === 0 && (
+          {container && !seeding && linkedOrders.length === 0 && hasOrders && (
             <div className="p-4 rounded-xl border border-dashed border-amber-400/60 bg-amber-50/50 dark:bg-amber-900/10 space-y-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle size={16} className="text-amber-500 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold">No purchase orders are linked to this container.</p>
+                  <p className="text-sm font-semibold">
+                    {container.typed
+                      ? "Which purchase orders is this container carrying?"
+                      : "No purchase orders are linked to this container."}
+                  </p>
                   <p className="text-xs text-gray-500">
-                    Link them here and the lines will seed themselves. Only issued POs with unpacked items appear.
+                    {container.typed
+                      ? "The container is only a typed number, so nothing can be linked to it — but the orders are real, and their lines will seed as usual."
+                      : "Link them here and the lines will seed themselves."}
+                    {" "}Only issued POs with unpacked items appear.
                   </p>
                 </div>
               </div>
               <POTagSelector
                 value={poIds}
-                containerId={container.Container_ID}
+                containerId={container.typed ? null : container.Container_ID}
                 onChange={setPoIds}
               />
               <button
@@ -431,7 +451,7 @@ export default function PackingListBuilderModal({
                 className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium inline-flex items-center gap-2"
               >
                 {linking ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                Link &amp; Continue
+                {container.typed ? "Add these orders" : "Link & Continue"}
               </button>
             </div>
           )}
