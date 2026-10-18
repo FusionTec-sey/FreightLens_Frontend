@@ -53,11 +53,15 @@ const paneClass = `${cardClass} flex min-h-0 flex-col overflow-hidden`;
 const paneHeaderClass =
   "shrink-0 border-b border-gray-200 px-4 py-3 dark:border-gray-700";
 
+// Retain the role preview for a future need, but keep the current editor focused
+// on assignment and menu editing. See docs/ARCHITECTURE.md.
+const SHOW_ROLE_PREVIEW = false;
+
 /**
  * Menu Designer — arrange one named menu.
  *
  * Opened from the menu list, for the menu named in the route. Three panes: the
- * tree, the selected item, and a live "view as role" preview.
+ * tree, the selected item, and the roles served by this menu.
  * Pages come from the registry rather than typed URLs, so a menu entry always
  * carries a real route and the permissions that route already enforces.
  *
@@ -97,7 +101,7 @@ export default function MenuDesignerPage() {
       const [registry, detail, roleVisibility] = await Promise.all([
         fetchPageRegistry(),
         fetchMenu(menuId),
-        // The preview is a convenience: losing it must not block the designer.
+        // Role visibility supplies assignments, even while its preview is hidden.
         fetchRoleVisibility().catch(() => []),
       ]);
       setPages(registry.pages);
@@ -376,10 +380,10 @@ export default function MenuDesignerPage() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden p-2 sm:p-4">
-      <div className="shrink-0">
+    <div className="flex h-full min-w-0 flex-col overflow-auto p-3 sm:p-4 xl:overflow-hidden">
+      <div className="shrink-0 [&>div]:mb-3">
         <Link
-          className="mb-2 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400"
+          className="mb-1 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
           to="/admin/menu"
         >
           <ArrowLeft size={15} /> All menus
@@ -412,17 +416,11 @@ export default function MenuDesignerPage() {
           }
           description={
             roleIds.length
-              ? "Served to the roles assigned under Audience. Access itself is set by roles and permissions, not here."
-              : "Not in use: no role is assigned to it, so nobody sees it. Assign roles under Audience."
+              ? "Arrange pages and choose who receives this menu. Page access stays with each role."
+              : "Assign a role under Audience to make this menu available."
           }
           actions={
             <>
-              <button className={secondaryButtonClass} onClick={() => handleAdd(true)} type="button">
-                <FolderPlus size={16} /> Folder
-              </button>
-              <button className={secondaryButtonClass} onClick={() => handleAdd(false)} type="button">
-                <Sparkles size={16} /> Page
-              </button>
               <button className={secondaryButtonClass} onClick={handleLoadDefault} type="button">
                 Load default
               </button>
@@ -456,10 +454,21 @@ export default function MenuDesignerPage() {
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(280px,0.8fr)]">
         {/* Tree */}
         <section className={paneClass}>
           <div className={paneHeaderClass}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Menu items</h2>
+              <div className="flex items-center gap-2">
+                <button className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-gray-300 px-2.5 text-xs font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800" onClick={() => handleAdd(true)} type="button">
+                  <FolderPlus size={15} /> Folder
+                </button>
+                <button className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-gray-300 px-2.5 text-xs font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800" onClick={() => handleAdd(false)} type="button">
+                  <Sparkles size={15} /> Page
+                </button>
+              </div>
+            </div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" htmlFor="menu-name">
               Menu name
             </label>
@@ -471,7 +480,7 @@ export default function MenuDesignerPage() {
               placeholder="Menu name"
               value={name}
             />
-            <p className="mt-2 text-xs opacity-60">
+            <p className="mt-1.5 text-xs opacity-60">
               {draft.length} item{draft.length === 1 ? "" : "s"} · up to {limits.maxDepth} levels
               {isDirty && " · unsaved changes"}
             </p>
@@ -533,15 +542,15 @@ export default function MenuDesignerPage() {
           </div>
         </section>
 
-        {/* Preview */}
+        {/* Audience */}
         <section className={paneClass}>
           <div className={paneHeaderClass}>
             <h2 className="text-sm font-semibold">Audience</h2>
             <p className="mt-0.5 text-xs opacity-60">
-              Who gets this menu, and what they would see
+              Choose which roles receive this menu
             </p>
           </div>
-          <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
+          <div className="min-h-0 flex-1 space-y-3 overflow-auto p-3 sm:p-4">
             {isRoot && (
               <label className="flex min-h-[44px] items-start gap-2.5 rounded-xl border border-gray-200 p-3 text-sm dark:border-gray-700">
                 <input
@@ -553,10 +562,8 @@ export default function MenuDesignerPage() {
                 <span>
                   Share with all companies
                   <span className="block text-xs opacity-60">
-                    Off: only people in {menu?.org_name || "this company"} are
-                    served it. On: its roles are served it in every company, the
-                    way a shared role works. Only shared roles can be assigned to
-                    a shared menu.
+                    Off: only users in {menu?.org_name || "this company"}. On:
+                    applies to every company and can serve shared roles only.
                   </span>
                 </span>
               </label>
@@ -569,20 +576,22 @@ export default function MenuDesignerPage() {
               selectedRoleIds={roleIds}
             />
 
-            <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
-              {roles.length > 0 ? (
-                <MenuPreview
-                  draft={draft}
-                  onSelectRole={setPreviewRoleId}
-                  roles={roles}
-                  selectedRoleId={previewRoleId}
-                />
-              ) : (
-                <p className="py-8 text-center text-xs text-gray-400">
-                  Role preview is unavailable. It needs permission to view roles.
-                </p>
-              )}
-            </div>
+            {SHOW_ROLE_PREVIEW && (
+              <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+                {roles.length > 0 ? (
+                  <MenuPreview
+                    draft={draft}
+                    onSelectRole={setPreviewRoleId}
+                    roles={roles}
+                    selectedRoleId={previewRoleId}
+                  />
+                ) : (
+                  <p className="py-8 text-center text-xs text-gray-400">
+                    Role preview is unavailable. It needs permission to view roles.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </section>
       </div>

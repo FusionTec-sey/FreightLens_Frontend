@@ -31,6 +31,21 @@ BrowserRouter
 
 `PrivateRoute` performs frontend module and permission checks for navigation. These checks are user experience only; the backend must independently enforce every authorization rule.
 
+## Menu Designer
+
+The menu editor presents the menu tree, selected item, and role assignments. The
+"Serves these roles" checkboxes determine which roles receive the menu when it is
+saved; assigning a role can move it from another menu. Page access remains governed
+by role permissions.
+
+`MenuPreview.js` and `previewForRole` remain implemented and tested, but the
+"Preview as role" control is hidden by `SHOW_ROLE_PREVIEW = false` in
+`MenuDesignerPage.js`. It previously showed how the current draft would be filtered
+for a selected role without changing assignments. It is hidden because the current
+workflow has no demonstrated need for a second role selector. Re-enable that switch
+if role-specific visibility checks become a real editing task; keep preview
+selection read-only and separate from assignment.
+
 ## Authentication and Organisations
 
 `AuthContext` stores access and refresh tokens, permissions, roles, user metadata, module subscriptions, plan, and organisation selection in local storage. It schedules token refresh and installs global Axios interceptors.

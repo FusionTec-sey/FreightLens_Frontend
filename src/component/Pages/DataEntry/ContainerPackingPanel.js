@@ -30,6 +30,7 @@ export default function ContainerPackingPanel({ containerId, onBuildPackingList 
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [lists, setLists] = useState([]);
+  const [listCount, setListCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -39,12 +40,13 @@ export default function ContainerPackingPanel({ containerId, onBuildPackingList 
       const [ordersRes, listsRes] = await Promise.all([
         axios.get(`${api}/containers/${containerId}/purchase-orders`, { headers: headers() }),
         axios.get(`${api}/packing-lists`, {
-          params: { container_id: containerId },
+          params: { container_id: containerId, page: 1, limit: 25 },
           headers: headers(),
         }),
       ]);
       setOrders(ordersRes.data?.purchase_orders || []);
-      setLists(listsRes.data || []);
+      setLists(listsRes.data?.items || []);
+      setListCount(listsRes.data?.total || 0);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Could not load packing details");
     } finally {
@@ -156,6 +158,11 @@ export default function ContainerPackingPanel({ containerId, onBuildPackingList 
                   </span>
                 </button>
               ))}
+              {listCount > lists.length && (
+                <button type="button" onClick={() => navigate("/packing-lists")} className="text-xs text-blue-600 hover:underline dark:text-blue-400">
+                  Showing latest {lists.length} of {listCount}. Open packing lists to see more.
+                </button>
+              )}
             </div>
           )}
 

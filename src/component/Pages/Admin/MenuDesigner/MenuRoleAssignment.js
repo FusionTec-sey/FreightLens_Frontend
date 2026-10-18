@@ -43,7 +43,7 @@ export default function MenuRoleAssignment({
         <Users size={14} /> Serves these roles
       </p>
 
-      <div className="mt-2 max-h-40 space-y-0.5 overflow-auto rounded-xl border border-gray-200 p-1.5 dark:border-gray-700">
+      <div className="mt-2 space-y-0.5 rounded-xl border border-gray-200 p-1.5 dark:border-gray-700">
         {roles.map((role) => (
           <label
             className="flex min-h-[36px] items-center gap-2.5 rounded-lg px-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -63,15 +63,14 @@ export default function MenuRoleAssignment({
 
       <p className="mt-1.5 text-xs opacity-60">
         {selected.size === 0
-          ? "No roles assigned, so nobody sees this menu. A role with no menu has no sidebar at all."
-          : `${selected.size} role${selected.size === 1 ? "" : "s"} will be served this menu. A role can only be on one menu, so ticking it here removes it from any other.`}
+          ? "No roles assigned. This menu is not shown to anyone."
+          : `${selected.size} role${selected.size === 1 ? "" : "s"} selected. Saving moves any of these roles from another menu.`}
       </p>
 
       {selected.size > 0 && orgName && (
         <p className="mt-1.5 text-xs opacity-60">
-          Only users whose account sits in <strong>{orgName}</strong> are served
-          this menu. The same role in another company needs a menu of its own
-          there — switch company at the top right to design it.
+          Only users in <strong>{orgName}</strong> receive this menu. Switch company
+          above to set up a menu there.
         </p>
       )}
     </div>

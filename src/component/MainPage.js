@@ -58,6 +58,9 @@ export default function MainPage() {
     document.body.classList.toggle("overflow-hidden", sidebarVisible);
   }, [sidebarVisible]);
   const { theme } = useTheme();
+  const isPackingListsPage = location.pathname === "/packing-lists";
+  const isMenuDesignerPage = location.pathname.startsWith("/admin/menu/");
+  const isContainedPage = isPackingListsPage || isMenuDesignerPage;
   const isFullBleedPage =
     isLoginPage ||
     location.pathname.startsWith("/reports") ||
@@ -104,7 +107,7 @@ export default function MainPage() {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col`} style={{ height: '100vh', overflow: 'hidden' }}>
+      <main className="flex min-w-0 flex-1 flex-col" style={{ height: '100vh', overflow: 'hidden' }}>
         {/* Active organisation and mobile menu */}
         {!isLoginPage && (
           <header className={`px-4 py-2.5 border-b flex items-center justify-between z-40 ${theme.background} ${theme.border}`}>
@@ -119,7 +122,7 @@ export default function MainPage() {
           </header>
         )}
 
-        <div className={`flex-1 ${isFullBleedPage ? 'overflow-y-auto md:overflow-hidden' : 'overflow-y-auto'} min-h-0 flex flex-col ${theme.background} ${theme.text} ${theme.scrollbar} ${isFullBleedPage ? '' : 'p-3 sm:p-4 md:p-6'}`}>
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${isContainedPage ? 'overflow-hidden' : isFullBleedPage ? 'overflow-y-auto md:overflow-hidden' : 'overflow-y-auto'} ${theme.background} ${theme.text} ${theme.scrollbar} ${isFullBleedPage || isContainedPage ? '' : 'p-3 sm:p-4 md:p-6'}`}>
           <Routes>
             <Route path="/" element={<LoginPage />} />
             
