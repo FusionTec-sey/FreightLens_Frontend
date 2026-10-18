@@ -108,3 +108,35 @@ export const fetchOrgMenus = async () => {
   const { data } = await axios.get(`${baseURL}/org-menus`);
   return Array.isArray(data) ? data : [];
 };
+
+/**
+ * A menu as a portable document: the layout, and nothing that identifies
+ * where it came from. No ids, no organisation, no roles.
+ */
+export const exportMenu = async (menuId) => {
+  const { data } = await axios.get(`${baseURL}/menus/${menuId}/export`);
+  return data;
+};
+
+/** What importing this document would do, without doing it. */
+export const previewMenuImport = async (document) => {
+  const { data } = await axios.post(`${baseURL}/menus/import/preview`, { document });
+  return data;
+};
+
+/** Create the menu here. It reaches nobody until a role is assigned to it. */
+export const importMenu = async (document, name = null) => {
+  const { data } = await axios.post(`${baseURL}/menus/import`, { document, name });
+  return data;
+};
+
+/**
+ * Copy this menu into other companies in this installation. Each copy is
+ * independent: editing one never disturbs another.
+ */
+export const copyMenuTo = async (menuId, orgIds) => {
+  const { data } = await axios.post(`${baseURL}/menus/${menuId}/copy-to`, {
+    org_ids: orgIds,
+  });
+  return data;
+};

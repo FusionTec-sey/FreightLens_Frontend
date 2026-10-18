@@ -9,6 +9,9 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  Download,
+  Upload,
+  Copy,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -17,9 +20,12 @@ import { useConfirm } from "../../../../context/ConfirmContext";
 import {
   createMenu,
   deleteMenu,
+  exportMenu,
   fetchMenus,
   fetchOrgMenus,
 } from "../../../../services/navigationApi";
+import MenuImportDialog from "./MenuImportDialog";
+import MenuCopyDialog from "./MenuCopyDialog";
 import {
   PageHeader,
   actionCellClass,
@@ -50,6 +56,8 @@ export default function MenuListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [copying, setCopying] = useState(null);
 
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -106,6 +114,28 @@ export default function MenuListPage() {
     [navigate, newName, seedFromDefault]
   );
 
+  const handleExport = useCallback(async (menu) => {
+    setBusyId(menu.id);
+    try {
+      const doc = await exportMenu(menu.id);
+      const url = window.URL.createObjectURL(
+        new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" })
+      );
+      const link = window.document.createElement("a");
+      link.href = url;
+      const slug = String(menu.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      link.setAttribute("download", `menu-${slug || menu.id}.json`);
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Could not export that menu");
+    } finally {
+      setBusyId(null);
+    }
+  }, []);
+
   const handleDelete = useCallback(
     async (menu) => {
       const servedRoles = menu.role_names?.length
@@ -158,6 +188,16 @@ export default function MenuListPage() {
               <button className={secondaryButtonClass} onClick={load} type="button">
                 <RefreshCw size={16} /> Refresh
               </button>
+              {canManage && (
+                <button
+                  className={secondaryButtonClass}
+                  onClick={() => setImporting(true)}
+                  type="button"
+                  title="Bring in a menu exported from here or from another installation"
+                >
+                  <Upload size={16} /> Import
+                </button>
+              )}
               {canManage && (
                 <button
                   className={buttonClass}
@@ -349,6 +389,27 @@ export default function MenuListPage() {
                         >
                           <Pencil size={16} />
                         </button>
+                        <button
+                          aria-label={`Export ${menu.name}`}
+                          className={editIconButtonClass}
+                          disabled={busyId === menu.id}
+                          onClick={() => handleExport(menu)}
+                          title="Download this menu as a file, to import elsewhere"
+                          type="button"
+                        >
+                          <Download size={16} />
+                        </button>
+                        {canManage && (
+                          <button
+                            aria-label={`Copy ${menu.name} to another company`}
+                            className={editIconButtonClass}
+                            onClick={() => setCopying(menu)}
+                            title="Copy this menu into other companies here"
+                            type="button"
+                          >
+                            <Copy size={16} />
+                          </button>
+                        )}
                         {canManage && (
                           <button
                             aria-label={`Delete ${menu.name}`}
@@ -421,6 +482,19 @@ export default function MenuListPage() {
           </div>
         </details>
       )}
+
+      <MenuImportDialog
+        open={importing}
+        onClose={() => setImporting(false)}
+        onImported={load}
+      />
+
+      <MenuCopyDialog
+        open={Boolean(copying)}
+        menu={copying}
+        onClose={() => setCopying(null)}
+        onCopied={load}
+      />
     </div>
   );
 }
