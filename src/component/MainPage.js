@@ -60,7 +60,7 @@ export default function MainPage() {
   const { theme } = useTheme();
   const isPackingListsPage = location.pathname === "/packing-lists";
   const isMenuDesignerPage = location.pathname.startsWith("/admin/menu/");
-  const isContainedPage = isPackingListsPage || isMenuDesignerPage;
+  const isContainedPage = isPackingListsPage || isMenuDesignerPage || location.pathname === "/settings" || location.pathname.startsWith("/settings/companies");
   const isFullBleedPage =
     isLoginPage ||
     location.pathname.startsWith("/reports") ||

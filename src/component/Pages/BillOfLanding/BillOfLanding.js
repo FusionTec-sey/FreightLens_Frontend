@@ -162,7 +162,7 @@ export default function BillOfLanding() {
 
     try {
       await axios.delete(
-        `${process.env.REACT_APP_NETWORK}/bill-of-landing/${id}`,
+        `${process.env.REACT_APP_NETWORK}/bills-of-lading/${encodeURIComponent(id)}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,

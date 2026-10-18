@@ -373,6 +373,7 @@ function Setting({ currentUser }) {
     const [organisations, setOrganisations] = useState([]);
     const [roles, setRoles] = useState([]);
     const [users, setUsers] = useState([]);
+    const [activeAccessTab, setActiveAccessTab] = useState('users');
     const [rolePermissions, setRolePermissions] = useState([]);
 
     // Delete confirmation state (inline row-level, replaces window.confirm)
@@ -924,26 +925,35 @@ function Setting({ currentUser }) {
     };
 
     return (
-        <div className="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-y-auto max-h-screen pb-24">
+        <div className="flex h-full min-h-0 min-w-0 w-full flex-col gap-3 overflow-hidden bg-gray-50 p-3 text-gray-900 dark:bg-gray-950 dark:text-gray-100 sm:p-4">
             {/* PAGE HEADER */}
-            <div className="border-b border-gray-200 dark:border-gray-800 pb-4">
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">User Access & Role Permissions</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-normal">Manage organization bindings for users and security roles across the system.</p>
+            <div className="shrink-0">
+                <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-2xl">User Access & Role Permissions</h1>
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Manage accounts, organization access, and role permissions.</p>
             </div>
 
-            {/* MAIN 2-COLUMN SIDE-BY-SIDE GRID */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="flex shrink-0 gap-1 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900 2xl:hidden" aria-label="Access settings">
+                <button type="button" aria-pressed={activeAccessTab === 'users'} onClick={() => setActiveAccessTab('users')} className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${activeAccessTab === 'users' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}`}>
+                    Users ({users.length})
+                </button>
+                <button type="button" aria-pressed={activeAccessTab === 'roles'} onClick={() => setActiveAccessTab('roles')} className={`flex-1 rounded-md px-3 py-2 text-sm font-medium ${activeAccessTab === 'roles' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}`}>
+                    Roles ({roles.length})
+                </button>
+            </div>
+
+            {/* Both tables fit on wide screens; smaller viewports show one full-width table. */}
+            <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 2xl:grid-cols-2">
                 
                 {/* USERS TABLE */}
-                <section className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-xs space-y-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-                    <div className="flex justify-between items-center flex-wrap gap-2">
+                <section className={`${activeAccessTab === 'users' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 sm:p-4 2xl:flex`}>
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 pb-3">
                         <div className="flex items-center space-x-2.5">
                             <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
                                 <UserIcon size={18} />
                             </div>
                             <div>
                                 <h2 className="text-base font-semibold text-gray-900 dark:text-white">User Accounts</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-normal">Bind users to tenant organizations.</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{users.length} account{users.length === 1 ? '' : 's'} · organization and role access</p>
                             </div>
                         </div>
                         {canEdit && (
@@ -960,38 +970,38 @@ function Setting({ currentUser }) {
                                     });
                                     setShowAddUserModal(true);
                                 }}
-                                className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 active:scale-95 transition-all text-xs font-semibold shadow-xs cursor-pointer"
+                                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
                             >
                                 <Plus size={15} /> Add User
                             </button>
                         )}
                     </div>
 
-                    <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
-                        <table className="w-full text-xs text-left border-collapse bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-                            <thead className="bg-gray-100 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                    <div className="min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-800">
+                        <table className="w-full min-w-[600px] border-collapse bg-white text-left text-sm text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+                            <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                 <tr>
                                     <th className="p-2.5 font-semibold w-10 text-center text-gray-700 dark:text-gray-300">ID</th>
                                     <th className="p-2.5 font-semibold w-32 text-gray-900 dark:text-white">Username</th>
                                     <th className="p-2.5 font-semibold text-gray-700 dark:text-gray-300">Organization Binding</th>
                                     <th className="p-2.5 font-semibold text-gray-700 dark:text-gray-300">Roles</th>
-                                    {canEdit && <th className="p-2.5 font-semibold text-center w-24 text-gray-700 dark:text-gray-300">Actions</th>}
+                                    {canEdit && <th className="min-w-[112px] p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
                                 {users.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-6 text-gray-500 dark:text-gray-400 font-normal">No users configured</td></tr>
+                                    <tr><td colSpan={canEdit ? 5 : 4} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No users configured</td></tr>
                                 ) : users.map(user => {
                                     return (
                                         <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
                                             <td className="p-2.5 text-center font-mono font-medium text-gray-500 dark:text-gray-400">{user.id}</td>
-                                            <td className="p-2.5 font-semibold text-xs text-gray-900 dark:text-white">
+                                            <td className="p-2.5 font-semibold text-gray-900 dark:text-white">
                                                 {user.username || user.name || `User #${user.id}`}
                                             </td>
-                                            <td className="p-2.5 text-xs font-normal text-gray-600 dark:text-gray-400">
-                                                {(user.org_names || [user.org_name]).join(", ")}
+                                            <td className="p-2.5 text-gray-600 dark:text-gray-300">
+                                                {(user.org_names || [user.org_name]).filter(Boolean).join(", ") || "—"}
                                             </td>
-                                            <td className="p-2.5 text-xs font-normal text-gray-600 dark:text-gray-400">
+                                            <td className="p-2.5 text-gray-600 dark:text-gray-300">
                                                 <div className="flex flex-wrap gap-1">
                                                     {(!user.org_roles || user.org_roles.length === 0) ? (
                                                         <span className="text-gray-400 italic">No roles</span>
@@ -1004,7 +1014,7 @@ function Setting({ currentUser }) {
                                                         ).map(role => (
                                                             <span
                                                                 key={role.key}
-                                                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getRoleBadgeStyle(role.name)}`}
+                                                                className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium ${getRoleBadgeStyle(role.name)}`}
                                                             >
                                                                 {role.name}
                                                             </span>
@@ -1016,27 +1026,27 @@ function Setting({ currentUser }) {
                                                 <td className="p-2.5 text-center">
                                                     {confirmDeleteUserId === user.id ? (
                                                         <div className="flex items-center gap-1.5 justify-center animate-in fade-in duration-100">
-                                                            <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold">Delete?</span>
+                                                            <span className="text-xs font-medium text-red-600 dark:text-red-400">Delete?</span>
                                                             <button
                                                                 onClick={() => executeDeleteUser(user.id)}
-                                                                className="px-1.5 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold hover:bg-red-700 transition cursor-pointer"
+                                                                className="rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700"
                                                             >
                                                                 Yes
                                                             </button>
                                                             <button
                                                                 onClick={() => setConfirmDeleteUserId(null)}
-                                                                className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded text-[10px] font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition cursor-pointer"
+                                                                className="rounded bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                                                             >
                                                                 No
                                                             </button>
                                                         </div>
                                                     ) : (
                                                         <div className="flex justify-center gap-1.5">
-                                                            <button onClick={() => startEditUser(user)} className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition cursor-pointer" title="Edit User">
-                                                                <Pencil size={14} />
+                                                            <button onClick={() => startEditUser(user)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950" title="Edit User" aria-label={`Edit ${user.username || user.name || `user ${user.id}`}`}>
+                                                                <Pencil size={16} />
                                                             </button>
-                                                            <button onClick={() => setConfirmDeleteUserId(user.id)} className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition cursor-pointer" title="Delete User">
-                                                                <Trash2 size={14} />
+                                                            <button onClick={() => setConfirmDeleteUserId(user.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950" title="Delete User" aria-label={`Delete ${user.username || user.name || `user ${user.id}`}`}>
+                                                                <Trash2 size={16} />
                                                             </button>
                                                         </div>
                                                     )}
@@ -1051,40 +1061,40 @@ function Setting({ currentUser }) {
                 </section>
 
                 {/* SECURITY ROLES TABLE */}
-                <section className="rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-xs space-y-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-                    <div className="flex justify-between items-center flex-wrap gap-2">
+                <section className={`${activeAccessTab === 'roles' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 sm:p-4 2xl:flex`}>
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 pb-3">
                         <div className="flex items-center space-x-2.5">
                             <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                                 <Shield size={18} />
                             </div>
                             <div>
                                 <h2 className="text-base font-semibold text-gray-900 dark:text-white">Security Roles</h2>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 font-normal">Click Edit to view or configure cascading role permissions.</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{roles.length} role{roles.length === 1 ? '' : 's'} · edit to manage permissions</p>
                             </div>
                         </div>
                         {canEdit && (
                             <button
                                 onClick={openAddRoleModal}
-                                className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 active:scale-95 transition-all text-xs font-semibold shadow-xs cursor-pointer"
+                                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
                             >
                                 <Plus size={15} /> Add Role
                             </button>
                         )}
                     </div>
 
-                    <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-lg">
-                        <table className="w-full text-xs text-left border-collapse bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-                            <thead className="bg-gray-100 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                    <div className="min-h-0 min-w-0 flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-800">
+                        <table className="w-full min-w-[560px] border-collapse bg-white text-left text-sm text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+                            <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-100 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
                                 <tr>
                                     <th className="p-2.5 font-semibold w-10 text-center text-gray-700 dark:text-gray-300">ID</th>
                                     <th className="p-2.5 font-semibold w-36 text-gray-900 dark:text-white">Role Name</th>
                                     <th className="p-2.5 font-semibold text-gray-700 dark:text-gray-300">Permissions Summary</th>
-                                    {canEdit && <th className="p-2.5 font-semibold text-center w-24 text-gray-700 dark:text-gray-300">Actions</th>}
+                                    {canEdit && <th className="min-w-[112px] p-2.5 text-center font-semibold text-gray-700 dark:text-gray-300">Actions</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
                                 {roles.length === 0 ? (
-                                    <tr><td colSpan={4} className="text-center py-6 text-gray-500 dark:text-gray-400 font-normal">No roles configured</td></tr>
+                                    <tr><td colSpan={canEdit ? 4 : 3} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">No roles configured</td></tr>
                                 ) : roles.map(role => {
                                     const permIds = role.permissions || [];
                                     const visibleCount = permIds.filter(id => {
@@ -1105,31 +1115,31 @@ function Setting({ currentUser }) {
                                     return (
                                         <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
                                             <td className="p-2.5 text-center font-mono font-medium text-gray-500 dark:text-gray-400">{role.id}</td>
-                                            <td className="p-2.5 font-semibold text-xs capitalize text-gray-900 dark:text-white">
+                                            <td className="p-2.5 font-semibold capitalize text-gray-900 dark:text-white">
                                                 {role.name || `Role #${role.id}`}
                                             </td>
-                                            <td className="p-2.5 text-xs">
+                                            <td className="p-2.5">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <span className="font-semibold text-gray-700 dark:text-gray-300 text-[11px]">
-                                                        {visibleCount} active perms
+                                                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                                                        {visibleCount} permission{visibleCount === 1 ? '' : 's'}
                                                     </span>
                                                     {hasAdmin && (
-                                                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800">
+                                                        <span className="rounded border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300">
                                                             ADMIN
                                                         </span>
                                                     )}
                                                     {hasFinancial && (
-                                                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800">
+                                                        <span className="rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300">
                                                             FINANCIAL
                                                         </span>
                                                     )}
                                                     {hasDelete && (
-                                                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800">
+                                                        <span className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300">
                                                             DELETE
                                                         </span>
                                                     )}
                                                     {isReadOnly && (
-                                                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800">
+                                                        <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
                                                             VIEW ONLY
                                                         </span>
                                                     )}
@@ -1139,27 +1149,27 @@ function Setting({ currentUser }) {
                                                 <td className="p-2.5 text-center">
                                                     {confirmDeleteRoleId === role.id ? (
                                                         <div className="flex items-center gap-1.5 justify-center animate-in fade-in duration-100">
-                                                            <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold">Delete?</span>
+                                                            <span className="text-xs font-medium text-red-600 dark:text-red-400">Delete?</span>
                                                             <button
                                                                 onClick={() => executeDeleteRole(role.id)}
-                                                                className="px-1.5 py-0.5 bg-red-600 text-white rounded text-[10px] font-bold hover:bg-red-700 transition cursor-pointer"
+                                                                className="rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700"
                                                             >
                                                                 Yes
                                                             </button>
                                                             <button
                                                                 onClick={() => setConfirmDeleteRoleId(null)}
-                                                                className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded text-[10px] font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition cursor-pointer"
+                                                                className="rounded bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                                                             >
                                                                 No
                                                             </button>
                                                         </div>
                                                     ) : (
                                                         <div className="flex justify-center gap-1.5">
-                                                            <button onClick={() => startEditRole(role)} className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition cursor-pointer" title="Edit Role & Permissions">
-                                                                <Pencil size={14} />
+                                                            <button onClick={() => startEditRole(role)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950" title="Edit Role & Permissions" aria-label={`Edit ${role.name || `role ${role.id}`}`}>
+                                                                <Pencil size={16} />
                                                             </button>
-                                                            <button onClick={() => setConfirmDeleteRoleId(role.id)} className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition cursor-pointer" title="Delete Role">
-                                                                <Trash2 size={14} />
+                                                            <button onClick={() => setConfirmDeleteRoleId(role.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950" title="Delete Role" aria-label={`Delete ${role.name || `role ${role.id}`}`}>
+                                                                <Trash2 size={16} />
                                                             </button>
                                                         </div>
                                                     )}
@@ -1176,52 +1186,57 @@ function Setting({ currentUser }) {
 
             {/* ADD / EDIT USER MODAL */}
             {showAddUserModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-                    <div className="rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl w-full max-w-lg overflow-hidden flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-                        <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+                    <div className="flex h-[calc(100dvh-1rem)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-900 shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 sm:h-[calc(100dvh-2rem)] sm:max-h-[760px]">
+                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800 sm:px-5">
                             <div className="flex items-center space-x-2">
                                 <UserIcon size={18} className="text-blue-600 dark:text-blue-400" />
-                                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                                    {editingUserId ? "Edit User & Organization Access" : "Add New User Account"}
-                                </h3>
+                                <div>
+                                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">{editingUserId ? "Edit User" : "Add User"}</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Account details and organization access</p>
+                                </div>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setShowAddUserModal(false)}
+                                aria-label="Close user form"
                                 className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition cursor-pointer"
                             >
                                 <X size={18} />
                             </button>
                         </div>
                         
-                        <form onSubmit={handleAddUser} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+                        <form onSubmit={handleAddUser} className="flex min-h-0 flex-1 flex-col">
+                          <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-y-auto p-4 sm:p-5 md:grid-cols-2 md:gap-6 md:overflow-hidden">
+                            <div className="space-y-4 md:flex md:min-h-0 md:flex-col md:space-y-0 md:gap-4">
                             <div>
-                                <label className="block text-xs font-medium mb-1.5 text-gray-800 dark:text-gray-200">Username *</label>
+                                <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">Username *</label>
                                 <input
                                     type="text"
                                     required
                                     value={newUser.name}
                                     onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                                    className="w-full px-3.5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400"
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                     placeholder="e.g. parth"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium mb-1.5 text-gray-800 dark:text-gray-200">
-                                    Password {editingUserId ? "(Leave blank to keep current password)" : "*"}
+                                <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">
+                                    Password {!editingUserId && "*"}
                                 </label>
+                                {editingUserId && <p className="mb-1.5 text-xs text-gray-500 dark:text-gray-400">Leave blank to keep the current password.</p>}
                                 <div className="relative flex items-center">
                                     <input
                                         type={showUserPassword ? "text" : "password"}
                                         required={!editingUserId}
                                         value={newUser.password}
                                         onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                                        className="w-full pl-3.5 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400"
+                                        className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-3.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                         placeholder="Enter password"
                                     />
                                     <button
                                         type="button"
-                                        tabIndex="-1"
                                         aria-label={showUserPassword ? "Hide password" : "Show password"}
                                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none p-1 rounded transition cursor-pointer"
                                         onClick={(e) => {
@@ -1236,17 +1251,17 @@ function Setting({ currentUser }) {
                             </div>
 
                             {/* MULTI-ORGANIZATION / TENANT SELECTION */}
-                            <div>
-                                <label className="block text-xs font-medium mb-1 text-gray-800 dark:text-gray-200">
+                            <div className="md:flex md:min-h-0 md:flex-1 md:flex-col">
+                                <label className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-200">
                                     Organization / Tenant Access *
                                 </label>
-                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2 font-normal">Only organizations you are authorized to manage are available.</p>
+                                <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Only organizations you can manage appear here.</p>
                                 
-                                <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 space-y-2.5">
+                                <div className="space-y-2.5 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/40 md:min-h-0 md:flex-1 md:overflow-y-auto">
                                     {organisations.map(org => {
                                         const isSelected = newUser.org_ids.includes(org.id);
                                         return (
-                                            <label key={org.id} className={`flex items-center space-x-2.5 p-2 rounded-lg text-xs cursor-pointer transition ${isSelected ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
+                                            <label key={org.id} className={`flex items-center space-x-2.5 rounded-lg p-2 text-sm cursor-pointer transition ${isSelected ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
@@ -1259,14 +1274,15 @@ function Setting({ currentUser }) {
                                     })}
                                 </div>
                             </div>
+                            </div>
 
                             {/* ROLE SELECTION PER ORGANIZATION */}
-                            <div>
+                            <div className="min-w-0 md:flex md:min-h-0 md:flex-col">
                                 <div className="flex justify-between items-center mb-1.5">
-                                    <label className="block text-xs font-medium text-gray-800 dark:text-gray-200">
+                                    <label className="block text-sm font-medium text-gray-800 dark:text-gray-200">
                                         Assign Roles by Organization
                                     </label>
-                                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
                                         {Object.values(newUser.org_roles).reduce((total, ids) => total + ids.length, 0)} selected
                                     </span>
                                 </div>
@@ -1278,7 +1294,7 @@ function Setting({ currentUser }) {
                                         value={userRoleSearch}
                                         onChange={(e) => setUserRoleSearch(e.target.value)}
                                         placeholder="Search roles..."
-                                        className="w-full pl-8 pr-7 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-8 pr-7 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                     />
                                     {userRoleSearch && (
                                         <button
@@ -1291,7 +1307,7 @@ function Setting({ currentUser }) {
                                     )}
                                 </div>
 
-                                <div className="space-y-3 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg max-h-72 overflow-y-auto bg-gray-50 dark:bg-gray-800/40">
+                                <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-700 dark:bg-gray-800/40 md:min-h-0 md:flex-1 md:overflow-y-auto">
                                     {newUser.org_ids.map(orgId => {
                                         const org = organisations.find(item => item.id === orgId);
                                         const availableRoles = roles.filter(role =>
@@ -1300,13 +1316,13 @@ function Setting({ currentUser }) {
                                         );
                                         return (
                                             <div key={orgId} className="space-y-1.5">
-                                                <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-200">
+                                                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                                                     {org?.display_name || org?.name || `Organization #${orgId}`}
                                                 </p>
                                                 {availableRoles.map(role => {
                                                     const isChecked = (newUser.org_roles[orgId] || []).includes(role.id);
                                                     return (
-                                                        <label key={`${orgId}-${role.id}`} className={`flex items-center space-x-2.5 p-2 rounded-lg text-xs cursor-pointer transition ${isChecked ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
+                                                        <label key={`${orgId}-${role.id}`} className={`flex items-center space-x-2.5 rounded-lg p-2 text-sm cursor-pointer transition ${isChecked ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800' : 'hover:bg-white dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'}`}>
                                                             <input
                                                                 type="checkbox"
                                                                 checked={isChecked}
@@ -1325,17 +1341,18 @@ function Setting({ currentUser }) {
                                 </div>
                             </div>
 
-                            <div className="flex justify-end space-x-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                          </div>
+                            <div className="flex shrink-0 justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-5">
                                 <button
                                     type="button"
                                     onClick={() => setShowAddUserModal(false)}
-                                    className="px-4 py-2 rounded-lg text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
+                                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 active:scale-95 transition shadow-xs cursor-pointer"
+                                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                                 >
                                     {editingUserId ? "Update User" : "Add User"}
                                 </button>
@@ -1347,30 +1364,31 @@ function Setting({ currentUser }) {
 
             {/* ADD / EDIT ROLE MODAL */}
             {showRoleModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4 md:p-6 animate-in fade-in duration-150">
-                    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+                    <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-900 shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 sm:max-h-[calc(100dvh-2rem)]">
                         {/* Header */}
-                        <div className="flex justify-between items-center p-4 sm:px-6 border-b border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-800/60 shrink-0">
+                        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-800 sm:px-5">
                             <div className="flex items-center space-x-2.5">
-                                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                <div className="hidden rounded-lg bg-emerald-100 p-2 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 sm:block">
                                     <Shield size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                                        {editingRoleId ? "Edit Role & Permissions" : "Add New Security Role"}
+                                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                        {editingRoleId ? "Edit Role" : "Add Role"}
                                     </h3>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        Configure role details and grant access by functional section with auto-cascading permissions.
+                                        Name the role and choose its permissions.
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <span className="hidden items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 sm:inline-flex">
                                     {effectiveGrantedPermIds.size} / {visibleRolePermissions.length} active
                                 </span>
                                 <button
                                     type="button"
                                     onClick={handleCloseRoleModal}
+                                    aria-label="Close role form"
                                     className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition cursor-pointer"
                                 >
                                     <X size={18} />
@@ -1380,7 +1398,7 @@ function Setting({ currentUser }) {
 
                         {/* Unsaved Changes Warning Banner */}
                         {showUnsavedWarning && (
-                            <div className="bg-amber-50 dark:bg-amber-950/60 border-b border-amber-200 dark:border-amber-800 p-3 px-6 flex items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 shrink-0 animate-in fade-in duration-100">
+                            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200 sm:px-5">
                                 <div className="flex items-center gap-2">
                                     <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
                                     <span>You have unsaved changes to this role. Are you sure you want to discard them?</span>
@@ -1408,10 +1426,11 @@ function Setting({ currentUser }) {
                         )}
 
                         {/* Scrollable Form Body */}
-                        <form onSubmit={handleAddRole} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                        <form onSubmit={handleAddRole} className="flex min-h-0 flex-1 flex-col">
+                          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
                             {/* Role Name */}
                             <div>
-                                <label className="block text-xs font-semibold mb-1.5 text-gray-800 dark:text-gray-200">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-800 dark:text-gray-200">
                                     Role Name *
                                 </label>
                                 <input
@@ -1419,11 +1438,11 @@ function Setting({ currentUser }) {
                                     required
                                     value={newRoleName}
                                     onChange={(e) => setNewRoleName(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400"
+                                    className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                                     placeholder="e.g. Sourcing Specialist, Warehouse Officer, Auditor"
                                 />
                                 {isSuperAdmin && (
-                                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         Roles are shared across organisations. Choose organisation access when assigning the role to a user.
                                     </p>
                                 )}
@@ -1435,10 +1454,10 @@ function Setting({ currentUser }) {
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-3">
                                     <div>
                                         <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                                            Resource Permissions by Section
+                                            Permissions
                                         </h4>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            Higher actions (Edit, Delete, Manage) auto-grant their implied View access with lock indicators.
+                                            Edit, Delete, and Manage can automatically grant View access.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -1481,8 +1500,8 @@ function Setting({ currentUser }) {
                                         type="text"
                                         value={permSearch}
                                         onChange={(e) => setPermSearch(e.target.value)}
-                                        placeholder="Filter permissions across all sections (e.g. defect, receipt, order, arrival, delete)..."
-                                        className="w-full pl-9 pr-8 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-gray-800"
+                                        placeholder="Search permissions"
+                                        className="w-full rounded-xl border border-gray-300 bg-gray-50 py-2 pl-9 pr-8 text-sm text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800/80 dark:text-white dark:focus:bg-gray-800"
                                     />
                                     {permSearch && (
                                         <button
@@ -1518,18 +1537,20 @@ function Setting({ currentUser }) {
                                             >
                                                 {/* Section Header */}
                                                 <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:px-4 bg-gray-50/60 dark:bg-gray-800/40 border-b border-gray-100 dark:border-gray-800 rounded-t-xl">
-                                                    <div
-                                                        className="flex items-center gap-2.5 cursor-pointer select-none flex-1 min-w-[220px]"
+                                                    <button
+                                                        type="button"
+                                                        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                                                         onClick={() => toggleSectionCollapse(sec.id)}
+                                                        aria-expanded={!isCollapsed}
                                                     >
-                                                        <div className={`p-1.5 rounded-lg border ${sec.badgeColor}`}>
+                                                        <span className={`rounded-lg border p-1.5 ${sec.badgeColor}`}>
                                                             <SecIcon size={16} />
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <h5 className="text-xs font-bold text-gray-900 dark:text-white">
+                                                        </span>
+                                                        <span>
+                                                            <span className="flex items-center gap-2">
+                                                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
                                                                     {sec.title}
-                                                                </h5>
+                                                                </span>
                                                                 <span
                                                                     className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                                                                         isAllSelected
@@ -1541,21 +1562,21 @@ function Setting({ currentUser }) {
                                                                 >
                                                                     {activeCount} / {sec.totalCount} active
                                                                 </span>
-                                                            </div>
+                                                            </span>
                                                             {sec.description && (
-                                                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                                <span className="block text-xs text-gray-500 dark:text-gray-400">
                                                                     {sec.description}
-                                                                </p>
+                                                                </span>
                                                             )}
-                                                        </div>
-                                                    </div>
+                                                        </span>
+                                                    </button>
 
                                                     {/* Section Actions */}
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => selectAllInSection(secPermIds)}
-                                                            className="text-[11px] font-semibold px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition cursor-pointer"
+                                                            className="rounded border border-emerald-300 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/60"
                                                         >
                                                             Select Section
                                                         </button>
@@ -1563,7 +1584,7 @@ function Setting({ currentUser }) {
                                                             type="button"
                                                             onClick={() => clearSection(secPermIds)}
                                                             disabled={isNoneSelected}
-                                                            className="text-[11px] font-semibold px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 transition cursor-pointer"
+                                                            className="rounded border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                                                         >
                                                             Clear
                                                         </button>
@@ -1580,7 +1601,7 @@ function Setting({ currentUser }) {
 
                                                 {/* Section Body (Grid of Permissions with Lock Indicators & Search Highlighting) */}
                                                 {!isCollapsed && (
-                                                    <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                    <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 sm:p-4">
                                                         {sec.permissions.map(p => {
                                                             const isExplicit = newRolePermissions.includes(p.id);
                                                             const impliedReasons = impliedPermissionsMap.get(p.id);
@@ -1599,7 +1620,7 @@ function Setting({ currentUser }) {
                                                                             toast.info(`"${readableName}" is auto-granted (${reasons}). Disable the parent permission to remove.`);
                                                                         }
                                                                     }}
-                                                                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition select-none ${
+                                                                    className={`flex cursor-pointer select-none items-start gap-2.5 rounded-xl border p-2.5 text-sm transition ${
                                                                         isImplied
                                                                             ? 'bg-blue-50/70 text-blue-900 border-blue-300 dark:bg-blue-950/30 dark:text-blue-200 dark:border-blue-700 shadow-2xs'
                                                                             : isExplicit
@@ -1638,16 +1659,16 @@ function Setting({ currentUser }) {
                                                                                 </span>
                                                                             )}
                                                                         </div>
-                                                                        <div className="text-[10px] font-mono text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                                                        <div className="mt-0.5 truncate font-mono text-xs text-gray-500 dark:text-gray-400">
                                                                             {highlightMatch(p.name, permSearch)}
                                                                         </div>
                                                                         {isImplied && (
-                                                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1 font-medium">
+                                                                            <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400">
                                                                                 <Lock size={10} className="shrink-0" /> Auto-granted: {Array.from(impliedReasons).join(", ")}
                                                                             </p>
                                                                         )}
                                                                         {desc && (
-                                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                                                                            <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
                                                                                 {highlightMatch(desc, permSearch)}
                                                                             </p>
                                                                         )}
@@ -1663,12 +1684,12 @@ function Setting({ currentUser }) {
                                 </div>
                             </div>
 
-                            {/* Sticky Modal Footer */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky bottom-0">
+                          </div>
+                            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-5">
                                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                                     <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{effectiveGrantedPermIds.size}</strong> of {visibleRolePermissions.length} active permissions
                                 </span>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center justify-end gap-2">
                                     {editingRoleId && isRoleDirty && (
                                         <button
                                             type="button"
@@ -1677,7 +1698,7 @@ function Setting({ currentUser }) {
                                                 setNewRoleName(originalRoleName);
                                                 toast.info("Reset to saved permissions.");
                                             }}
-                                            className="px-3 py-2 rounded-xl text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer flex items-center gap-1.5"
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                                             title="Revert to last saved permissions"
                                         >
                                             <RotateCcw size={13} />
@@ -1687,13 +1708,13 @@ function Setting({ currentUser }) {
                                     <button
                                         type="button"
                                         onClick={handleCloseRoleModal}
-                                        className="px-4 py-2 rounded-xl text-xs font-medium border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
+                                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 active:scale-95 transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                                     >
                                         <CheckCircle2 size={15} />
                                         {editingRoleId ? "Update Role" : "Add Role"}

@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 
 import { useAuth } from "../../../context/AuthContext";
 import { errorText } from "../../../utils/apiError";
-import { PageHeader, buttonClass, cardClass, settingsPageClass } from "../Orders/OrderUi";
+import { buttonClass, cardClass } from "../Orders/OrderUi";
 
 /**
  * Every company, and how much of each one is set up.
@@ -70,23 +70,21 @@ export default function CompanyListPage() {
   const open = (company) => navigate(`/settings/companies/${company.id}`);
 
   return (
-    <div className={settingsPageClass}>
-      <PageHeader
-        title="Companies"
-        description="Each company and what is set up for it. Open one to manage its details, numbering and print profile."
-      />
-
-      {canCreate && (
-        <div className="mb-4 flex justify-end">
-          <button className={buttonClass} onClick={() => navigate("/settings/companies/new")}>
-            <Plus size={16} />
-            Add company
-          </button>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden bg-gray-50 p-3 text-gray-900 dark:bg-gray-950 dark:text-gray-100 sm:p-4">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Companies</h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Open a company to manage its details, numbering, and print profile.</p>
         </div>
-      )}
+        {canCreate && (
+          <button className={buttonClass} onClick={() => navigate("/settings/companies/new")}>
+            <Plus size={16} /> Add company
+          </button>
+        )}
+      </header>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <div className="shrink-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
           {error}
         </div>
       )}
@@ -98,10 +96,10 @@ export default function CompanyListPage() {
       )}
 
       {!loading && !error && (
-        <section className={`${cardClass} overflow-hidden`}>
-          <div className="overflow-x-auto">
+        <section className={`${cardClass} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
             <table className="w-full min-w-[720px] text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide dark:bg-gray-800/60">
+              <thead className="sticky top-0 z-10 bg-gray-100 text-left text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
                 <tr>
                   <th className="px-4 py-2 font-semibold">Company</th>
                   <th className="px-4 py-2 font-semibold">Users</th>
@@ -113,7 +111,7 @@ export default function CompanyListPage() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {companies.map((company) => (
                   <tr
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    className="cursor-pointer hover:bg-gray-50 focus-visible:bg-blue-50 focus-visible:outline-none dark:hover:bg-gray-800/50 dark:focus-visible:bg-gray-800"
                     key={company.id}
                     onClick={() => open(company)}
                     onKeyDown={(event) => {
@@ -138,7 +136,7 @@ export default function CompanyListPage() {
                         <span className="text-xs opacity-55">{company.code}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">{company.user_count}</td>
+                    <td className="px-4 py-3">{company.user_count ?? 0}</td>
                     <td className="px-4 py-3">{(company.container_count ?? 0).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-x-3 gap-y-1">

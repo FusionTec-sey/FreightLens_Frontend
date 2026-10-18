@@ -9,11 +9,9 @@ import { errorText } from "../../../utils/apiError";
 import { ordersApi } from "../../../services/ordersApi";
 import OrgPrintProfilePanel from "../ReportTemplates/OrgPrintProfilePanel";
 import {
-  PageHeader,
   buttonClass,
   cardClass,
   fieldClass,
-  settingsPageClass,
 } from "../Orders/OrderUi";
 
 /**
@@ -210,7 +208,7 @@ export default function CompanyDetailPage() {
 
   if (loading) {
     return (
-      <div className={settingsPageClass}>
+      <div className="flex h-full items-center justify-center bg-gray-50 p-4 dark:bg-gray-950">
         <p className="flex items-center gap-2 text-sm opacity-60">
           <Loader2 className="animate-spin" size={16} /> Loading company…
         </p>
@@ -219,24 +217,21 @@ export default function CompanyDetailPage() {
   }
 
   return (
-    <div className={settingsPageClass}>
-      <button
-        className="mb-3 flex items-center gap-1.5 text-sm opacity-70 hover:opacity-100"
-        onClick={() => navigate("/settings/companies")}
-      >
-        <ArrowLeft size={15} /> All companies
-      </button>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden bg-gray-50 p-3 text-gray-900 dark:bg-gray-950 dark:text-gray-100 sm:p-4">
+      <header className="shrink-0">
+        <button
+          className="mb-1.5 inline-flex items-center gap-1.5 text-sm text-blue-700 hover:underline dark:text-blue-300"
+          onClick={() => navigate("/settings/companies")}
+        >
+          <ArrowLeft size={15} /> All companies
+        </button>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{isNew ? "New company" : identity.display_name || "Company"}</h1>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          {isNew ? "Create the company, then configure its other settings." : "Manage company details, modules, numbering, and print profile."}
+        </p>
+      </header>
 
-      <PageHeader
-        title={isNew ? "New company" : identity.display_name || "Company"}
-        description={
-          isNew
-            ? "Create the company here, then fill in its numbering and print profile on the tabs that appear."
-            : "Details, numbering and print profile for this company."
-        }
-      />
-
-      <div className="mb-4 flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label="Company settings">
         {tabs.map((tab) => (
           <button
             className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition ${
@@ -245,6 +240,8 @@ export default function CompanyDetailPage() {
                 : "border-transparent opacity-65 hover:opacity-100"
             }`}
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
           >
             <tab.icon size={15} />
@@ -254,14 +251,28 @@ export default function CompanyDetailPage() {
       </div>
 
       {isNew && !canEditIdentity && (
-        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <div className="shrink-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
           Only a root administrator can create a company.
         </div>
       )}
 
+      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${activeTab === "numbering" ? "overflow-hidden" : "overflow-y-auto"}`}>
+
       {activeTab === "identity" && (
-        <section className={`${cardClass} p-4`}>
-          <div className="grid gap-4 md:grid-cols-2">
+        <section className={`${cardClass} shrink-0 p-4 sm:p-5`}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Company details</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{isNew ? "Enter the name and permanent short code." : "Update the display name or status."}</p>
+            </div>
+            {canEditIdentity && (
+              <button className={buttonClass} disabled={saving === "identity" || !identity.display_name.trim()} onClick={saveIdentity}>
+                <Save size={15} />
+                {saving === "identity" ? "Saving…" : isNew ? "Create company" : "Save details"}
+              </button>
+            )}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
             <label className="text-sm">
               <span className="mb-1 block font-medium">Company name</span>
               <input
@@ -290,7 +301,7 @@ export default function CompanyDetailPage() {
               </label>
             )}
             {!isNew && (
-              <label className="flex items-center gap-2 self-end text-sm">
+              <label className="flex min-h-[44px] items-center gap-2 self-end rounded-xl border border-gray-200 px-3 text-sm dark:border-gray-700">
                 <input
                   checked={identity.is_active}
                   className="h-4 w-4"
@@ -304,23 +315,11 @@ export default function CompanyDetailPage() {
               </label>
             )}
           </div>
-          {canEditIdentity && (
-            <div className="mt-4">
-              <button
-                className={buttonClass}
-                disabled={saving === "identity" || !identity.display_name.trim()}
-                onClick={saveIdentity}
-              >
-                <Save size={15} />
-                {saving === "identity" ? "Saving…" : isNew ? "Create company" : "Save details"}
-              </button>
-            </div>
-          )}
         </section>
       )}
 
       {activeTab === "identity" && !isNew && canSeePrint && (
-        <section className={`${cardClass} mt-4 p-4`}>
+        <section className={`${cardClass} mt-3 shrink-0 p-4 sm:p-5`}>
           <OrgPrintProfilePanel
             canEdit={canEditPrint}
             embedded
@@ -331,12 +330,12 @@ export default function CompanyDetailPage() {
       )}
 
       {activeTab === "modules" && (
-        <section className={`${cardClass} p-4`}>
+        <section className={`${cardClass} shrink-0 p-4 sm:p-5`}>
           <p className="mb-3 text-sm opacity-70">
             What this company has subscribed to. Switching one off hides those
             screens for everyone in the company; it does not delete any data.
           </p>
-          <div className="space-y-2">
+          <div className="grid gap-3 lg:grid-cols-3">
             {MODULES.map((module) => (
               <label
                 className="flex items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700"
@@ -376,10 +375,10 @@ export default function CompanyDetailPage() {
       )}
 
       {activeTab === "numbering" && (
-        <section className={`${cardClass} overflow-hidden`}>
-          <div className="overflow-x-auto">
+        <section className={`${cardClass} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
             <table className="w-full min-w-[860px] text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide dark:bg-gray-800/60">
+              <thead className="sticky top-0 z-10 bg-gray-100 text-left text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Document</th>
                   <th className="px-3 py-2 font-semibold">Prefix</th>
@@ -491,7 +490,7 @@ export default function CompanyDetailPage() {
       )}
 
       {activeTab === "users" && (
-        <section className={`${cardClass} p-4 text-sm`}>
+        <section className={`${cardClass} shrink-0 p-4 text-sm`}>
           <p>
             <strong>{company?.user_count ?? 0}</strong> user
             {company?.user_count === 1 ? "" : "s"} belong to this company.
@@ -505,6 +504,7 @@ export default function CompanyDetailPage() {
           </button>
         </section>
       )}
+      </div>
     </div>
   );
 }

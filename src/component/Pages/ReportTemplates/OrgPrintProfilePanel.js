@@ -160,7 +160,7 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null, embedded =
     <button
       type="submit"
       disabled={saving}
-      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
     >
       {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
       Save print profile
@@ -173,7 +173,7 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null, embedded =
         embedded ? "" : "flex-1 overflow-y-auto bg-slate-50 p-6 dark:bg-slate-950"
       }
     >
-      <form onSubmit={save} className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6"}>
+      <form onSubmit={save} className={embedded ? "space-y-4" : "mx-auto max-w-6xl space-y-6"}>
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-800">
           <div>
             <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
@@ -189,7 +189,7 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null, embedded =
           {saveButton}
         </div>
 
-        <section className="space-y-4 border-b border-slate-200 pb-6 dark:border-slate-800">
+        <section className="space-y-3 border-b border-slate-200 pb-4 dark:border-slate-800">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Legal identity</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -215,7 +215,7 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null, embedded =
           </div>
         </section>
 
-        <section className="space-y-4 border-b border-slate-200 pb-6 dark:border-slate-800">
+        <section className="space-y-3 border-b border-slate-200 pb-4 dark:border-slate-800">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Brand assets</h3>
           <div className="grid gap-4 md:grid-cols-3">
             {ASSET_FIELDS.map(([assetType, key, label]) => (
@@ -245,7 +245,7 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null, embedded =
           </div>
         </section>
 
-        <section className="space-y-4 border-b border-slate-200 pb-6 dark:border-slate-800">
+        <section className="space-y-3 border-b border-slate-200 pb-4 dark:border-slate-800">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Document appearance and locale</h3>
           <div className="grid gap-4 md:grid-cols-4">
             <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -272,7 +272,7 @@ export default function OrgPrintProfilePanel({ canEdit, orgId = null, embedded =
           </div>
         </section>
 
-        <section className="space-y-4 border-b border-slate-200 pb-6 dark:border-slate-800">
+        <section className="space-y-3 border-b border-slate-200 pb-4 dark:border-slate-800">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Bank details</h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {BANK_FIELDS.map(([key, label]) => (
