@@ -33,14 +33,20 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../../context/AuthContext';
 
-// Permissions that are basic operational requirements and should NOT clutter the role configuration UI.
-// They are automatically granted behind the scenes whenever container / BL access is enabled.
+// Column-visibility permissions left over from an older scheme that nothing
+// enforces. Hiding them keeps the role screen honest: a checkbox that changes
+// nothing is worse than no checkbox.
+//
+// Anything listed here is also stripped when a role is opened for editing, so a
+// name must only appear here while it is genuinely inert. View_ContainerNo,
+// View_Status and View_Material were removed from this list when they became
+// the view half of a container field class -- leaving them would have made
+// read-only access unreachable, and would have silently dropped the grant the
+// next time anyone edited the role.
 const REDUNDANT_VIEW_PERMISSIONS = new Set([
-    'View_ContainerNo',
     'View_container_no',
     'View_ContainerId',
     'View_ReportId',
-    'View_Status',
     'View_status',
     'View_ContainerType',
     'View_weight',
@@ -51,8 +57,7 @@ const REDUNDANT_VIEW_PERMISSIONS = new Set([
     'View_ArrivalDate',
     'View_UnloadedAtDock',
     'View_InBound',
-    'View_OutBound',
-    'View_Material'
+    'View_OutBound'
 ]);
 
 const PERMISSION_SECTIONS = [
@@ -74,11 +79,15 @@ const PERMISSION_SECTIONS = [
     },
     {
         id: 'container_edits',
-        title: 'Container Field-Level Edit Safeguards',
-        description: 'Strictly control who can alter container numbers, advance statuses, modify demurrage penalty dates, or reassign vendors',
+        title: 'Container Field-Level Access',
+        description: 'Who may see and who may change each group of container fields. Granting View alone shows the field locked; granting Edit allows changing it; granting neither hides it entirely',
         icon: Layers,
         badgeColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
-        match: (n) => /^Edit_(ContainerNo|Status|ArrivalDate|EmptyDate|InBound|OutBound|UnloadedAtDock|EmptyAt|Supplier|Consignee|Tax|PersonalNote|FreeDays|Demurrage|Material|ContainerType|PoNo|Vessal|Shipping|Submit)$/i.test(n)
+        match: (n) =>
+            /^Edit_(ContainerNo|Status|ArrivalDate|EmptyDate|InBound|OutBound|UnloadedAtDock|EmptyAt|Supplier|Consignee|Tax|PersonalNote|FreeDays|Demurrage|Material|ContainerType|PoNo|Vessal|Shipping|Submit)$/i.test(n)
+            // Field classes on the container detail screen, both halves.
+            || /^(View|Edit)_(ContainerTax|ContainerMilestone|ContainerNote)$/i.test(n)
+            || /^View_(ContainerNo|Status|Material)$/i.test(n)
     },
     {
         id: 'container_actions',
