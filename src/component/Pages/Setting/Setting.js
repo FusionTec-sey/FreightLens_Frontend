@@ -447,12 +447,21 @@ function Setting({ currentUser }) {
         return map;
     }, [newRolePermissions, rolePermissions]);
 
-    // Set of all active visible permissions (explicitly selected + auto-implied)
+    // Set of all active visible permissions (explicitly selected + auto-implied).
+    //
+    // Restricted to what the screen actually shows. The cascade runs over the
+    // full permission list, so Edit_X can imply a View_X that is hidden as
+    // inert -- counting those gave totals like "136 of 133 active", because the
+    // denominator only ever counts visible rows. Saving still sends the implied
+    // ids: this set is for display.
     const effectiveGrantedPermIds = useMemo(() => {
-        const set = new Set(newRolePermissions);
-        impliedPermissionsMap.forEach((_, id) => set.add(id));
+        const visibleIds = new Set(visibleRolePermissions.map(p => p.id));
+        const set = new Set(newRolePermissions.filter(id => visibleIds.has(id)));
+        impliedPermissionsMap.forEach((_, id) => {
+            if (visibleIds.has(id)) set.add(id);
+        });
         return set;
-    }, [newRolePermissions, impliedPermissionsMap]);
+    }, [newRolePermissions, impliedPermissionsMap, visibleRolePermissions]);
 
     const isRoleDirty = useMemo(() => {
         if (newRoleName.trim() !== originalRoleName.trim()) return true;
