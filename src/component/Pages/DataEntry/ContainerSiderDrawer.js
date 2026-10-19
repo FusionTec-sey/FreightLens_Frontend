@@ -39,6 +39,29 @@ import PackingListBuilderModal from "../Orders/PackingListBuilderModal";
 import ContainerContextPanel from "./ContainerContextPanel";
 import EntityPrintModal from "../ReportTemplates/EntityPrintModal";
 import { calculateDemurrage } from "../../../utils/DemurrageUtil";
+import useFieldAccess from "../../../utils/useFieldAccess";
+
+/**
+ * One field, gated by what the server granted.
+ *
+ * "hidden" renders nothing, "read" passes locked=true so the input can disable
+ * itself, "edit" is the normal case. Declared at module scope on purpose: a
+ * component defined inside the drawer would be a new type on every render and
+ * would remount its input, losing focus on every keystroke.
+ */
+const FieldGate = ({ mode, className, children }) => {
+  if (mode === "hidden") return null;
+  const locked = mode === "read";
+  return (
+    <div className={className}>
+      {typeof children === "function" ? children(locked) : children}
+    </div>
+  );
+};
+
+/** Shared styling for an input the user may see but not change. */
+const lockedInputClass = (locked) =>
+  locked ? " opacity-60 cursor-not-allowed" : "";
 
 export default function ContainerSiderDrawer({
   isOpen,
@@ -65,6 +88,17 @@ export default function ContainerSiderDrawer({
 
   // Active Tab: "container" | "bl" | "documents" | "context"
   const hasOrders = Boolean(hasModule?.("ORDERS"));
+
+  // Field-level access for this screen. Keys are the names the API uses, not
+  // the form state names, so container_no rather than containerNo.
+  const fields = useFieldAccess("container");
+
+  // A section whose every field is hidden should take its heading with it,
+  // rather than leaving an empty titled box.
+  const MILESTONE_FIELDS = ["in_bound", "unloaded_at_port", "out_bound", "empty_date", "emptied_at", "FreeDays"];
+  const CARGO_FIELDS = ["materials", "po_ids", "tax", "note"];
+  const showMilestones = MILESTONE_FIELDS.some((key) => fields.canSee(key));
+  const showCargo = CARGO_FIELDS.some((key) => fields.canSee(key));
 
   const [activeTab, setActiveTab] = useState("container");
   const [buildingPackingList, setBuildingPackingList] = useState(false);
@@ -486,7 +520,10 @@ export default function ContainerSiderDrawer({
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
 
-    if (!formData.containerNo || !formData.containerNo.trim()) {
+    // Only this user's problem to solve if they are allowed to set it. When the
+    // number is read-only or hidden it is left out of the payload entirely and
+    // the server keeps whatever is already stored.
+    if (fields.canEdit("container_no") && (!formData.containerNo || !formData.containerNo.trim())) {
       toast.error("Container Number is required");
       setActiveTab("container");
       return;
@@ -501,7 +538,12 @@ export default function ContainerSiderDrawer({
     setIsSubmitting(true);
     const payload = new FormData();
 
+    // A field the server will not let this user write is left out of the
+    // payload entirely. Sending it would earn a 403 naming a field they were
+    // never shown, and a read-only field would fail a save that only touched
+    // the editable ones.
     const safeAppend = (key, val) => {
+      if (!fields.canEdit(key)) return;
       if (val !== null && val !== undefined && val !== "" && val !== "null") {
         payload.append(key, val);
       }
@@ -537,16 +579,20 @@ export default function ContainerSiderDrawer({
     }
 
     // Materials
-    (formData.material || []).forEach(matId => {
-      payload.append("materials", matId);
-    });
+    if (fields.canEdit("materials")) {
+      (formData.material || []).forEach(matId => {
+        payload.append("materials", matId);
+      });
+    }
 
     // Linked purchase orders. Always sent, even when empty, so clearing the
     // last chip reads as "no orders" rather than "field untouched".
-    payload.append("po_ids", "");
-    (formData.po_ids || []).forEach(poId => {
-      payload.append("po_ids", poId);
-    });
+    if (fields.canEdit("po_ids")) {
+      payload.append("po_ids", "");
+      (formData.po_ids || []).forEach(poId => {
+        payload.append("po_ids", poId);
+      });
+    }
 
     // File Attachments
     documents.forEach(doc => {
@@ -809,22 +855,30 @@ export default function ContainerSiderDrawer({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">
-                      Container Number <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="containerNo"
-                      value={formData.containerNo}
-                      onChange={handleInputChange}
-                      placeholder="e.g. MSKU1234567"
-                      className={`w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                      required
-                    />
-                  </div>
+                  {/* The number is also in the drawer header, so hiding it here
+                      costs nothing: the user can still tell which container
+                      they are looking at. */}
+                  <FieldGate mode={fields.mode("container_no")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">
+                          Container Number <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="containerNo"
+                          value={formData.containerNo}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          placeholder="e.g. MSKU1234567"
+                          className={`w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                          required
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
                   <div>
                     <label className="block text-xs font-semibold mb-1">Container Type</label>
@@ -857,6 +911,7 @@ export default function ContainerSiderDrawer({
               </div>
 
               {/* Logistics Milestones Grid */}
+              {showMilestones && (
               <div className={`p-4 rounded-2xl border ${
                 isDark ? "bg-slate-950/40 border-slate-800" : "bg-slate-50/60 border-slate-200/80"
               } space-y-4`}>
@@ -868,70 +923,97 @@ export default function ContainerSiderDrawer({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">In-Bound (Port Entry)</label>
-                    <input
-                      type="datetime-local"
-                      name="in_bound"
-                      value={formData.in_bound}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("in_bound")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">In-Bound (Port Entry)</label>
+                        <input
+                          type="datetime-local"
+                          name="in_bound"
+                          value={formData.in_bound}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Unloaded at Port</label>
-                    <input
-                      type="date"
-                      name="unloaded_at_port"
-                      value={formData.unloaded_at_port}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("unloaded_at_port")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Unloaded at Port</label>
+                        <input
+                          type="date"
+                          name="unloaded_at_port"
+                          value={formData.unloaded_at_port}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Out-Bound (Gate Pass / Port Exit)</label>
-                    <input
-                      type="datetime-local"
-                      name="out_bound"
-                      value={formData.out_bound}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("out_bound")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Out-Bound (Gate Pass / Port Exit)</label>
+                        <input
+                          type="datetime-local"
+                          name="out_bound"
+                          value={formData.out_bound}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Empty Date</label>
-                    <input
-                      type="date"
-                      name="empty_date"
-                      value={formData.empty_date}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("empty_date")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Empty Date</label>
+                        <input
+                          type="date"
+                          name="empty_date"
+                          value={formData.empty_date}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Empty Return Venue</label>
-                    <GenericSelector
-                      options={emptyLocations}
-                      value={formData.emptied_at}
-                      onChange={(val) => setFormData(prev => ({ ...prev, emptied_at: val }))}
-                      placeholder="Select Facility/Depot"
-                      addApi="setUnloadVenue"
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("emptied_at")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Empty Return Venue</label>
+                        <GenericSelector
+                          options={emptyLocations}
+                          value={formData.emptied_at}
+                          onChange={(val) => setFormData(prev => ({ ...prev, emptied_at: val }))}
+                          placeholder="Select Facility/Depot"
+                          addApi="setUnloadVenue"
+                          disabled={locked}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
-                  <div>
+                  <FieldGate mode={fields.mode("FreeDays")}>
+                    {(locked) => (
+                      <>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-semibold">Free Days (Container Override)</label>
                       {formData.freeDays !== null && formData.freeDays !== undefined && formData.freeDays !== "" && formData.blFreeDays !== null && Number(formData.freeDays) !== Number(formData.blFreeDays) ? (
@@ -949,19 +1031,26 @@ export default function ContainerSiderDrawer({
                       name="freeDays"
                       value={formData.freeDays ?? ""}
                       onChange={handleInputChange}
+                      disabled={locked}
                       placeholder={`Inherit from B/L (${formData.blFreeDays || 10} days)`}
                       className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
                         isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
+                      }${lockedInputClass(locked)}`}
                     />
                     <p className="text-[10px] text-slate-400 mt-1">
-                      Leave empty to inherit standard manifest allowance ({formData.blFreeDays || 10} days). Enter a number to set an individual exception.
+                      {locked
+                        ? "Set by the demurrage team. You can see the allowance but not change it."
+                        : `Leave empty to inherit standard manifest allowance (${formData.blFreeDays || 10} days). Enter a number to set an individual exception.`}
                     </p>
-                  </div>
+                      </>
+                    )}
+                  </FieldGate>
                 </div>
               </div>
+              )}
 
               {/* Cargo, Purchase Order, and Notes */}
+              {showCargo && (
               <div className={`p-4 rounded-2xl border ${
                 isDark ? "bg-slate-950/40 border-slate-800" : "bg-slate-50/60 border-slate-200/80"
               } space-y-4`}>
@@ -973,16 +1062,21 @@ export default function ContainerSiderDrawer({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold mb-1">Cargo Materials & Categories</label>
-                    <MaterialTagSelector
-                      value={formData.material}
-                      options={materialOptions}
-                      onChange={(ids) => setFormData(prev => ({ ...prev, material: ids }))}
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("materials")} className="sm:col-span-2">
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Cargo Materials & Categories</label>
+                        <MaterialTagSelector
+                          value={formData.material}
+                          options={materialOptions}
+                          onChange={(ids) => setFormData(prev => ({ ...prev, material: ids }))}
+                          disabled={locked}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
-                  <div className="sm:col-span-2">
+                  <FieldGate mode={fields.mode("po_ids")} className="sm:col-span-2">
                     <label className="block text-xs font-semibold mb-1">
                       {hasOrders ? "Linked Purchase Orders" : "PO Reference Number"}
                     </label>
@@ -1044,40 +1138,51 @@ export default function ContainerSiderDrawer({
                         </p>
                       </>
                     )}
-                  </div>
+                  </FieldGate>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Tax Exemption</label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <input
-                        type="checkbox"
-                        id="taxCheckbox"
-                        name="tax"
-                        checked={!!formData.tax}
-                        onChange={handleInputChange}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <label htmlFor="taxCheckbox" className="text-xs text-slate-600 dark:text-slate-300">
-                        Container Subject to Customs Tax / Duty
-                      </label>
-                    </div>
-                  </div>
+                  <FieldGate mode={fields.mode("tax")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Tax Exemption</label>
+                        <div className="flex items-center gap-2 mt-2">
+                          <input
+                            type="checkbox"
+                            id="taxCheckbox"
+                            name="tax"
+                            checked={!!formData.tax}
+                            onChange={handleInputChange}
+                            disabled={locked}
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <label htmlFor="taxCheckbox" className="text-xs text-slate-600 dark:text-slate-300">
+                            Container Subject to Customs Tax / Duty
+                          </label>
+                        </div>
+                      </>
+                    )}
+                  </FieldGate>
 
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold mb-1">Internal Operations Note</label>
-                    <textarea
-                      name="note"
-                      rows={2}
-                      value={formData.note}
-                      onChange={handleInputChange}
-                      placeholder="Add inspection observations, seal numbers, or warehouse instructions..."
-                      className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("note")} className="sm:col-span-2">
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Internal Operations Note</label>
+                        <textarea
+                          name="note"
+                          rows={2}
+                          value={formData.note}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          placeholder="Add inspection observations, seal numbers, or warehouse instructions..."
+                          className={`w-full px-3 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
                 </div>
               </div>
+              )}
             </div>
           )}
 

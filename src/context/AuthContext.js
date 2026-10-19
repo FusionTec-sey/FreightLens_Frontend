@@ -102,6 +102,7 @@ import React, {
   useMemo,
 } from "react";
 import axios from "axios";
+import { resolveFieldMode } from "../utils/fieldAccess";
 
 const AuthContext = createContext();
 
@@ -507,6 +508,15 @@ export const AuthProvider = ({ children }) => {
     fieldClasses: access?.field_classes || [],
     locationIds: access?.location_ids || [],
     hasModule: (mod) => isSuperAdmin || (modules || []).includes(mod),
+    // Field-level access. field_access maps a field class to "read" or "edit";
+    // a class the server left out is hidden. field_registry maps an entity's
+    // field keys to their class, so a screen never hardcodes its own copy.
+    // Visibility here is UX -- the backend redacts hidden fields and refuses
+    // writes it did not grant.
+    fieldAccess: access?.field_access || {},
+    fieldRegistry: access?.field_registry || {},
+    fieldMode: (entity, fieldKey) =>
+      resolveFieldMode(access, entity, fieldKey, { isSuperAdmin }),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
