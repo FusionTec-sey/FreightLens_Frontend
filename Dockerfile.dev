@@ -3,7 +3,20 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+
+# npm install, not npm ci, matching the production Dockerfile for the same tree.
+#
+# `npm ci` here failed with "Exit handler never called!" and *exited 0* while
+# doing it, so Docker cached a layer whose node_modules was 902 empty
+# directories with no .bin. The container then started and died with
+# "react-scripts: not found", which looks nothing like a failed install.
+#
+# The `test` is the point: a half-finished install now fails the build instead
+# of being cached and shipped. Whatever the underlying cause on a given machine
+# -- the npm bug, or the registry being unreachable, which is what it turned
+# out to be here -- the failure is visible at build time.
+RUN npm install --legacy-peer-deps --no-audit --no-fund \
+    && test -x node_modules/.bin/react-scripts
 
 COPY . .
 
