@@ -891,22 +891,32 @@ export default function ContainerSiderDrawer({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Operational Status</label>
-                    <select
-                      name="status"
-                      value={formData.status || ""}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    >
-                      <option value="">Select Status</option>
-                      {(statusOptions || []).map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <FieldGate mode={fields.mode("status")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Operational Status</label>
+                        <select
+                          name="status"
+                          value={formData.status || ""}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          className={`w-full px-3 py-2 text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                        >
+                          <option value="">Select Status</option>
+                          {(statusOptions || []).map(opt => (
+                            <option key={opt.id} value={opt.id}>{opt.name}</option>
+                          ))}
+                        </select>
+                        {locked && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Derived from the port milestones. You can see it but not set it.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </FieldGate>
                 </div>
               </div>
 
@@ -1322,22 +1332,29 @@ export default function ContainerSiderDrawer({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">B/L Master Status</label>
-                    <select
-                      name="blStatus"
-                      value={formData.blStatus || ""}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                        isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
-                      }`}
-                    >
-                      <option value="">Inherit or Select</option>
-                      {(statusOptions || []).map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Same class as the container status: setting it here
+                      cascades to every container on this B/L. */}
+                  <FieldGate mode={fields.mode("bill_of_landing.status")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">B/L Master Status</label>
+                        <select
+                          name="blStatus"
+                          value={formData.blStatus || ""}
+                          onChange={handleInputChange}
+                          disabled={locked}
+                          className={`w-full px-3 py-2 text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
+                            isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-200 text-slate-900"
+                          }${lockedInputClass(locked)}`}
+                        >
+                          <option value="">Inherit or Select</option>
+                          {(statusOptions || []).map(opt => (
+                            <option key={opt.id} value={opt.id}>{opt.name}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </FieldGate>
                 </div>
               </div>
             </div>
