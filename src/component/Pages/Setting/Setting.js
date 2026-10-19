@@ -48,7 +48,6 @@ const REDUNDANT_VIEW_PERMISSIONS = new Set([
     'View_ContainerId',
     'View_ReportId',
     'View_status',
-    'View_ContainerType',
     'View_weight',
     'View_location',
     'View_EmptyAt',
@@ -89,7 +88,7 @@ const PERMISSION_SECTIONS = [
         match: (n) =>
             /^Edit_(ContainerNo|Status|ArrivalDate|EmptyDate|InBound|OutBound|UnloadedAtDock|EmptyAt|Supplier|Consignee|Tax|PersonalNote|FreeDays|Demurrage|Material|ContainerType|PoNo|Vessal|Shipping|Submit)$/i.test(n)
             // Container field classes, both halves of each kept together.
-            || /^(View|Edit)_(ContainerTax|ContainerMilestone|ContainerNote)$/i.test(n)
+            || /^(View|Edit)_(ContainerTax|ContainerMilestone|ContainerNote|ContainerType)$/i.test(n)
             || /^View_(ContainerNo|Status|Material|Demurrage)$/i.test(n)
     },
     {

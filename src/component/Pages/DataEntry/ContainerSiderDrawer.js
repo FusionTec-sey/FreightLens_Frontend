@@ -95,8 +95,10 @@ export default function ContainerSiderDrawer({
 
   // A section whose every field is hidden should take its heading with it,
   // rather than leaving an empty titled box.
+  const IDENTITY_FIELDS = ["container_no", "type", "status"];
   const MILESTONE_FIELDS = ["in_bound", "unloaded_at_port", "out_bound", "empty_date", "emptied_at", "FreeDays"];
   const CARGO_FIELDS = ["materials", "po_ids", "tax", "note"];
+  const showIdentity = IDENTITY_FIELDS.some((key) => fields.canSee(key));
   const showMilestones = MILESTONE_FIELDS.some((key) => fields.canSee(key));
   const showCargo = CARGO_FIELDS.some((key) => fields.canSee(key));
 
@@ -844,6 +846,7 @@ export default function ContainerSiderDrawer({
           {activeTab === "container" && (
             <div className="space-y-6">
               {/* Primary Identity Section */}
+              {showIdentity && (
               <div className={`p-4 rounded-2xl border ${
                 isDark ? "bg-slate-950/40 border-slate-800" : "bg-slate-50/60 border-slate-200/80"
               } space-y-4`}>
@@ -880,16 +883,21 @@ export default function ContainerSiderDrawer({
                     )}
                   </FieldGate>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Container Type</label>
-                    <GenericSelector
-                      options={containerTypes}
-                      value={formData.type}
-                      onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
-                      placeholder="Select Type (20ft, 40ft...)"
-                      addApi="setContainerType"
-                    />
-                  </div>
+                  <FieldGate mode={fields.mode("type")}>
+                    {(locked) => (
+                      <>
+                        <label className="block text-xs font-semibold mb-1">Container Type</label>
+                        <GenericSelector
+                          options={containerTypes}
+                          value={formData.type}
+                          onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
+                          placeholder="Select Type (20ft, 40ft...)"
+                          addApi="setContainerType"
+                          disabled={locked}
+                        />
+                      </>
+                    )}
+                  </FieldGate>
 
                   <FieldGate mode={fields.mode("status")}>
                     {(locked) => (
@@ -919,6 +927,7 @@ export default function ContainerSiderDrawer({
                   </FieldGate>
                 </div>
               </div>
+              )}
 
               {/* Logistics Milestones Grid */}
               {showMilestones && (
