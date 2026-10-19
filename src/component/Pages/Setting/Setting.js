@@ -67,7 +67,10 @@ const PERMISSION_SECTIONS = [
         description: 'Protect vendor identities, importing legal entities, confidential internal notes, pricing, and demurrage penalties from floor staff',
         icon: Lock,
         badgeColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-        match: (n) => /^(View_Supplier|View_Consignee|View_consignee_name|View_PersonalNote|View_Demurrage|View_Tax|Manage_Financials)$/i.test(n)
+        // View_Demurrage moved to the container field-level section, where its
+        // Edit_Demurrage counterpart lives: the pair is one field class and
+        // reads as nonsense split across two sections.
+        match: (n) => /^(View_Supplier|View_Consignee|View_consignee_name|View_PersonalNote|View_Tax|Manage_Financials)$/i.test(n)
     },
     {
         id: 'screen_clutter',
@@ -79,15 +82,15 @@ const PERMISSION_SECTIONS = [
     },
     {
         id: 'container_edits',
-        title: 'Container Field-Level Access',
-        description: 'Who may see and who may change each group of container fields. Granting View alone shows the field locked; granting Edit allows changing it; granting neither hides it entirely',
+        title: 'Container Field-Level Safeguards',
+        description: 'Who may see and who may change each group of container fields. View alone shows the field locked, Edit allows changing it, neither hides it entirely',
         icon: Layers,
         badgeColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
         match: (n) =>
             /^Edit_(ContainerNo|Status|ArrivalDate|EmptyDate|InBound|OutBound|UnloadedAtDock|EmptyAt|Supplier|Consignee|Tax|PersonalNote|FreeDays|Demurrage|Material|ContainerType|PoNo|Vessal|Shipping|Submit)$/i.test(n)
-            // Field classes on the container detail screen, both halves.
+            // Container field classes, both halves of each kept together.
             || /^(View|Edit)_(ContainerTax|ContainerMilestone|ContainerNote)$/i.test(n)
-            || /^View_(ContainerNo|Status|Material)$/i.test(n)
+            || /^View_(ContainerNo|Status|Material|Demurrage)$/i.test(n)
     },
     {
         id: 'container_actions',
