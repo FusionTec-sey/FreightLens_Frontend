@@ -203,8 +203,14 @@ export default function MainPage() {
                 so existing menus, bookmarks and links still land somewhere. */}
             <Route path="/reports" element={<Navigate to="/reports/documents" replace />} />
             <Route path="/reports/templates" element={<Navigate to="/reports/documents" replace />} />
-            <Route path="/reports/documents" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage view="DOCUMENTS" /></PrivateRoute>} />
-            <Route path="/reports/registers" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Order", "View_Container"]}><ReportTemplatesPage view="DATASETS" /></PrivateRoute>} />
+            {/* Not View_Order or View_Container. PrivateRoute matches any one of
+                these, and View_Container is held by everyone who can open the
+                container register, so the template library -- a design surface
+                for print layouts -- was reachable by the whole tenant. Every
+                action on the page is already behind canManage; this stops the
+                page itself being offered to people with nothing to do on it. */}
+            <Route path="/reports/documents" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "Manage_Report_Template", "Toggle_Report_Template", "Manage_Operational_Template"]}><ReportTemplatesPage view="DOCUMENTS" /></PrivateRoute>} />
+            <Route path="/reports/registers" element={<PrivateRoute requiredPermissions={["View_Report", "Report", "View_Operational_Register", "Run_Operational_Register", "Manage_Operational_Template"]}><ReportTemplatesPage view="DATASETS" /></PrivateRoute>} />
             {/* Designing a template is not a viewing right. The server already
                 refuses a save without Manage_Report_Template; admitting a viewer
                 to the designer only taught them that after the work was done. */}

@@ -60,7 +60,22 @@ export default function EntityPrintModal({
   title = "Print Document",
 }) {
   const navigate = useNavigate();
-  const { selectedOrgId, orgId } = useAuth();
+  const { selectedOrgId, orgId, permissions = [], isRoot, user } = useAuth();
+
+  // Whether to offer the Template Library at all. The page behind it is for
+  // designing and activating templates; printing a document is not that job,
+  // and sending someone to a route they are bounced straight off is worse than
+  // not offering the link. Mirrors canManage on ReportTemplatesPage.
+  const canOpenLibrary =
+    Boolean(isRoot) ||
+    Boolean(user?.is_root) ||
+    permissions.includes("View_Report") ||
+    permissions.includes("Report") ||
+    permissions.includes("Manage_Report_Template") ||
+    permissions.includes("Toggle_Report_Template") ||
+    permissions.includes("Manage_Operational_Template") ||
+    permissions.includes("Administrator") ||
+    permissions.includes("admin");
 
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [templates, setTemplates] = useState([]);
@@ -238,14 +253,16 @@ export default function EntityPrintModal({
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                 Templates ({templates.length})
               </span>
-              <button
-                onClick={goToLibrary}
-                className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-                title="Manage templates in the library"
-              >
-                <span>Library</span>
-                <ExternalLink size={11} />
-              </button>
+              {canOpenLibrary && (
+                <button
+                  onClick={goToLibrary}
+                  className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                  title="Manage templates in the library"
+                >
+                  <span>Library</span>
+                  <ExternalLink size={11} />
+                </button>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -261,15 +278,21 @@ export default function EntityPrintModal({
                     <span>No active templates</span>
                   </div>
                   <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-400">
-                    Activate a template for <strong>{entityType}</strong> in the Template Library for this organisation.
+                    {canOpenLibrary ? (
+                      <>Activate a template for <strong>{entityType}</strong> in the Template Library for this organisation.</>
+                    ) : (
+                      <>No template for <strong>{entityType}</strong> is active for this organisation. Ask an administrator to activate one.</>
+                    )}
                   </p>
-                  <button
-                    onClick={goToLibrary}
-                    className="w-full mt-2 py-2 px-3 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition flex items-center justify-center gap-1.5"
-                  >
-                    <span>Open Template Library</span>
-                    <ExternalLink size={12} />
-                  </button>
+                  {canOpenLibrary && (
+                    <button
+                      onClick={goToLibrary}
+                      className="w-full mt-2 py-2 px-3 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition flex items-center justify-center gap-1.5"
+                    >
+                      <span>Open Template Library</span>
+                      <ExternalLink size={12} />
+                    </button>
+                  )}
                 </div>
               ) : (
                 templates.map((tmpl) => {
